@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بريماتكس | المراتب والإسفنج</title>
+  <meta name="description" content="مراتب حائزة على الجوائز وألواح إسفنج بجودة مصنع — تجربة 100 ليلة، توصيل مجاني، وضمان يصل إلى 12 سنة.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛏️</text></svg>">
+</head>
+<body>
+  <div class="promo-bar">تخفيضات الصيف: خصم حتى 30% على المراتب + توصيل مجاني لجميع المناطق</div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="/" class="brand">بريماتكس</a>
+      <nav class="main-nav" id="category-nav" aria-label="التصنيفات"></nav>
+      <button class="cart-button" id="cart-button" aria-label="سلة التسوق">
+        السلة <span class="cart-count" id="cart-count">0</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="collection-hero">
+    <div class="container">
+      <p class="breadcrumb">الرئيسية / <span>المراتب والإسفنج</span></p>
+      <h1>المراتب والإسفنج</h1>
+      <p class="hero-sub">مراتب مصممة لكل أنواع النوم — جرّبها 100 ليلة في بيتك، وإن ما ناسبتك نستلمها ونعيد لك المبلغ كاملاً.</p>
+    </div>
+  </section>
+
+  <div class="trust-bar">
+    <div class="container trust-row">
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg> توصيل مجاني</div>
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg> تجربة 100 ليلة</div>
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg> ضمان حتى 12 سنة</div>
+      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> قسّطها على 4 دفعات</div>
+    </div>
+  </div>
+
+  <main class="container" id="products">
+    <div class="toolbar">
+      <div id="source-badge" class="source-badge" hidden></div>
+    </div>
+    <div class="grid" id="product-grid">
+      <p class="loading">جارٍ تحميل المنتجات…</p>
+    </div>
+  </main>
+
+  <section class="quiz-banner">
+    <div class="container quiz-inner">
+      <div>
+        <h2>محتار أي مرتبة تناسبك؟</h2>
+        <p>قارن بين مراتبنا جنباً إلى جنب واختر ما يناسب نومك.</p>
+      </div>
+      <a href="#compare" class="btn btn-light">قارن المراتب</a>
+    </div>
+  </section>
+
+  <section class="compare-section" id="compare">
+    <div class="container">
+      <h2>قارن المراتب</h2>
+      <div class="table-wrap">
+        <table class="compare-table" id="compare-table"></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="reviews-section">
+    <div class="container">
+      <h2>ماذا يقول عملاؤنا</h2>
+      <div class="reviews-grid">
+        <figure class="review-card">
+          <span class="stars">★★★★★</span>
+          <blockquote>من أول أسبوع اختفى ألم ظهري الصباحي. كنت متردد أطلب مرتبة أونلاين، لكن تجربة الـ 100 ليلة شجعتني — وما ندمت.</blockquote>
+          <figcaption>أم فهد — الرياض · مرتبة رويال الطبية</figcaption>
+        </figure>
+        <figure class="review-card">
+          <span class="stars">★★★★★</span>
+          <blockquote>طلبت يوم الأربعاء ووصلتني الجمعة. التغليف ممتاز ورفعوها لي للدور الثالث بدون أي زيادة.</blockquote>
+          <figcaption>عبدالله — جدة · مرتبة ميموري فوم بلس</figcaption>
+        </figure>
+        <figure class="review-card">
+          <span class="stars">★★★★☆</span>
+          <blockquote>فصّلت لوح إسفنج للمجلس، القص جاء مضبوط بالملّي والكثافة ممتازة. السعر أرخص من المحلات عندنا.</blockquote>
+          <figcaption>سارة — الدمام · لوح إسفنج عالي الكثافة</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq-section">
+    <div class="container">
+      <h2>أسئلة شائعة</h2>
+      <details><summary>كيف تعمل تجربة الـ 100 ليلة؟</summary><p>جرّب مرتبتك في بيتك حتى 100 ليلة. إن لم تناسبك، نستلمها منك ونعيد لك كامل المبلغ — بدون أسئلة.</p></details>
+      <details><summary>كم تستغرق مدة التوصيل؟</summary><p>التوصيل مجاني لجميع المناطق خلال 2-5 أيام عمل، مع خدمة الرفع للدور.</p></details>
+      <details><summary>هل يمكن تقسيط المبلغ؟</summary><p>نعم، قسّط مشترياتك على 4 دفعات بدون فوائد أو رسوم، أو ادفع كاش عند الاستلام.</p></details>
+      <details><summary>ماذا يغطي الضمان؟</summary><p>يغطي الضمان هبوط المرتبة وعيوب التصنيع طوال مدة الضمان (3 إلى 12 سنة حسب المنتج).</p></details>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-brand">بريماتكس</p>
+      <p>© <span id="year"></span> متجر بريماتكس للمراتب والإسفنج — جميع الحقوق محفوظة</p>
+    </div>
+  </footer>
+
+  <!-- Cart drawer -->
+  <div class="overlay" id="overlay" hidden></div>
+  <aside class="cart-drawer" id="cart-drawer" aria-label="سلة التسوق" hidden>
+    <div class="drawer-header">
+      <h2>سلة التسوق</h2>
+      <button class="close-btn" id="close-cart" aria-label="إغلاق">✕</button>
+    </div>
+    <div class="cart-items" id="cart-items"></div>
+    <div class="cart-footer">
+      <div class="cart-total">الإجمالي: <strong id="cart-total">0</strong> ر.س</div>
+      <p class="cart-reassure">توصيل مجاني لجميع المناطق · الدفع عند الاستلام</p>
+      <button class="btn btn-dark btn-block" id="checkout-btn">إتمام الطلب</button>
+    </div>
+  </aside>
+
+  <!-- Checkout modal -->
+  <div class="modal" id="checkout-modal" hidden>
+    <div class="modal-content">
+      <div class="drawer-header">
+        <h2>إتمام الطلب</h2>
+        <button class="close-btn" id="close-checkout" aria-label="إغلاق">✕</button>
+      </div>
+      <form id="checkout-form">
+        <label>الاسم الكامل *<input type="text" name="name" required></label>
+        <label>رقم الجوال *<input type="tel" name="phone" required dir="ltr" placeholder="05xxxxxxxx"></label>
+        <label>البريد الإلكتروني (اختياري — لإرسال تأكيد الطلب)<input type="email" name="email" dir="ltr"></label>
+        <label>المدينة *<input type="text" name="city" required></label>
+        <label>العنوان *<input type="text" name="address" required placeholder="الحي، الشارع، رقم المبنى"></label>
+        <label>ملاحظات<textarea name="note" rows="2" placeholder="مثال: التوصيل مساءً"></textarea></label>
+        <p class="payment-note"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg> لن تدفع شيئاً الآن — الدفع كاش أو شبكة عند الاستلام</p>
+        <button type="submit" class="btn btn-dark btn-block" id="submit-order">تأكيد الطلب</button>
+        <p class="form-reassure">تجربة 100 ليلة · إرجاع مجاني · بدون أي التزام</p>
+      </form>
+      <div id="order-success" hidden>
+        <div class="success-box">
+          <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          <h3>تم استلام طلبك بنجاح!</h3>
+          <p>رقم الطلب: <strong id="order-number" dir="ltr"></strong></p>
+          <p>سيتصل بك فريقنا خلال ساعات العمل لتأكيد موعد التوصيل — لا تحتاج تفعل شيئاً الآن.</p>
+          <button class="btn btn-dark" id="continue-shopping">متابعة التسوق</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
