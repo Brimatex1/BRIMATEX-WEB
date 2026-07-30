@@ -1,5 +1,7 @@
 name: Labeler
-on: [pull_request_target]
+on:
+  pull_request:
+    types: [opened, synchronize]
 
 jobs:
   label:
@@ -10,10 +12,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
 
     - uses: actions/labeler@v4
       with:
-        repo-token: "${{ secrets.GITHUB_TOKEN }}"
-        configuration-path: .github/labeler.yml
+        repo-token: ${{ secrets.GITHUB_TOKEN }}

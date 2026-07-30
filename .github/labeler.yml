@@ -1,14 +1,15 @@
-"server":
+server:
   - src/server.js
   - src/lib/**
+  - .github/workflows/node.js.yml
 
-"documentation":
-  - "*.md"
+documentation:
+  - '*.md'
   - docs/**
 
-"config":
+config:
   - .env.example
-  - .env
+  - .env.example
 
-"data":
+data:
   - src/data/**
