@@ -42,6 +42,25 @@ node server.js
 
 ## 🔗 الربط مع Odoo (خطوات سريعة)
 
+**ملف `.env` المطلوب**:
+```bash
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Odoo Integration (اترك فارغ للوضع التجريبي)
+ODOO_URL=https://yourcompany.odoo.com
+ODOO_DB=yourcompany
+ODOO_USERNAME=admin@company.com
+ODOO_API_KEY=your_api_key_here
+
+# WhatsApp Integration (اختياري)
+TWILIO_ACCOUNT_SID=your_sid
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_WHATSAPP_FROM=whatsapp:+966...
+```
+
+**خطوات الإعداد**:
 ```bash
 # 1. إنشاء ملف البيئة
 cp .env.example .env
@@ -53,36 +72,44 @@ nano .env
 node server.js
 ```
 
-**ملف `.env` المطلوب**:
-```bash
-PORT=3000
-ODOO_URL=https://yourcompany.odoo.com
-ODOO_DB=yourcompany
-ODOO_USERNAME=admin@company.com
-ODOO_API_KEY=your_api_key_here
-```
-
-📖 **للمزيد**: اقرأ [دليل ربط Odoo](./ODOO_SETUP.md)
+📖 **للمزيد**: اقرأ [دليل ربط Odoo](./docs/ODOO_SETUP.md)
 
 ## 💬 رسائل WhatsApp التلقائية
 
-الموقع يرسل فاتورة تلقائية عند كل طلب:
+الموقع يرسل فاتورة تلقائية عند كل طلب جديد.
 
 **وضع Demo** (بدون تكاليف):
 ```bash
 node server.js
-# الرسائل تُطبع في الـ console
+# الرسائل تُطبع في console بدلاً من إرسالها
+[WhatsApp Demo] Would send to +966501234567: ...
 ```
 
 **مع Twilio** (إرسال حقيقي):
 ```bash
-export TWILIO_ACCOUNT_SID="your_sid"
-export TWILIO_AUTH_TOKEN="your_token"
-export TWILIO_WHATSAPP_FROM="whatsapp:+966..."
+# إضافة بيانات Twilio في ملف .env
+TWILIO_ACCOUNT_SID="ACxxxxxxxxxx"
+TWILIO_AUTH_TOKEN="your_token"
+TWILIO_WHATSAPP_FROM="whatsapp:+966..."
+
+# ثم تشغيل الخادم
 node server.js
 ```
 
-📖 **للمزيد**: اقرأ [دليل WhatsApp](./WHATSAPP_SETUP.md)
+**الرسالة المرسلة:**
+```
+🧾 الفاتورة الخاصة بك من بريماتكس
+
+رقم الطلب: DEMO-851095
+رقم الفاتورة: INV-851095
+الحالة: 📋 مسودة
+المبلغ: 2900 ر.س
+
+شكراً لاختيارك بريماتكس 🛏️
+تجربة 100 ليلة · توصيل مجاني · ضمان حتى 12 سنة
+```
+
+📖 **للمزيد**: اقرأ [دليل WhatsApp](./docs/WHATSAPP_SETUP.md)
 
 ## واجهة API
 
@@ -105,6 +132,29 @@ POST /api/orders
 ```
 
 الطلب يُنشأ في أودو كـ **عرض سعر (Quotation)** يمكن لفريق المبيعات تأكيده من لوحة أودو، وتظهر المقاسات المختارة في ملاحظات الطلب.
+
+## 👤 إدارة المستخدمين والجلسات
+
+تم إضافة نظام مدمج لإدارة حسابات المستخدمين وجلساتهم:
+
+**المميزات:**
+- ✅ تسجيل مستخدم جديد بالهاتف
+- ✅ تسجيل دخول آمن بـ SHA256 hashing
+- ✅ جلسات مؤقتة (30 يوم)
+- ✅ إدارة العناوين والمفضلات
+- ✅ تتبع الطلبات
+
+**نقاط النهاية:**
+```
+POST   /api/auth/register      # تسجيل مستخدم جديد
+POST   /api/auth/login         # تسجيل الدخول
+GET    /api/auth/me            # بيانات المستخدم الحالي
+POST   /api/auth/logout        # تسجيل الخروج
+POST   /api/user/addresses     # إضافة عنوان
+DELETE /api/user/addresses/:id # حذف عنوان
+POST   /api/user/wishlist      # إضافة للمفضلة
+DELETE /api/user/wishlist/:id  # حذف من المفضلة
+```
 
 ## 📊 واجهة API
 
@@ -154,28 +204,71 @@ sudo certbot --nginx -d yourdomain.com
 ```
 
 📖 **دلائل النشر**:
-- [🚀 النشر السريع (30 دقيقة)](./QUICK_START.md)
-- [📖 دليل النشر الكامل](./DEPLOYMENT_GUIDE.md)
+- [🚀 النشر السريع (30 دقيقة)](./docs/QUICK_START.md)
+- [📖 دليل النشر الكامل](./docs/DEPLOYMENT_GUIDE.md)
 
 ## 📁 هيكل المشروع
 
 ```
 brimatex-web/
-├── server.js                      # خادم HTTP + API
-├── lib/
-│   ├── odoo.js                   # عميل Odoo JSON-RPC
-│   └── whatsapp.js               # تكامل WhatsApp
-├── public/                        # واجهة المتجر
-│   ├── index.html
-│   ├── app.js
-│   └── styles.css
-├── data/
-│   └── demo-products.json        # منتجات التجربة
-├── QUICK_START.md                # النشر السريع
-├── DEPLOYMENT_GUIDE.md           # دليل النشر المفصل
-├── ODOO_SETUP.md                 # ربط Odoo
-├── WHATSAPP_SETUP.md             # تفعيل WhatsApp
-└── .env.example                  # متغيرات البيئة
+├── server.js                      # نقطة الدخول (يشغل src/server.js)
+├── .env.example                   # متغيرات البيئة
+├── src/
+│   ├── server.js                 # خادم HTTP + API الرئيسي
+│   ├── lib/
+│   │   ├── odoo.js               # عميل Odoo JSON-RPC
+│   │   ├── whatsapp.js           # تكامل WhatsApp (Twilio)
+│   │   └── auth.js               # إدارة المستخدمين والجلسات
+│   ├── public/                   # الملفات الثابتة (HTML/CSS)
+│   │   ├── index.html            # واجهة المتجر
+│   │   └── styles.css            # تصاميم وأنماط
+│   └── data/
+│       ├── demo-products.json    # منتجات التجربة
+│       ├── users.jsonl           # بيانات المستخدمين
+│       ├── sessions.jsonl        # جلسات المستخدمين
+│       └── orders.local.jsonl    # سجل الطلبات المحلي
+├── docs/
+│   ├── QUICK_START.md            # النشر السريع
+│   ├── DEPLOYMENT_GUIDE.md       # دليل النشر المفصل
+│   ├── ODOO_SETUP.md             # ربط Odoo
+│   └── WHATSAPP_SETUP.md         # تفعيل WhatsApp
+└── data/
+    └── demo-products.json        # منتجات التجربة (أصلية)
+```
+
+## 🛠️ التطوير المحلي
+
+### البدء السريع:
+
+```bash
+# 1. استنساخ المشروع
+git clone https://github.com/Brimatex1/BRIMATEX-WEB.git
+cd BRIMATEX-WEB
+
+# 2. إعداد ملف البيئة (اختياري - يعمل بدونه في وضع تجريبي)
+cp .env.example .env
+
+# 3. تشغيل الخادم
+node server.js
+
+# الموقع سيكون متاح على:
+# http://localhost:3000
+```
+
+### مع Odoo:
+
+```bash
+# 1. تحديث ملف .env بيانات Odoo
+cat > .env << EOF
+PORT=3000
+ODOO_URL=https://yourcompany.odoo.com
+ODOO_DB=yourcompany
+ODOO_USERNAME=admin@company.com
+ODOO_API_KEY=your_api_key_here
+EOF
+
+# 2. تشغيل الخادم
+node server.js
 ```
 
 ## ⚙️ الأوامر المهمة
@@ -183,14 +276,22 @@ brimatex-web/
 ```bash
 # تطوير محلي
 node server.js
+# الموقع: http://localhost:3000
+
+# تشغيل الخادم مع إعادة تحميل تلقائية (مع nodemon)
+npx nodemon server.js
 
 # الإنتاج مع PM2
 pm2 start server.js --name brimatex
 pm2 logs brimatex
 pm2 restart brimatex
+pm2 stop brimatex
 
 # اختبار الاتصال بـ Odoo
-curl https://yourdomain.com/api/health
+curl http://localhost:3000/api/health | jq
+
+# اختبار جلب المنتجات
+curl http://localhost:3000/api/products | jq
 
 # مراقبة الأداء
 pm2 monit
@@ -198,11 +299,11 @@ pm2 monit
 
 ## 🎨 التخصيص
 
-- **الاسم والشعار**: `public/index.html`
-- **الألوان والأنماط**: `public/styles.css` (متغيرات `:root`)
-- **العملة**: `public/app.js` (متغير `CURRENCY`)
-- **المنتجات التجريبية**: `data/demo-products.json`
-- **الرسالة البريدية**: `lib/whatsapp.js` (دالة `sendInvoiceViaWhatsApp`)
+- **الاسم والشعار**: `src/public/index.html`
+- **الألوان والأنماط**: `src/public/styles.css` (متغيرات `:root`)
+- **المنتجات التجريبية**: `src/data/demo-products.json`
+- **رسالة WhatsApp**: `src/lib/whatsapp.js` (دالة `sendInvoiceViaWhatsApp`)
+- **بيانات المستخدمين**: `src/data/users.jsonl` (تنسيق JSONL)
 
 ## 🔒 الأمان
 
@@ -232,16 +333,47 @@ pm2 monit
 ## 📞 الدعم والمساعدة
 
 ```bash
-# عرض السجلات
+# عرض السجلات (محلي)
+node server.js
+
+# عرض السجلات (الإنتاج)
 pm2 logs brimatex
 
 # اختبر الاتصال بـ Odoo
-curl https://yourdomain.com/api/health | jq
+curl http://localhost:3000/api/health | jq
 
 # تحقق من الطلبات المحفوظة
-cat data/orders.local.jsonl | jq
+cat src/data/orders.local.jsonl | jq
+
+# تحقق من المستخدمين المسجلين
+cat src/data/users.jsonl | jq
+
+# مسح بيانات المتجر التجريبي
+rm src/data/users.jsonl src/data/sessions.jsonl
+touch src/data/users.jsonl src/data/sessions.jsonl
+```
+
+## 🐛 استكشاف الأخطاء
+
+**المشكلة**: الخادم لا يبدأ
+```bash
+# تحقق من إصدار Node.js (يجب أن يكون 18+)
+node --version
+
+# تحقق من المنافذ المشغولة
+lsof -i :3000
+```
+
+**المشكلة**: لا تظهر المنتجات
+```bash
+# تحقق من .env إن كان مكتملاً
+cat .env
+
+# قم بتشغيل الخادم بدون .env (يستخدم demo mode)
+rm .env
+node server.js
 ```
 
 ---
 
-**النسخة**: 1.0 | **آخر تحديث**: 29 يوليو 2026
+**النسخة**: 1.1 | **آخر تحديث**: 30 يوليو 2026 | **الحالة**: ✅ جاهز للتطوير
