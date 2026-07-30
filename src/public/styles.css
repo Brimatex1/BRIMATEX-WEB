@@ -1,231 +1,280 @@
-// Odoo JSON-RPC client (zero dependencies, Node 18+).
-// Works with Odoo 14+ (Online, Odoo.sh, or self-hosted).
-// Auth: username + API key (Settings > Users > API Keys) or password.
-// WhatsApp integration: Configure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
-
-const ODOO_URL = (process.env.ODOO_URL || '').replace(/\/+$/, '');
-const ODOO_DB = process.env.ODOO_DB || '';
-const ODOO_USERNAME = process.env.ODOO_USERNAME || '';
-const ODOO_API_KEY = process.env.ODOO_API_KEY || '';
-const whatsapp = require('./whatsapp');
-
-let cachedUid = null;
-
-function isConfigured() {
-  return Boolean(ODOO_URL && ODOO_DB && ODOO_USERNAME && ODOO_API_KEY);
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-async function jsonRpc(service, method, args) {
-  const res = await fetch(`${ODOO_URL}/jsonrpc`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      method: 'call',
-      params: { service, method, args },
-      id: Date.now(),
-    }),
-  });
-  if (!res.ok) throw new Error(`Odoo HTTP ${res.status}`);
-  const body = await res.json();
-  if (body.error) {
-    const msg = body.error.data?.message || body.error.message || 'Odoo RPC error';
-    throw new Error(msg);
+:root {
+  --primary: #1a2b7d;
+  --secondary: #f59e0b;
+  --danger: #ef4444;
+  --success: #10b981;
+  --light: #f3f4f6;
+  --dark: #1f2937;
+}
+
+html {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: #fff;
+  color: var(--dark);
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Header */
+.header {
+  background: var(--primary);
+  color: white;
+  padding: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-btn {
+  background: transparent;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+
+.nav-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Main */
+main {
+  min-height: calc(100vh - 180px);
+  padding: 2rem 0;
+}
+
+.section {
+  display: none;
+}
+
+.section.active {
+  display: block;
+}
+
+h2 {
+  margin-bottom: 1.5rem;
+  color: var(--primary);
+}
+
+/* Products Grid */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.product-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: box-shadow 0.3s, transform 0.3s;
+}
+
+.product-card:hover {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+.product-card h3 {
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.product-card .price {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--secondary);
+  margin: 0.5rem 0;
+}
+
+.product-card .sku {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+/* Auth Container */
+.auth-container {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.auth-form {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.auth-form h2 {
+  margin-bottom: 1.5rem;
+}
+
+.auth-form p {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.auth-form a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.auth-form a:hover {
+  text-decoration: underline;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 43, 125, 0.1);
+}
+
+/* User Info */
+.user-info {
+  background: var(--light);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.user-info h2 {
+  color: var(--success);
+  margin-bottom: 1rem;
+}
+
+.user-info p {
+  margin-bottom: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.1s;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.btn-primary:hover {
+  background: #152046;
+}
+
+.btn-secondary {
+  background: #e5e7eb;
+  color: var(--dark);
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background: #d1d5db;
+}
+
+/* Footer */
+.footer {
+  background: var(--primary);
+  color: white;
+  text-align: center;
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header .container {
+    flex-direction: column;
+    gap: 1rem;
   }
-  return body.result;
-}
 
-async function authenticate() {
-  if (cachedUid) return cachedUid;
-  const uid = await jsonRpc('common', 'login', [ODOO_DB, ODOO_USERNAME, ODOO_API_KEY]);
-  if (!uid) throw new Error('Odoo authentication failed: check ODOO_DB / ODOO_USERNAME / ODOO_API_KEY');
-  cachedUid = uid;
-  return uid;
-}
-
-async function executeKw(model, method, args, kwargs = {}) {
-  const uid = await authenticate();
-  return jsonRpc('object', 'execute_kw', [ODOO_DB, uid, ODOO_API_KEY, model, method, args, kwargs]);
-}
-
-// --- Storefront operations -------------------------------------------------
-
-async function fetchProducts() {
-  const fields = [
-    'id', 'name', 'list_price', 'description_sale', 'categ_id',
-    'default_code', 'qty_available', 'list_price_old',
-    'x_rating', 'x_reviews', 'x_firmness', 'x_feel',
-    'x_features', 'x_sizes', 'x_badge', 'image_1024',
-  ];
-  const products = await executeKw(
-    'product.template',
-    'search_read',
-    [[['sale_ok', '=', true], ['active', '=', true]]],
-    {
-      fields: fields.filter((f) => !f.startsWith('x_') || f.includes('_')),
-      order: 'name asc',
-      limit: 200,
-    }
-  );
-  return products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    price: p.list_price,
-    oldPrice: p.list_price_old || null,
-    description: p.description_sale || '',
-    category: Array.isArray(p.categ_id) ? p.categ_id[1] : '',
-    sku: p.default_code || '',
-    inStock: p.qty_available === undefined || p.qty_available > 0,
-    image: `/api/products/${p.id}/image`,
-    rating: p.x_rating || null,
-    reviews: p.x_reviews || null,
-    firmness: p.x_firmness !== undefined ? p.x_firmness : null,
-    feel: p.x_feel || null,
-    features: p.x_features ? (typeof p.x_features === 'string' ? p.x_features.split('\n') : p.x_features) : null,
-    sizes: p.x_sizes ? (typeof p.x_sizes === 'string' ? p.x_sizes.split(',').map((s) => s.trim()) : p.x_sizes) : null,
-    badge: p.x_badge || null,
-  }));
-}
-
-async function fetchProductImage(templateId) {
-  const rows = await executeKw(
-    'product.template',
-    'read',
-    [[templateId], ['image_1024']]
-  );
-  const b64 = rows?.[0]?.image_1024;
-  return b64 ? Buffer.from(b64, 'base64') : null;
-}
-
-async function findOrCreatePartner({ name, phone, email, address, city }) {
-  const domain = email ? [['email', '=', email]] : [['phone', '=', phone]];
-  const existing = await executeKw('res.partner', 'search', [domain], { limit: 1 });
-  if (existing.length) return existing[0];
-  return executeKw('res.partner', 'create', [{
-    name,
-    phone,
-    email: email || false,
-    street: address || false,
-    city: city || false,
-  }]);
-}
-
-// Creates a draft sale.order (quotation) in Odoo and returns { id, name }.
-async function createSaleOrder(customer, items, note) {
-  const partnerId = await findOrCreatePartner(customer);
-
-  // Order lines reference product.product (variants), not product.template.
-  const templateIds = items.map((i) => i.productId);
-  const variants = await executeKw(
-    'product.product',
-    'search_read',
-    [[['product_tmpl_id', 'in', templateIds]]],
-    { fields: ['id', 'product_tmpl_id'] }
-  );
-  const variantByTemplate = new Map(
-    variants.map((v) => [Array.isArray(v.product_tmpl_id) ? v.product_tmpl_id[0] : v.product_tmpl_id, v.id])
-  );
-
-  const orderLines = items.map((item) => {
-    const variantId = variantByTemplate.get(item.productId);
-    if (!variantId) throw new Error(`No product variant found for template ${item.productId}`);
-    return [0, 0, { product_id: variantId, product_uom_qty: item.quantity }];
-  });
-
-  const orderId = await executeKw('sale.order', 'create', [{
-    partner_id: partnerId,
-    order_line: orderLines,
-    note: note || false,
-  }]);
-  const [order] = await executeKw('sale.order', 'read', [[orderId], ['name', 'amount_total']]);
-
-  // Confirm the sale order so invoice can be created
-  await executeKw('sale.order', 'action_confirm', [[orderId]]);
-
-  // Create invoice from confirmed order
-  const invoiceId = await createInvoiceFromOrder(orderId);
-  const [invoice] = await executeKw('account.move', 'read', [[invoiceId], ['name', 'invoice_date', 'state']]);
-
-  const result = {
-    id: orderId,
-    name: order.name,
-    invoiceId: invoiceId,
-    invoiceName: invoice.name,
-    invoiceDate: invoice.invoice_date,
-    invoiceStatus: invoice.state,
-    total: order.amount_total,
-  };
-
-  // Send invoice via WhatsApp (non-blocking, fire-and-forget)
-  whatsapp.sendInvoiceViaWhatsApp(
-    customer.phone,
-    invoice.name,
-    invoice.state,
-    order.amount_total,
-    order.name
-  ).catch(err => console.error('[WhatsApp] Failed to send invoice:', err.message));
-
-  return result;
-}
-
-async function createInvoiceFromOrder(orderId) {
-  // Get sale order context
-  const [order] = await executeKw('sale.order', 'read', [[orderId], ['id', 'partner_id']]);
-
-  // Use Odoo's built-in method to create invoice
-  const invoiceIds = await executeKw('sale.order', '_create_invoices', [[orderId]], {});
-
-  if (!invoiceIds || invoiceIds.length === 0) {
-    throw new Error('Failed to create invoice from sale order');
-  }
-  return invoiceIds[0];
-}
-
-async function getInvoiceStatus(invoiceId) {
-  const [invoice] = await executeKw('account.move', 'read', [[invoiceId], [
-    'name', 'state', 'payment_state', 'amount_total', 'amount_residual', 'invoice_date_due'
-  ]]);
-  return {
-    invoiceId: invoice.id,
-    invoiceName: invoice.name,
-    status: invoice.state,
-    paymentStatus: invoice.payment_state,
-    amountDue: invoice.amount_residual,
-    totalAmount: invoice.amount_total,
-    dueDate: invoice.invoice_date_due,
-    isPaid: invoice.payment_state === 'paid',
-  };
-}
-
-async function recordPayment(invoiceId, amountPaid) {
-  // Mark invoice as paid (for manual payment entry)
-  const now = new Date().toISOString().split('T')[0];
-  const journalId = await executeKw('account.journal', 'search', [
-    [['type', '=', 'cash'], ['company_id.chart_template_id', '!=', False]]
-  ], { limit: 1 });
-
-  if (!journalId || journalId.length === 0) {
-    throw new Error('No cash journal found for payment recording');
+  .products-grid {
+    grid-template-columns: 1fr;
   }
 
-  // Create payment record
-  const paymentId = await executeKw('account.payment', 'create', [{
-    partner_id: (await executeKw('account.move', 'read', [[invoiceId], ['partner_id']]))[0].partner_id[0],
-    amount: amountPaid,
-    payment_type: 'inbound',
-    partner_type: 'customer',
-    journal_id: journalId[0],
-    date: now,
-  }]);
-
-  return { paymentId, recordedAt: now };
+  .nav-btn {
+    width: 100%;
+    text-align: right;
+  }
 }
 
-module.exports = {
-  isConfigured,
-  fetchProducts,
-  fetchProductImage,
-  createSaleOrder,
-  getInvoiceStatus,
-  recordPayment,
-};
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1f2937;
+    color: #f3f4f6;
+  }
+
+  .product-card,
+  .auth-form {
+    background: #374151;
+    border-color: #4b5563;
+  }
+
+  .input {
+    background: #1f2937;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .user-info {
+    background: rgba(26, 43, 125, 0.2);
+  }
+}
