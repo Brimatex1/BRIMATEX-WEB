@@ -1,159 +1,782 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>بريماتكس | المراتب والإسفنج</title>
-  <meta name="description" content="مراتب حائزة على الجوائز وألواح إسفنج بجودة مصنع — تجربة 100 ليلة، توصيل مجاني، وضمان يصل إلى 12 سنة.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛏️</text></svg>">
-</head>
-<body>
-  <div class="promo-bar">تخفيضات الصيف: خصم حتى 30% على المراتب + توصيل مجاني لجميع المناطق</div>
+// Storefront logic: product listing, cart (localStorage), checkout via /api/orders.
 
-  <header class="site-header">
-    <div class="container header-inner">
-      <a href="/" class="brand">بريماتكس</a>
-      <nav class="main-nav" id="category-nav" aria-label="التصنيفات"></nav>
-      <button class="cart-button" id="cart-button" aria-label="سلة التسوق">
-        السلة <span class="cart-count" id="cart-count">0</span>
-      </button>
-    </div>
-  </header>
+const CURRENCY = 'د.ل';
 
-  <section class="collection-hero">
-    <div class="container">
-      <p class="breadcrumb">الرئيسية / <span>المراتب والإسفنج</span></p>
-      <h1>المراتب والإسفنج</h1>
-      <p class="hero-sub">مراتب مصممة لكل أنواع النوم — جرّبها 100 ليلة في بيتك، وإن ما ناسبتك نستلمها ونعيد لك المبلغ كاملاً.</p>
-    </div>
-  </section>
+// SVG placeholder art per category (Lucide outline paths) — no emoji icons.
+const ICON_PATHS = {
+  bed: '<path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8"/><path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/><path d="M12 4v6"/><path d="M2 18h20"/>',
+  layers: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  pillow: '<path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H7v-2a2 2 0 0 0-4 0Z"/><path d="M5 18v2"/><path d="M19 18v2"/>',
+};
+const CATEGORY_ICONS = {
+  'مراتب طبية': 'bed',
+  'مراتب إسفنج': 'bed',
+  'مراتب أطفال': 'bed',
+  'ألواح إسفنج': 'layers',
+  'مخدات': 'pillow',
+  'قواعد أسرّة': 'bed',
+};
 
-  <div class="trust-bar">
-    <div class="container trust-row">
-      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg> توصيل مجاني</div>
-      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg> تجربة 100 ليلة</div>
-      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1 1 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg> ضمان حتى 12 سنة</div>
-      <div class="trust-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg> قسّطها على 4 دفعات</div>
-    </div>
-  </div>
+const DEMO_PRODUCTS = [
+  { id: 1, name: 'مرتبة رويال الطبية', category: 'مراتب طبية', price: 2999, oldPrice: 3999, description: 'مرتبة علاجية بتصميم ألماني متقدم مع طبقات داعمة متعددة', rating: 4.8, reviews: 245, firmness: 75, feel: 'صلبة ومريحة', features: ['دعم كامل للفقرات', 'تهوية فعالة', 'توزيع وزن متساوي', 'مضادة للبكتيريا'], sizes: ['160x200', '180x200', '200x200'], inStock: true, badge: 'الأفضل' },
+  { id: 2, name: 'مرتبة ميموري فوم بلس', category: 'مراتب إسفنج', price: 2299, oldPrice: 2999, description: 'رغوة متذكرة عالية الجودة تلتف حول الجسم', rating: 4.7, reviews: 189, firmness: 50, feel: 'ناعمة وداعمة', features: ['تلتف حول الجسم', 'تقليل الآلام', 'هادئة', 'تهوية جيدة'], sizes: ['160x200', '180x200', '200x200'], inStock: true },
+  { id: 3, name: 'لوح إسفنج عالي الكثافة', category: 'ألواح إسفنج', price: 599, oldPrice: 799, description: 'إسفنج مقطوع بدقة عالية الكثافة للأثاث والتصليحات', rating: 4.6, reviews: 128, firmness: 80, feel: 'صلب جداً', features: ['عالي الكثافة', 'مقص دقيق', 'جودة عالية', 'قابل للتقطيع'], sizes: ['حسب الطلب'], inStock: true, badge: 'جديد' },
+  { id: 4, name: 'وسادة طبية عالية', category: 'مخدات', price: 299, oldPrice: 399, description: 'وسادة معالجة لدعم الرقبة والعمود الفقري', rating: 4.7, reviews: 89, firmness: 60, feel: 'متوازنة', features: ['دعم الرقبة', 'مريحة جداً', 'قابلة للغسل'], sizes: ['قياسي'], inStock: true },
+  { id: 5, name: 'مرتبة بيتا المدمجة', category: 'مراتب إسفنج', price: 1899, oldPrice: 2499, description: 'مرتبة متوسطة مع توازن بين الراحة والدعم', rating: 4.5, reviews: 156, firmness: 55, feel: 'معتدلة', features: ['توازن مثالي', 'تهوية ممتازة', 'عمر طويل'], sizes: ['160x200', '180x200'], inStock: true },
+  { id: 6, name: 'مرتبة أطفال الآمنة', category: 'مراتب أطفال', price: 999, oldPrice: 1299, description: 'مرتبة آمنة وصحية مصممة خصيصاً للأطفال', rating: 4.9, reviews: 203, firmness: 65, feel: 'صلبة وآمنة', features: ['آمنة وصحية', 'تهوية قوية', 'مضادة للحساسية', 'سهلة التنظيف'], sizes: ['120x200', '140x200'], inStock: true, badge: 'الأفضل للأطفال' },
+  { id: 7, name: 'قاعدة سرير حديدية فاخرة', category: 'قواعد أسرّة', price: 1499, oldPrice: 1999, description: 'قاعدة حديدية قوية وفاخرة مع تصميم عصري', rating: 4.6, reviews: 95, firmness: 70, feel: 'داعمة وقوية', features: ['تصميم عصري', 'متانة عالية', 'توزيع وزن متساوي', 'تركيب سهل'], sizes: ['160x200', '180x200', '200x200'], inStock: true },
+  { id: 8, name: 'وسادة إسفنج ناعمة', category: 'مخدات', price: 199, oldPrice: 299, description: 'وسادة إسفنج ناعمة وخفيفة للراحة الإضافية', rating: 4.4, reviews: 112, firmness: 40, feel: 'ناعمة جداً', features: ['ناعمة وخفيفة', 'قابلة للغسل', 'طويلة العمر'], sizes: ['قياسي'], inStock: true },
+  { id: 9, name: 'مرتبة Hotéll الفاخرة', category: 'مراتب طبية', price: 3500, oldPrice: 4500, description: 'مرتبة فاخرة من Hotéll مع تقنيات متطورة لراحة عالية', rating: 4.9, reviews: 487, firmness: 72, feel: 'فاخرة وداعمة', features: ['تقنية متطورة', 'راحة فائقة', 'عمر طويل جداً', 'ضمان ممتاز'], sizes: ['160x200', '180x200', '200x200'], inStock: true, badge: 'فاخر' },
+  { id: 10, name: 'لوح إسفنج متوسط', category: 'ألواح إسفنج', price: 399, oldPrice: 599, description: 'لوح إسفنج متوسط الكثافة للاستخدامات المتعددة', rating: 4.5, reviews: 74, firmness: 65, feel: 'متوازن', features: ['متوسط الكثافة', 'مرن', 'جودة جيدة'], sizes: ['حسب الطلب'], inStock: true },
+  { id: 11, name: 'مرتبة بريميوم جل', category: 'مراتب إسفنج', price: 2799, oldPrice: 3699, description: 'مرتبة بريميوم مع تقنية الجل المبردة للنوم البارد', rating: 4.8, reviews: 267, firmness: 60, feel: 'باردة ومريحة', features: ['تقنية جل مبردة', 'تهوية عالية', 'تقليل الحرارة', 'راحة فائقة'], sizes: ['160x200', '180x200', '200x200'], inStock: true, badge: 'التقنية الحديثة' },
+  { id: 12, name: 'وسادة تقويم فقري', category: 'مخدات', price: 399, oldPrice: 599, description: 'وسادة متخصصة لتقويم الفقرات العنقية والعمود الفقري', rating: 4.7, reviews: 156, firmness: 70, feel: 'طبية وداعمة', features: ['تقويم فقري', 'دعم طبي', 'مريحة', 'قابلة للغسل'], sizes: ['قياسي'], inStock: false },
+];
 
-  <main class="container" id="products">
-    <div class="toolbar">
-      <div id="source-badge" class="source-badge" hidden></div>
-    </div>
-    <div class="grid" id="product-grid">
-      <p class="loading">جارٍ تحميل المنتجات…</p>
-    </div>
-  </main>
+function categoryArt(category) {
+  const paths = ICON_PATHS[CATEGORY_ICONS[category]] || ICON_PATHS.bed;
+  const span = document.createElement('span');
+  span.className = 'placeholder-art';
+  span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  return span;
+}
 
-  <section class="quiz-banner">
-    <div class="container quiz-inner">
-      <div>
-        <h2>محتار أي مرتبة تناسبك؟</h2>
-        <p>قارن بين مراتبنا جنباً إلى جنب واختر ما يناسب نومك.</p>
-      </div>
-      <a href="#compare" class="btn btn-light">قارن المراتب</a>
-    </div>
-  </section>
+let allProducts = [];
+let activeCategory = null;
+let cart = loadCart();
+let searchQuery = '';
+let currentUser = null;
 
-  <section class="compare-section" id="compare">
-    <div class="container">
-      <h2>قارن المراتب</h2>
-      <div class="table-wrap">
-        <table class="compare-table" id="compare-table"></table>
-      </div>
-    </div>
-  </section>
+const $ = (id) => document.getElementById(id);
 
-  <section class="reviews-section">
-    <div class="container">
-      <h2>ماذا يقول عملاؤنا</h2>
-      <div class="reviews-grid">
-        <figure class="review-card">
-          <span class="stars">★★★★★</span>
-          <blockquote>من أول أسبوع اختفى ألم ظهري الصباحي. كنت متردد أطلب مرتبة أونلاين، لكن تجربة الـ 100 ليلة شجعتني — وما ندمت.</blockquote>
-          <figcaption>أم فهد — الرياض · مرتبة رويال الطبية</figcaption>
-        </figure>
-        <figure class="review-card">
-          <span class="stars">★★★★★</span>
-          <blockquote>طلبت يوم الأربعاء ووصلتني الجمعة. التغليف ممتاز ورفعوها لي للدور الثالث بدون أي زيادة.</blockquote>
-          <figcaption>عبدالله — جدة · مرتبة ميموري فوم بلس</figcaption>
-        </figure>
-        <figure class="review-card">
-          <span class="stars">★★★★☆</span>
-          <blockquote>فصّلت لوح إسفنج للمجلس، القص جاء مضبوط بالملّي والكثافة ممتازة. السعر أرخص من المحلات عندنا.</blockquote>
-          <figcaption>سارة — الدمام · لوح إسفنج عالي الكثافة</figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
+function loadSession() {
+  try { return localStorage.getItem('authToken'); } catch { return null; }
+}
+function saveSession(token) {
+  if (token) localStorage.setItem('authToken', token);
+  else localStorage.removeItem('authToken');
+}
 
-  <section class="faq-section">
-    <div class="container">
-      <h2>أسئلة شائعة</h2>
-      <details><summary>كيف تعمل تجربة الـ 100 ليلة؟</summary><p>جرّب مرتبتك في بيتك حتى 100 ليلة. إن لم تناسبك، نستلمها منك ونعيد لك كامل المبلغ — بدون أسئلة.</p></details>
-      <details><summary>كم تستغرق مدة التوصيل؟</summary><p>التوصيل مجاني لجميع المناطق خلال 2-5 أيام عمل، مع خدمة الرفع للدور.</p></details>
-      <details><summary>هل يمكن تقسيط المبلغ؟</summary><p>نعم، قسّط مشترياتك على 4 دفعات بدون فوائد أو رسوم، أو ادفع كاش عند الاستلام.</p></details>
-      <details><summary>ماذا يغطي الضمان؟</summary><p>يغطي الضمان هبوط المرتبة وعيوب التصنيع طوال مدة الضمان (3 إلى 12 سنة حسب المنتج).</p></details>
-    </div>
-  </section>
+async function fetchWithAuth(url, options = {}) {
+  const token = loadSession();
+  const headers = { ...options.headers };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(url, { ...options, headers });
+  if (res.status === 401) {
+    currentUser = null;
+    saveSession(null);
+    updateUserMenu();
+  }
+  return res;
+}
 
-  <footer class="site-footer">
-    <div class="container">
-      <p class="footer-brand">بريماتكس</p>
-      <p>© <span id="year"></span> متجر بريماتكس للمراتب والإسفنج — جميع الحقوق محفوظة</p>
-    </div>
-  </footer>
+function loadSearchHistory() {
+  try { return JSON.parse(localStorage.getItem('searchHistory') || '[]'); } catch { return []; }
+}
+function saveSearchHistory(query) {
+  if (!query.trim()) return;
+  let history = loadSearchHistory();
+  history = history.filter((h) => h.toLowerCase() !== query.toLowerCase());
+  history.unshift(query);
+  history = history.slice(0, 10);
+  localStorage.setItem('searchHistory', JSON.stringify(history));
+}
 
-  <!-- Cart drawer -->
-  <div class="overlay" id="overlay" hidden></div>
-  <aside class="cart-drawer" id="cart-drawer" aria-label="سلة التسوق" hidden>
-    <div class="drawer-header">
-      <h2>سلة التسوق</h2>
-      <button class="close-btn" id="close-cart" aria-label="إغلاق">✕</button>
-    </div>
-    <div class="cart-items" id="cart-items"></div>
-    <div class="cart-footer">
-      <div class="cart-total">الإجمالي: <strong id="cart-total">0</strong> ر.س</div>
-      <p class="cart-reassure">توصيل مجاني لجميع المناطق · الدفع عند الاستلام</p>
-      <button class="btn btn-dark btn-block" id="checkout-btn">إتمام الطلب</button>
-    </div>
-  </aside>
+function loadCart() {
+  try { return JSON.parse(localStorage.getItem('cart') || '[]'); } catch { return []; }
+}
+function saveCart() {
+  localStorage.setItem('cart', JSON.stringify(cart));
+  renderCart();
+}
 
-  <!-- Checkout modal -->
-  <div class="modal" id="checkout-modal" hidden>
-    <div class="modal-content">
-      <div class="drawer-header">
-        <h2>إتمام الطلب</h2>
-        <button class="close-btn" id="close-checkout" aria-label="إغلاق">✕</button>
-      </div>
-      <form id="checkout-form">
-        <label>الاسم الكامل *<input type="text" name="name" required></label>
-        <label>رقم الجوال *<input type="tel" name="phone" required dir="ltr" placeholder="05xxxxxxxx"></label>
-        <label>البريد الإلكتروني (اختياري — لإرسال تأكيد الطلب)<input type="email" name="email" dir="ltr"></label>
-        <label>المدينة *<input type="text" name="city" required></label>
-        <label>العنوان *<input type="text" name="address" required placeholder="الحي، الشارع، رقم المبنى"></label>
-        <label>ملاحظات<textarea name="note" rows="2" placeholder="مثال: التوصيل مساءً"></textarea></label>
-        <p class="payment-note"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg> لن تدفع شيئاً الآن — الدفع كاش أو شبكة عند الاستلام</p>
-        <button type="submit" class="btn btn-dark btn-block" id="submit-order">تأكيد الطلب</button>
-        <p class="form-reassure">تجربة 100 ليلة · إرجاع مجاني · بدون أي التزام</p>
-      </form>
-      <div id="order-success" hidden>
-        <div class="success-box">
-          <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-          <h3>تم استلام طلبك بنجاح!</h3>
-          <p>رقم الطلب: <strong id="order-number" dir="ltr"></strong></p>
-          <p>سيتصل بك فريقنا خلال ساعات العمل لتأكيد موعد التوصيل — لا تحتاج تفعل شيئاً الآن.</p>
-          <button class="btn btn-dark" id="continue-shopping">متابعة التسوق</button>
+function fmt(n) {
+  return Number(n).toLocaleString('en-US');
+}
+
+function starString(rating) {
+  const full = Math.round(rating);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
+}
+
+// --- Products ---------------------------------------------------------------
+
+async function loadProducts() {
+  try {
+    const res = await fetch('/api/products');
+    const data = await res.json();
+    allProducts = data.products;
+    if (data.source === 'demo') {
+      const badge = $('source-badge');
+      badge.textContent = 'وضع تجريبي — لم يتم ربط أودو بعد';
+      badge.hidden = false;
+    }
+    renderCategories();
+    renderProducts();
+    renderCompareTable();
+  } catch {
+    $('product-grid').innerHTML = '<p class="loading">تعذر تحميل المنتجات، حاول تحديث الصفحة.</p>';
+  }
+}
+
+function getMainCategory(category) {
+  if (/مرتبة|مراتب/.test(category)) return 'المراتب';
+  if (/إسفنج|مخدات|قواعد/.test(category)) return 'الإسفنج';
+  return category;
+}
+
+function renderCategories() {
+  const mainCategories = [...new Set(allProducts.map((p) => getMainCategory(p.category)).filter(Boolean))];
+  const nav = $('category-nav');
+  nav.innerHTML = '';
+  const allBtn = document.createElement('button');
+  allBtn.textContent = 'الكل';
+  allBtn.className = activeCategory === null ? 'active' : '';
+  allBtn.onclick = () => { activeCategory = null; renderCategories(); renderProducts(); };
+  nav.appendChild(allBtn);
+  for (const cat of mainCategories) {
+    const btn = document.createElement('button');
+    btn.textContent = cat;
+    btn.className = activeCategory === cat ? 'active' : '';
+    btn.onclick = () => { activeCategory = cat; renderCategories(); renderProducts(); };
+    nav.appendChild(btn);
+  }
+}
+
+function renderProducts() {
+  const grid = $('product-grid');
+  let products = activeCategory
+    ? allProducts.filter((p) => getMainCategory(p.category) === activeCategory)
+    : allProducts;
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase();
+    products = products.filter((p) =>
+      p.name.toLowerCase().includes(q) ||
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q))
+    );
+  }
+  grid.innerHTML = '';
+  if (!products.length) {
+    grid.innerHTML = '<p class="loading">لا توجد منتجات تطابق بحثك.</p>';
+    return;
+  }
+  for (const p of products) grid.appendChild(productCard(p));
+}
+
+function showSearchHistory() {
+  const history = loadSearchHistory();
+  const historyDiv = $('search-history');
+  if (history.length === 0) {
+    historyDiv.hidden = true;
+    return;
+  }
+  historyDiv.innerHTML = '';
+  for (const q of history) {
+    const item = document.createElement('div');
+    item.className = 'search-history-item';
+    item.textContent = q;
+    item.onclick = () => {
+      $('search-input').value = q;
+      searchQuery = q;
+      renderProducts();
+      historyDiv.hidden = true;
+    };
+    historyDiv.appendChild(item);
+  }
+  historyDiv.hidden = false;
+}
+
+function hideSearchHistory() {
+  $('search-history').hidden = true;
+}
+
+function openProductDetail(p) {
+  let selectedSize = null;
+  if (p.sizes && p.sizes.length) selectedSize = p.sizes[0];
+
+  $('detail-title').textContent = p.name;
+
+  const ratingDiv = $('detail-rating');
+  ratingDiv.innerHTML = '';
+  if (p.rating) {
+    const starsSpan = document.createElement('span');
+    starsSpan.className = 'stars';
+    starsSpan.textContent = starString(p.rating);
+    ratingDiv.appendChild(starsSpan);
+    ratingDiv.appendChild(document.createTextNode(` ${p.rating} (${fmt(p.reviews || 0)} تقييم)`));
+  }
+
+  const imageDiv = $('detail-image');
+  imageDiv.innerHTML = '';
+  imageDiv.appendChild(categoryArt(p.category));
+
+  if (p.badge) {
+    const badge = $('detail-badge');
+    badge.textContent = p.badge;
+    badge.hidden = false;
+  } else {
+    $('detail-badge').hidden = true;
+  }
+
+  $('detail-description').textContent = p.description || '';
+
+  const priceSpan = $('detail-price');
+  priceSpan.innerHTML = `${fmt(p.price)} <small>${CURRENCY}</small>`;
+  if (p.oldPrice) {
+    $('detail-old-price').textContent = fmt(p.oldPrice);
+    $('detail-old-price').hidden = false;
+  } else {
+    $('detail-old-price').hidden = true;
+  }
+
+  if (p.firmness != null) {
+    const firmSection = $('detail-firmness-section');
+    const firmDiv = document.createElement('div');
+    firmDiv.className = 'detail-firmness';
+    firmDiv.innerHTML = `
+      <div class="detail-firmness-row">
+        <span style="min-width: 80px;">${p.feel || ''}</span>
+        <div class="detail-firmness-bar">
+          <span class="detail-firmness-dot" style="right:${p.firmness}%"></span>
         </div>
       </div>
-    </div>
-  </div>
+      <div class="detail-firmness-labels">
+        <span>ناعمة</span><span>متوسطة</span><span>صلبة</span>
+      </div>`;
+    firmSection.innerHTML = '';
+    firmSection.appendChild(firmDiv);
+    firmSection.hidden = false;
+  } else {
+    $('detail-firmness-section').hidden = true;
+  }
 
-  <script src="/app.js"></script>
-</body>
-</html>
+  if (Array.isArray(p.features) && p.features.length) {
+    const ul = $('detail-features');
+    ul.innerHTML = '';
+    for (const f of p.features) {
+      const li = document.createElement('li');
+      li.textContent = f;
+      ul.appendChild(li);
+    }
+    $('detail-features-section').hidden = false;
+  } else {
+    $('detail-features-section').hidden = true;
+  }
+
+  if (Array.isArray(p.sizes) && p.sizes.length) {
+    const sizesDiv = $('detail-sizes');
+    sizesDiv.innerHTML = '';
+    p.sizes.forEach((size, i) => {
+      const chip = document.createElement('button');
+      chip.className = 'detail-size-chip' + (i === 0 ? ' selected' : '');
+      chip.textContent = size;
+      chip.onclick = () => {
+        selectedSize = size;
+        sizesDiv.querySelectorAll('.detail-size-chip').forEach((c) => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      };
+      sizesDiv.appendChild(chip);
+    });
+    $('detail-sizes-section').hidden = false;
+  } else {
+    $('detail-sizes-section').hidden = true;
+  }
+
+  const stockDiv = $('detail-stock-status');
+  if (p.inStock === false) {
+    stockDiv.className = 'detail-stock-status out-of-stock';
+    stockDiv.textContent = 'نفذت الكمية — قريباً';
+    $('detail-add-btn').disabled = true;
+  } else {
+    stockDiv.className = 'detail-stock-status in-stock';
+    stockDiv.textContent = '✓ متوفر في المخزون';
+    $('detail-add-btn').disabled = false;
+    $('detail-add-btn').onclick = () => { addToCart(p, selectedSize); closeProductDetail(); };
+  }
+
+  $('product-detail-modal').hidden = false;
+}
+
+function closeProductDetail() {
+  $('product-detail-modal').hidden = true;
+}
+
+function productCard(p) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.cursor = 'pointer';
+  card.onclick = () => openProductDetail(p);
+
+  // Image block with optional badge
+  const img = document.createElement('div');
+  img.className = 'card-img';
+  if (p.image) {
+    const el = document.createElement('img');
+    el.src = p.image;
+    el.alt = p.name;
+    el.loading = 'lazy';
+    el.onerror = () => {
+      el.remove();
+      img.appendChild(categoryArt(p.category));
+    };
+    img.appendChild(el);
+  } else {
+    img.appendChild(categoryArt(p.category));
+  }
+  if (p.badge) {
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.textContent = p.badge;
+    img.appendChild(badge);
+  }
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  const title = document.createElement('h3');
+  title.className = 'card-title';
+  title.textContent = p.name;
+  body.appendChild(title);
+
+  if (p.rating) {
+    const rating = document.createElement('div');
+    rating.className = 'rating-row';
+    rating.innerHTML = `<span class="stars">${starString(p.rating)}</span> ${p.rating} (${fmt(p.reviews || 0)} تقييم)`;
+    body.appendChild(rating);
+  }
+
+  const desc = document.createElement('p');
+  desc.className = 'card-desc';
+  desc.textContent = p.description || '';
+  body.appendChild(desc);
+
+  if (p.firmness != null) {
+    const feel = document.createElement('div');
+    feel.className = 'feel-row';
+    feel.innerHTML = `الإحساس: <strong>${p.feel || ''}</strong>
+      <div class="firmness"><span class="firmness-dot" style="right:${p.firmness}%"></span></div>
+      <div class="firmness-labels"><span>ناعمة</span><span>متوسطة</span><span>صلبة</span></div>`;
+    body.appendChild(feel);
+  }
+
+  if (Array.isArray(p.features) && p.features.length) {
+    const ul = document.createElement('ul');
+    ul.className = 'card-features';
+    for (const f of p.features) {
+      const li = document.createElement('li');
+      li.textContent = f;
+      ul.appendChild(li);
+    }
+    body.appendChild(ul);
+  }
+
+  let selectedSize = null;
+  if (Array.isArray(p.sizes) && p.sizes.length) {
+    const sizes = document.createElement('div');
+    sizes.className = 'card-sizes';
+    p.sizes.forEach((size, i) => {
+      const chip = document.createElement('button');
+      chip.className = 'size-chip' + (i === 0 ? ' selected' : '');
+      chip.textContent = size;
+      chip.onclick = () => {
+        selectedSize = size;
+        sizes.querySelectorAll('.size-chip').forEach((c) => c.classList.remove('selected'));
+        chip.classList.add('selected');
+      };
+      sizes.appendChild(chip);
+    });
+    selectedSize = p.sizes[0];
+    body.appendChild(sizes);
+  }
+
+  const priceRow = document.createElement('div');
+  priceRow.className = 'price-row';
+  const label = document.createElement('span');
+  label.className = 'price-label';
+  label.textContent = 'ابتداءً من';
+  const price = document.createElement('span');
+  price.className = 'price' + (p.oldPrice ? ' on-sale' : '');
+  price.innerHTML = `${fmt(p.price)} <small>${CURRENCY}</small>`;
+  priceRow.append(label, price);
+  if (p.oldPrice) {
+    const old = document.createElement('span');
+    old.className = 'old-price';
+    old.textContent = fmt(p.oldPrice);
+    priceRow.appendChild(old);
+  }
+  body.appendChild(priceRow);
+
+  if (p.inStock === false) {
+    const oos = document.createElement('div');
+    oos.className = 'out-of-stock';
+    oos.textContent = 'نفذت الكمية — قريباً';
+    body.appendChild(oos);
+  } else {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-dark btn-block add-btn';
+    btn.textContent = 'أضف للسلة';
+    btn.onclick = () => addToCart(p, selectedSize);
+    body.appendChild(btn);
+    const micro = document.createElement('p');
+    micro.className = 'cta-microcopy';
+    micro.textContent = 'توصيل مجاني · تجربة 100 ليلة';
+    body.appendChild(micro);
+  }
+
+  card.append(img, body);
+  return card;
+}
+
+function renderCompareTable() {
+  const table = $('compare-table');
+  if (!table) return;
+  const mattresses = allProducts.filter((p) => p.firmness != null && /مرتبة|مراتب/.test(p.category + p.name)).slice(0, 4);
+  if (mattresses.length < 2) {
+    document.getElementById('compare').hidden = true;
+    return;
+  }
+  const rows = [
+    ['الإحساس', (p) => p.feel || '—'],
+    ['التقييم', (p) => `★ ${p.rating} (${fmt(p.reviews || 0)})`],
+    ['السعر', (p) => `${fmt(p.price)} ${CURRENCY}`],
+    ['أبرز ميزة', (p) => (p.features && p.features[0]) || '—'],
+  ];
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.appendChild(document.createElement('th'));
+  for (const m of mattresses) {
+    const th = document.createElement('th');
+    th.textContent = m.name;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  for (const [label, fn] of rows) {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.scope = 'row';
+    th.textContent = label;
+    tr.appendChild(th);
+    for (const m of mattresses) {
+      const td = document.createElement('td');
+      td.textContent = fn(m);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+}
+
+// --- Cart -------------------------------------------------------------------
+
+function addToCart(product, size) {
+  const key = `${product.id}::${size || ''}`;
+  const existing = cart.find((i) => i.key === key);
+  if (existing) existing.quantity += 1;
+  else cart.push({ key, productId: product.id, name: product.name, price: product.price, size: size || null, quantity: 1 });
+  saveCart();
+  openCart();
+}
+
+function renderCart() {
+  const count = cart.reduce((sum, i) => sum + i.quantity, 0);
+  $('cart-count').textContent = fmt(count);
+  const container = $('cart-items');
+  container.innerHTML = '';
+  if (!cart.length) {
+    container.innerHTML = '<p class="cart-empty">سلتك فارغة</p>';
+  }
+  for (const item of cart) {
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    const info = document.createElement('div');
+    info.className = 'cart-item-info';
+    info.innerHTML = `
+      <div class="cart-item-name"></div>
+      <div class="cart-item-size"></div>
+      <div class="cart-item-price">${fmt(item.price * item.quantity)} ${CURRENCY}</div>`;
+    info.querySelector('.cart-item-name').textContent = item.name;
+    info.querySelector('.cart-item-size').textContent = item.size ? `المقاس: ${item.size}` : '';
+    const controls = document.createElement('div');
+    controls.className = 'qty-controls';
+    const minus = document.createElement('button');
+    minus.textContent = '−';
+    minus.onclick = () => { item.quantity -= 1; if (item.quantity <= 0) cart = cart.filter((i) => i !== item); saveCart(); };
+    const qty = document.createElement('span');
+    qty.textContent = fmt(item.quantity);
+    const plus = document.createElement('button');
+    plus.textContent = '+';
+    plus.onclick = () => { item.quantity += 1; saveCart(); };
+    controls.append(plus, qty, minus);
+    const remove = document.createElement('button');
+    remove.className = 'remove-btn';
+    remove.textContent = 'حذف';
+    remove.onclick = () => { cart = cart.filter((i) => i !== item); saveCart(); };
+    row.append(info, controls, remove);
+    container.appendChild(row);
+  }
+  const total = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  $('cart-total').textContent = fmt(total);
+  $('checkout-btn').disabled = !cart.length;
+}
+
+function openCart() {
+  $('cart-drawer').hidden = false;
+  $('overlay').hidden = false;
+}
+function closeCart() {
+  $('cart-drawer').hidden = true;
+  $('overlay').hidden = true;
+}
+
+// --- Checkout ---------------------------------------------------------------
+
+function openCheckout() {
+  closeCart();
+  if (!currentUser) {
+    openAuthModal('login');
+    return;
+  }
+  $('checkout-modal').hidden = false;
+  $('checkout-form').hidden = false;
+  $('order-success').hidden = true;
+}
+function closeCheckout() {
+  $('checkout-modal').hidden = true;
+}
+
+async function submitOrder(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = $('submit-order');
+  btn.disabled = true;
+  btn.textContent = 'جارٍ إرسال الطلب…';
+
+  const fd = new FormData(form);
+  const payload = {
+    customer: {
+      name: fd.get('name').trim(),
+      phone: fd.get('phone').trim(),
+      email: fd.get('email').trim(),
+      city: fd.get('city').trim(),
+      address: fd.get('address').trim(),
+    },
+    items: cart.map((i) => ({ productId: i.productId, quantity: i.quantity, size: i.size })),
+    note: fd.get('note').trim(),
+  };
+
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'فشل إرسال الطلب');
+    cart = [];
+    saveCart();
+    form.reset();
+    form.hidden = true;
+    $('order-number').textContent = data.orderName || data.orderId;
+    $('invoice-number').textContent = data.invoiceName || 'قيد الإنشاء';
+    $('invoice-status').textContent = data.invoiceStatus === 'posted' ? 'نشرة' : data.invoiceStatus === 'paid' ? 'مدفوعة' : 'مسودة';
+    $('invoice-amount').textContent = fmt(data.total || 0);
+    $('order-success').hidden = false;
+  } catch (err) {
+    alert(err.message || 'حدث خطأ، حاول مرة أخرى');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'تأكيد الطلب';
+  }
+}
+
+// --- User Authentication ---
+
+async function checkAuth() {
+  const token = loadSession();
+  if (!token) {
+    currentUser = null;
+  } else {
+    try {
+      const res = await fetchWithAuth('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        currentUser = data.user;
+      } else {
+        saveSession(null);
+        currentUser = null;
+      }
+    } catch (err) {
+      currentUser = null;
+    }
+  }
+  updateUserMenu();
+}
+
+function updateUserMenu() {
+  // User menu is hidden - authentication only happens at checkout
+}
+
+function openAccountModal() {
+  if (!currentUser) {
+    // If not logged in, show login option
+    const accountContent = $('account-content');
+    accountContent.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px;">
+        <p style="color: var(--muted); margin-bottom: 20px;">الرجاء تسجيل الدخول لعرض حسابك</p>
+        <button class="btn btn-dark" id="account-login-btn">تسجيل الدخول</button>
+      </div>
+    `;
+    $('account-login-btn').onclick = () => {
+      $('account-modal').hidden = true;
+      openAuthModal('login');
+    };
+  } else {
+    // If logged in, show account details
+    const accountContent = $('account-content');
+    accountContent.innerHTML = `
+      <div style="padding: 20px;">
+        <div style="background: var(--cloud-dancer); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+          <p style="color: var(--muted); font-size: 0.85rem;">الاسم</p>
+          <p style="font-weight: 700; font-size: 1.1rem; margin-top: 4px;">${currentUser.name || 'بدون اسم'}</p>
+        </div>
+        <div style="background: var(--cloud-dancer); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+          <p style="color: var(--muted); font-size: 0.85rem;">رقم الهاتف</p>
+          <p style="font-weight: 700; font-size: 1rem; margin-top: 4px;">${currentUser.phone}</p>
+        </div>
+        <button class="btn btn-dark btn-block" id="logout-btn" style="margin-top: 20px;">تسجيل الخروج</button>
+      </div>
+    `;
+    $('logout-btn').onclick = () => {
+      logout();
+      $('account-modal').hidden = true;
+    };
+  }
+  $('account-modal').hidden = false;
+}
+
+function logout() {
+  currentUser = null;
+  saveSession(null);
+  updateUserMenu();
+  alert('تم تسجيل الخروج بنجاح');
+}
+
+function openAuthModal(mode = 'login') {
+  const isLogin = mode === 'login';
+  $('auth-title').textContent = isLogin ? 'تسجيل دخول' : 'إنشاء حساب';
+  $('auth-submit').textContent = isLogin ? 'دخول' : 'إنشاء حساب';
+  $('auth-toggle-text').textContent = isLogin ? 'ليس لديك حساب؟' : 'لديك حساب بالفعل؟';
+  $('auth-toggle').textContent = isLogin ? 'سجل الآن' : 'دخول';
+
+  const fields = $('auth-fields');
+  if (isLogin) {
+    fields.innerHTML = `
+      <label>رقم الهاتف *<input type="tel" name="phone" placeholder="9xxxxxxxx" required></label>
+      <label>الكلمة المرورية *<input type="password" name="password" required></label>
+    `;
+  } else {
+    fields.innerHTML = `
+      <label>الاسم *<input type="text" name="name" required></label>
+      <label>رقم الهاتف *<input type="tel" name="phone" placeholder="9xxxxxxxx" required></label>
+      <label>الكلمة المرورية *<input type="password" name="password" required></label>
+    `;
+  }
+
+  $('auth-form').dataset.mode = mode;
+  $('auth-modal').hidden = false;
+  $('user-menu-dropdown').hidden = true;
+}
+
+async function submitAuth(e) {
+  e.preventDefault();
+  const mode = $('auth-form').dataset.mode;
+  const fd = new FormData($('auth-form'));
+  const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+  const payload = {
+    phone: fd.get('phone'),
+    password: fd.get('password'),
+  };
+  if (mode === 'register') {
+    payload.name = fd.get('name');
+  }
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'فشلت العملية');
+
+    saveSession(data.token);
+    currentUser = data.user;
+    $('auth-modal').hidden = true;
+    $('auth-form').reset();
+    updateUserMenu();
+    alert(mode === 'login' ? 'تم الدخول بنجاح' : 'تم التسجيل بنجاح');
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+
+
+// --- Init -------------------------------------------------------------------
+
+function initApp() {
+  try {
+    $('year').textContent = new Date().getFullYear();
+    $('account-button').onclick = openAccountModal;
+    $('close-account').onclick = () => { $('account-modal').hidden = true; };
+    $('cart-button').onclick = openCart;
+    $('close-cart').onclick = closeCart;
+    $('overlay').onclick = closeCart;
+    $('checkout-btn').onclick = openCheckout;
+    $('close-checkout').onclick = closeCheckout;
+    $('checkout-form').onsubmit = submitOrder;
+    $('continue-shopping').onclick = () => { closeCheckout(); };
+    $('close-detail').onclick = closeProductDetail;
+
+    // Auth modal
+    $('close-auth').onclick = () => { $('auth-modal').hidden = true; };
+    $('auth-form').onsubmit = submitAuth;
+    $('auth-toggle').onclick = (e) => {
+      e.preventDefault();
+      const mode = $('auth-form').dataset.mode === 'login' ? 'register' : 'login';
+      openAuthModal(mode);
+    };
+
+    // Search functionality
+    const searchInput = $('search-input');
+    if (searchInput) {
+      searchInput.addEventListener('focus', showSearchHistory);
+      searchInput.addEventListener('blur', () => hideSearchHistory());
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderProducts();
+      });
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          saveSearchHistory(searchQuery);
+          hideSearchHistory();
+        }
+      });
+    }
+
+    renderCart();
+    checkAuth();
+    loadProducts();
+  } catch (err) {
+    console.error('Init error:', err);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

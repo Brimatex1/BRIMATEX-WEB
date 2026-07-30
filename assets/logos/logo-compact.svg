@@ -1,0 +1,144 @@
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const USERS_FILE = path.join(__dirname, '..', 'data', 'users.jsonl');
+const SESSIONS_FILE = path.join(__dirname, '..', 'data', 'sessions.jsonl');
+
+function hash(text) {
+  return crypto.createHash('sha256').update(text).digest('hex');
+}
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function loadUsers() {
+  if (!fs.existsSync(USERS_FILE)) return new Map();
+  const lines = fs.readFileSync(USERS_FILE, 'utf8').split('\n').filter(Boolean);
+  const map = new Map();
+  for (const line of lines) {
+    try {
+      const user = JSON.parse(line);
+      map.set(user.id, user);
+    } catch (e) {
+      // Skip invalid lines
+    }
+  }
+  return map;
+}
+
+function saveUser(user) {
+  const data = JSON.stringify(user) + '\n';
+  fs.appendFileSync(USERS_FILE, data);
+}
+
+function loadSessions() {
+  if (!fs.existsSync(SESSIONS_FILE)) return new Map();
+  const lines = fs.readFileSync(SESSIONS_FILE, 'utf8').split('\n').filter(Boolean);
+  const map = new Map();
+  for (const line of lines) {
+    try {
+      const session = JSON.parse(line);
+      if (session.expiresAt > Date.now()) {
+        map.set(session.token, session);
+      }
+    } catch (e) {
+      // Skip invalid lines
+    }
+  }
+  return map;
+}
+
+function saveSession(session) {
+  const data = JSON.stringify(session) + '\n';
+  fs.appendFileSync(SESSIONS_FILE, data);
+}
+
+function createUser(phone, password, name) {
+  const users = loadUsers();
+  for (const [, user] of users) {
+    if (user.phone === phone) {
+      return null; // User already exists
+    }
+  }
+  const userId = crypto.randomUUID();
+  const user = {
+    id: userId,
+    phone,
+    passwordHash: hash(password),
+    name,
+    createdAt: new Date().toISOString(),
+    addresses: [],
+    wishlist: [],
+    orders: [],
+  };
+  saveUser(user);
+  return user;
+}
+
+function authenticate(phone, password) {
+  const users = loadUsers();
+  for (const [, user] of users) {
+    if (user.phone === phone && user.passwordHash === hash(password)) {
+      return user;
+    }
+  }
+  return null;
+}
+
+function createSession(userId) {
+  const token = generateToken();
+  const session = {
+    token,
+    userId,
+    createdAt: new Date().toISOString(),
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
+  };
+  saveSession(session);
+  return token;
+}
+
+function verifySession(token) {
+  const sessions = loadSessions();
+  const session = sessions.get(token);
+  if (!session || session.expiresAt <= Date.now()) {
+    return null;
+  }
+  return session;
+}
+
+function getUser(userId) {
+  const users = loadUsers();
+  return users.get(userId) || null;
+}
+
+function updateUser(userId, updates) {
+  const users = loadUsers();
+  const user = users.get(userId);
+  if (!user) return null;
+
+  const updated = { ...user, ...updates };
+  // Remove from old file and rewrite
+  const lines = fs.readFileSync(USERS_FILE, 'utf8').split('\n').filter(Boolean);
+  const filtered = lines.filter(line => {
+    try {
+      const u = JSON.parse(line);
+      return u.id !== userId;
+    } catch {
+      return true;
+    }
+  });
+  fs.writeFileSync(USERS_FILE, filtered.join('\n') + (filtered.length > 0 ? '\n' : ''));
+  saveUser(updated);
+  return updated;
+}
+
+module.exports = {
+  createUser,
+  authenticate,
+  createSession,
+  verifySession,
+  getUser,
+  updateUser,
+};
