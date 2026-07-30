@@ -1,0 +1,14 @@
+server:
+  - src/**/*
+  - server.js
+
+documentation:
+  - README.md
+  - "*.md"
+  - docs/**/*
+
+config:
+  - .env.example
+
+data:
+  - src/data/**/*
