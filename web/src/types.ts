@@ -29,6 +29,8 @@ export interface Product {
   specs?: ProductSpecs;
   features?: string[];
   inStock?: boolean;
+  /** Null until real photography exists — ProductVisual draws a placeholder. */
+  image?: string | null;
 }
 
 export interface CartLine {
@@ -91,6 +93,14 @@ export interface User {
   wishlist?: WishlistEntry[];
 }
 
-export type SectionId = 'shop' | 'product' | 'cart' | 'auth' | 'wishlist' | 'orders';
+export type SectionId =
+  | 'home'
+  | 'shop'
+  | 'product'
+  | 'quiz'
+  | 'cart'
+  | 'auth'
+  | 'wishlist'
+  | 'orders';
 
 export type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'name';

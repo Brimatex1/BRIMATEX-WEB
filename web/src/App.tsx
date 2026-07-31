@@ -4,8 +4,10 @@ import { toast } from 'sonner';
 import { AuthSection } from '@/components/AuthSection';
 import { CartSection } from '@/components/CartSection';
 import { Header } from '@/components/Header';
+import { HomeSection } from '@/components/HomeSection';
 import { OrdersSection } from '@/components/OrdersSection';
 import { ProductDetail } from '@/components/ProductDetail';
+import { QuizSection } from '@/components/QuizSection';
 import { ShopSection } from '@/components/ShopSection';
 import { WishlistSection } from '@/components/WishlistSection';
 import { Toaster } from '@/components/ui/sonner';
@@ -13,12 +15,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
-import type { Address, Product, SectionId } from '@/types';
+import type { Address, Category, Product, SectionId } from '@/types';
 
 export default function App() {
-  const [section, setSection] = useState<SectionId>('shop');
+  const [section, setSection] = useState<SectionId>('home');
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [justAddedId, setJustAddedId] = useState<number | null>(null);
+  const [shopCategory, setShopCategory] = useState<Category | 'all'>('all');
 
   const catalogue = useProducts();
   const cart = useCart();
@@ -33,6 +36,12 @@ export default function App() {
   function openProduct(product: Product) {
     setSelectedId(product.id);
     navigate('product');
+  }
+
+  /** Home category cards jump into the shop with that filter already applied. */
+  function shopCategoryFrom(category: Category | 'all') {
+    setShopCategory(category);
+    navigate('shop');
   }
 
   function handleAdd(product: Product) {
@@ -80,10 +89,31 @@ export default function App() {
         onNavigate={navigate}
       />
 
-      <main id="main" className="min-h-[60vh] pb-12">
+      <main id="main" className="min-h-[60vh]">
+        {section === 'home' && (
+          <HomeSection
+            products={catalogue.products}
+            loading={catalogue.loading}
+            onShopCategory={shopCategoryFrom}
+            onOpenProduct={openProduct}
+            onStartQuiz={() => navigate('quiz')}
+          />
+        )}
+
+        {section === 'quiz' && (
+          <QuizSection
+            products={catalogue.products}
+            onAdd={handleAdd}
+            onOpenProduct={openProduct}
+            onBrowseAll={() => shopCategoryFrom('all')}
+          />
+        )}
+
         {section === 'shop' && (
           <ShopSection
             products={catalogue.products}
+            category={shopCategory}
+            onCategoryChange={setShopCategory}
             loading={catalogue.loading}
             error={catalogue.error}
             onReload={catalogue.reload}
@@ -100,12 +130,16 @@ export default function App() {
           (selected ? (
             <ProductDetail
               product={selected}
+              related={catalogue.products.filter(
+                (p) => p.id !== selected.id && p.category === selected.category
+              )}
               justAdded={justAddedId === selected.id}
               saved={wishlist.has(selected.id)}
               wishlistPending={wishlist.pending === selected.id}
               onAdd={handleAdd}
               onBack={() => navigate('shop')}
               onToggleWishlist={handleToggleWishlist}
+              onOpenProduct={openProduct}
             />
           ) : (
             <section className="container max-w-2xl py-24 text-center">

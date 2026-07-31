@@ -33,6 +33,9 @@ const SORTS: { id: SortKey; label: string }[] = [
 
 interface ShopSectionProps {
   products: Product[];
+  /** Lifted so the homepage category cards can deep-link into a filtered shop. */
+  category: Category | 'all';
+  onCategoryChange: (category: Category | 'all') => void;
   loading: boolean;
   error: string | null;
   onReload: () => void;
@@ -46,6 +49,8 @@ interface ShopSectionProps {
 
 export function ShopSection({
   products,
+  category,
+  onCategoryChange,
   loading,
   error,
   onReload,
@@ -57,7 +62,6 @@ export function ShopSection({
   justAddedId,
 }: ShopSectionProps) {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<Category | 'all'>('all');
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [sort, setSort] = useState<SortKey>('featured');
 
@@ -92,7 +96,7 @@ export function ShopSection({
 
   function resetFilters() {
     setQuery('');
-    setCategory('all');
+    onCategoryChange('all');
     setMaxPrice(null);
     setSort('featured');
   }
@@ -188,7 +192,7 @@ export function ShopSection({
               <button
                 key={c.id}
                 type="button"
-                onClick={() => setCategory(c.id)}
+                onClick={() => onCategoryChange(c.id)}
                 aria-pressed={category === c.id}
                 className={cn(
                   'min-h-9 rounded-full border px-4 text-sm transition-colors',
