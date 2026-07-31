@@ -31,6 +31,10 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.map': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 // Cache Odoo products briefly so browsing doesn't hammer the ERP.
@@ -39,7 +43,12 @@ const CACHE_TTL_MS = 60_000;
 
 // Rate limiting: max 10 orders per IP per 60 seconds
 const orderAttempts = new Map();
-const RATE_LIMIT_ORDERS_PER_MIN = 10;
+// `|| 10` would swallow a configured 0, which is a valid setting: it stops all
+// orders (maintenance mode). Fall back only when the value is not a usable number.
+const RATE_LIMIT_ORDERS_PER_MIN = (() => {
+  const configured = Number(process.env.RATE_LIMIT_ORDERS_PER_MIN);
+  return Number.isFinite(configured) && configured >= 0 ? configured : 10;
+})();
 
 async function getProducts() {
   if (!odoo.isConfigured()) {
@@ -95,11 +104,26 @@ function checkRateLimit(ip) {
   return false;
 }
 
+// Separators are allowed, but the digits are what must be there — a string of
+// dashes must not pass. The client checks this too; this is the enforcing copy,
+// since the API can be called directly.
+const PHONE_SHAPE = /^\+?[\d\s-]{9,17}$/;
+const PHONE_MIN_DIGITS = 9;
+const PHONE_MAX_DIGITS = 15;
+
+function isValidPhone(phone) {
+  const trimmed = String(phone ?? '').trim();
+  if (!PHONE_SHAPE.test(trimmed)) return false;
+  const digits = trimmed.replace(/\D/g, '').length;
+  return digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS;
+}
+
 function validateOrder(order, allProducts) {
   if (!order || typeof order !== 'object') return 'بيانات الطلب غير صالحة';
   const { customer, items } = order;
   if (!customer?.name?.trim()) return 'الاسم مطلوب';
   if (!customer?.phone?.trim()) return 'رقم الجوال مطلوب';
+  if (!isValidPhone(customer.phone)) return 'رقم الجوال غير صالح';
   if (!customer?.city?.trim()) return 'المدينة مطلوبة';
   if (!customer?.address?.trim()) return 'العنوان مطلوب';
   if (!Array.isArray(items) || items.length === 0) return 'السلة فارغة';
@@ -170,7 +194,16 @@ async function handleApi(req, res, url) {
     // Demo mode: append the order to a local log file with invoice simulation
     const orderName = `DEMO-${Date.now().toString().slice(-6)}`;
     const invoiceName = `INV-${Date.now().toString().slice(-6)}`;
-    const total = order.items.reduce((sum, i) => sum + (i.quantity || 0), 0) * 1450;
+    const priceById = new Map(result.products.map((p) => [p.id, Number(p.price) || 0]));
+    const total = order.items.reduce(
+      (sum, i) => sum + (priceById.get(i.productId) || 0) * (i.quantity || 0),
+      0
+    );
+    // Orders are accepted without an account, but stamp the owner when the
+    // request carries a valid session so "my orders" can find them later.
+    const orderToken = req.headers.authorization?.split(' ')[1];
+    const orderSession = orderToken ? auth.verifySession(orderToken) : null;
+
     const record = {
       ...order,
       receivedAt: new Date().toISOString(),
@@ -178,8 +211,20 @@ async function handleApi(req, res, url) {
       invoiceName,
       invoiceStatus: 'draft',
       paymentStatus: 'unpaid',
+      // Persisted so the invoice lookup can report a real amount.
+      total,
+      ...(orderSession ? { userId: orderSession.userId } : {}),
     };
     fs.appendFileSync(ORDERS_LOG, JSON.stringify(record) + '\n');
+
+    if (orderSession) {
+      const owner = auth.getUser(orderSession.userId);
+      if (owner) {
+        const orders = owner.orders || [];
+        orders.push({ orderName, invoiceName, total, placedAt: record.receivedAt });
+        auth.updateUser(orderSession.userId, { orders });
+      }
+    }
 
     // Send invoice via WhatsApp (non-blocking, fire-and-forget)
     whatsapp.sendInvoiceViaWhatsApp(
@@ -257,6 +302,10 @@ async function handleApi(req, res, url) {
     const { password, name, phone } = payload;
     if (!password?.trim() || !name?.trim() || !phone?.trim()) {
       return sendJson(res, 400, { error: 'رقم الهاتف والكلمة المرورية والاسم مطلوبة' });
+    }
+    // Checked on new accounts only — existing users keep whatever they signed up with.
+    if (!isValidPhone(phone)) {
+      return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
     }
     if (password.length < 6) {
       return sendJson(res, 400, { error: 'الكلمة المرورية يجب أن تكون 6 أحرف على الأقل' });
@@ -378,6 +427,51 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { message: 'تم حذف العنوان بنجاح' });
   }
 
+  // --- Orders ---
+  if (req.method === 'GET' && url.pathname === '/api/user/orders') {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
+    const session = auth.verifySession(token);
+    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
+
+    // Read from the log rather than user.orders: payment status is updated
+    // on the log record, so it is the accurate source.
+    let entries = [];
+    try {
+      entries = fs.readFileSync(ORDERS_LOG, 'utf8')
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          try {
+            return JSON.parse(line);
+          } catch {
+            return null;
+          }
+        })
+        .filter((o) => o && o.userId === session.userId);
+    } catch {
+      entries = [];
+    }
+
+    const orders = entries
+      .map((o) => ({
+        orderName: o.orderName,
+        invoiceName: o.invoiceName,
+        invoiceStatus: o.invoiceStatus || 'draft',
+        paymentStatus: o.paymentStatus || 'unpaid',
+        total: o.total || 0,
+        items: Array.isArray(o.items) ? o.items : [],
+        note: o.note || '',
+        city: o.customer?.city || '',
+        address: o.customer?.address || '',
+        placedAt: o.receivedAt,
+        paidAt: o.paidAt || null,
+      }))
+      .sort((a, b) => String(b.placedAt).localeCompare(String(a.placedAt)));
+
+    return sendJson(res, 200, { orders });
+  }
+
   // --- Wishlist ---
   if (req.method === 'POST' && url.pathname === '/api/user/wishlist') {
     const token = req.headers.authorization?.split(' ')[1];
@@ -392,8 +486,9 @@ async function handleApi(req, res, url) {
     } catch {
       return sendJson(res, 400, { error: 'JSON غير صالح' });
     }
-    const { productId } = payload;
-    if (!productId) {
+    // Always store the id as a number so the DELETE lookup can match it.
+    const productId = Number(payload.productId);
+    if (!Number.isInteger(productId)) {
       return sendJson(res, 400, { error: 'معرف المنتج مطلوب' });
     }
 
@@ -401,7 +496,7 @@ async function handleApi(req, res, url) {
     if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
     user.wishlist = user.wishlist || [];
-    if (!user.wishlist.find(w => w.productId === productId)) {
+    if (!user.wishlist.find(w => Number(w.productId) === productId)) {
       user.wishlist.push({
         productId,
         addedAt: new Date().toISOString(),
@@ -418,11 +513,16 @@ async function handleApi(req, res, url) {
     const session = auth.verifySession(token);
     if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
 
-    const productId = url.pathname.split('/').pop();
+    // The id arrives as a path string; stored ids are numbers. Compare as numbers
+    // or the filter never matches and nothing is ever removed.
+    const productId = Number(url.pathname.split('/').pop());
+    if (!Number.isInteger(productId)) {
+      return sendJson(res, 400, { error: 'معرف المنتج غير صالح' });
+    }
     const user = auth.getUser(session.userId);
     if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
-    user.wishlist = (user.wishlist || []).filter(w => w.productId !== productId);
+    user.wishlist = (user.wishlist || []).filter(w => Number(w.productId) !== productId);
     auth.updateUser(session.userId, { wishlist: user.wishlist });
 
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
@@ -455,7 +555,14 @@ function serveStatic(res, urlPath) {
     'X-Frame-Options': 'SAMEORIGIN',
   };
   if (ext === '.html') {
-    headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'";
+    headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'";
+    // The SPA shell must never be cached, or users get stale asset references.
+    headers['Cache-Control'] = 'no-cache';
+  } else if (path.relative(PUBLIC_DIR, filePath).replace(/\\/g, '/').startsWith('assets/')) {
+    // Vite fingerprints these filenames, so they are safe to cache forever.
+    // Compare against the resolved path: on Windows `safePath` uses backslashes,
+    // so matching '/assets/' there never fires.
+    headers['Cache-Control'] = 'public, max-age=31536000, immutable';
   }
   res.writeHead(200, headers);
   fs.createReadStream(filePath).pipe(res);
