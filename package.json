@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/smoke.test.js",
+    "test": "node tests/smoke.test.js && node tests/brand.check.js",
     "setup": "npm --prefix web install",
     "build": "npm --prefix web run build",
     "dev:api": "node server.js",

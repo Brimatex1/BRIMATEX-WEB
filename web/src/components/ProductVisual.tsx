@@ -18,22 +18,28 @@ interface ProductVisualProps {
   className?: string;
 }
 
-/** Deterministic per-product hue offset so the grid does not look uniform. */
-function hueShift(id: number): number {
-  return (id * 37) % 24;
+/**
+ * Every colour here comes from the brand palette via CSS custom properties —
+ * Cloud Dancer as the surface, Porcelain and Blue Violet as the depth ramp.
+ * Nothing is hard-coded, so retinting the brand retints the artwork.
+ */
+
+/** Deterministic per-product tint weight so the grid does not look uniform. */
+function tintBias(id: number): number {
+  return ((id * 37) % 12) / 100;
 }
 
 function MattressArt({ id, layers }: { id: number; layers: number }) {
-  const shift = hueShift(id);
+  const bias = tintBias(id);
   const strata = Array.from({ length: layers });
 
   return (
     <div className="absolute inset-0 flex items-center justify-center p-[8%]">
       <div
         className="relative w-full overflow-hidden rounded-[10px] shadow-lg"
-        style={{ aspectRatio: '16 / 9' }}
+        style={{ aspectRatio: '16 / 9', background: 'hsl(var(--brand-cloud))' }}
       >
-        {/* stacked comfort layers, thickest at the base */}
+        {/* stacked comfort layers — paler at the top, denser toward the base */}
         <div className="absolute inset-0 flex flex-col">
           {strata.map((_, i) => (
             <div
@@ -41,7 +47,7 @@ function MattressArt({ id, layers }: { id: number; layers: number }) {
               className="w-full"
               style={{
                 flex: i === strata.length - 1 ? 2.4 : 1,
-                background: `hsl(${216 + shift} ${32 - i * 4}% ${94 - i * 7}%)`,
+                background: `hsl(var(--brand-violet) / ${(0.05 + i * 0.11 + bias).toFixed(3)})`,
               }}
             />
           ))}
@@ -61,14 +67,14 @@ function MattressArt({ id, layers }: { id: number; layers: number }) {
 }
 
 function PillowArt({ id }: { id: number }) {
-  const shift = hueShift(id);
+  const bias = tintBias(id);
   return (
     <div className="absolute inset-0 flex items-center justify-center p-[14%]">
       <div
         className="relative w-full rounded-[42%_42%_38%_38%/50%_50%_46%_46%] shadow-lg"
         style={{
           aspectRatio: '3 / 2',
-          background: `radial-gradient(120% 90% at 50% 25%, hsl(${210 + shift} 30% 97%), hsl(${210 + shift} 26% 88%))`,
+          background: `radial-gradient(120% 90% at 50% 25%, hsl(var(--brand-cloud)), hsl(var(--surface-calm) / ${(0.55 + bias).toFixed(3)}))`,
         }}
       >
         <div className="absolute inset-[12%] rounded-[40%] opacity-45 ring-1 ring-inset ring-white/70" />
@@ -78,10 +84,15 @@ function PillowArt({ id }: { id: number }) {
 }
 
 function BeddingArt({ id }: { id: number }) {
-  const shift = hueShift(id);
+  const bias = tintBias(id);
   return (
-    <div className="absolute inset-0 flex items-center justify-center p-[12%]">
-      <div className="relative w-full overflow-hidden rounded-lg shadow-lg" style={{ aspectRatio: '4 / 3' }}>
+    <div
+      className="absolute inset-0 flex items-center justify-center p-[12%]"
+    >
+      <div
+        className="relative w-full overflow-hidden rounded-lg shadow-lg"
+        style={{ aspectRatio: '4 / 3', background: 'hsl(var(--brand-cloud))' }}
+      >
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
@@ -89,7 +100,7 @@ function BeddingArt({ id }: { id: number }) {
             style={{
               top: `${i * 25}%`,
               height: '25%',
-              background: `hsl(${208 + shift} ${26 - i * 3}% ${95 - i * 6}%)`,
+              background: `hsl(var(--surface-calm) / ${(0.28 + i * 0.16 + bias).toFixed(3)})`,
               transform: `translateX(${i % 2 === 0 ? '-2%' : '2%'})`,
             }}
           />
