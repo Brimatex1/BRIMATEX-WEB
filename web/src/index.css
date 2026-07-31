@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * BRIMATEX — نظام الألوان
+ *
+ * مشتق من ملف الهوية البصرية الرسمي (docs/BRAND_COLORS.md):
+ *   Dark Ocean   #282868   اللون الأساسي
+ *   Blue Violet  #666bb1   ثانوي / حلقة التركيز
+ *   Sun Glare    #dee337   نداء الفعل (خلفية فقط — انظر الملاحظة أدناه)
+ *   Porcelain    #9dc9cf   لمسات هادئة
+ *   Nebula       #d9e3e2   أسطح ثانوية
+ *   Cloud Dancer #f1f0ec   خلفية الصفحة
+ *
+ * كل زوج (خلفية/نص) هنا مفحوص آلياً ضد WCAG AA في
+ * tests/brand.check.js — لا تعدّل قيمة دون تشغيل الفحص.
+ *
+ * ملاحظة على Sun Glare: تباينه مع الأبيض 1.39:1 فقط، لذا لا يصلح
+ * لوناً للنص إطلاقاً. يُستخدم خلفيةً مع نص Dark Ocean فوقه (9.51:1).
+ */
+
+@layer base {
+  :root {
+    /* ── مقياس Dark Ocean ── */
+    --ocean-50: 240 25% 97%;
+    --ocean-100: 240 23% 94%;
+    --ocean-200: 240 24% 87%;
+    --ocean-300: 240 36% 75%;
+    --ocean-400: 240 36% 62%;
+    --ocean-500: 240 44% 48%;
+    --ocean-600: 240 44% 40%;
+    --ocean-700: 240 44% 33%;
+    --ocean-800: 240 44% 28%; /* ← لون العلامة #282868 */
+    --ocean-900: 240 45% 20%;
+    --ocean-950: 240 45% 10%;
+
+    /* ── ألوان الهوية الخام ── */
+    --brand-ocean: 240 44% 28%;
+    --brand-violet: 236 32% 55%;
+    --brand-sun: 62 75% 55%;
+    --brand-porcelain: 187 34% 71%;
+    --brand-nebula: 174 15% 87%;
+    --brand-cloud: 48 15% 94%;
+
+    /* ── الرموز الدلالية — الوضع الفاتح ── */
+    --background: 48 15% 94%; /* Cloud Dancer */
+    --foreground: 240 45% 10%; /* 16.62:1 ✓ AAA */
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 45% 10%; /* 18.95:1 ✓ AAA */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 45% 10%;
+
+    --primary: 240 44% 28%; /* Dark Ocean */
+    --primary-foreground: 0 0% 100%; /* 13.18:1 ✓ AAA */
+
+    --secondary: 174 15% 87%; /* Nebula */
+    --secondary-foreground: 240 44% 28%; /* 10.06:1 ✓ AAA */
+
+    --muted: 180 10% 94%;
+    --muted-foreground: 173 15% 33%; /* 5.87:1 ✓ AA */
+
+    --accent: 62 75% 55%; /* Sun Glare — خلفية نداء الفعل */
+    --accent-foreground: 240 44% 28%; /* 9.51:1 ✓ AAA */
+
+    /* نص مميَّز (عناوين فرعية، روابط، تنقل نشط).
+       Sun Glare لا يصلح هنا، فنستخدم Blue Violet داكناً. */
+    --highlight: 237 32% 33%; /* 8.98:1 على الخلفية ✓ AAA */
+
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 72% 29%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 170 9% 87%; /* فواصل زخرفية */
+    --input: 240 36% 62%; /* حدود الحقول — 3.86:1 ✓ */
+    --ring: 236 32% 55%; /* Blue Violet — 4.88:1 ✓ */
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 45% 10%; /* Dark Ocean 950 */
+    --foreground: 48 15% 94%; /* Cloud Dancer — 16.62:1 ✓ AAA */
+
+    --card: 240 45% 20%;
+    --card-foreground: 48 15% 94%; /* 11.53:1 ✓ AAA */
+
+    --popover: 240 45% 20%;
+    --popover-foreground: 48 15% 94%;
+
+    --primary: 48 15% 94%; /* معكوس: زر فاتح على خلفية داكنة */
+    --primary-foreground: 240 44% 28%; /* 11.94:1 ✓ AAA */
+
+    --secondary: 240 44% 28%;
+    --secondary-foreground: 48 15% 94%;
+
+    --muted: 240 44% 28%;
+    --muted-foreground: 187 34% 71%; /* Porcelain — 8.04:1 ✓ AAA */
+
+    --accent: 62 75% 55%; /* Sun Glare يعمل على الداكن أيضاً */
+    --accent-foreground: 240 45% 10%; /* 15.15:1 ✓ AAA */
+
+    /* على الخلفية الداكنة يصبح Sun Glare نفسه صالحاً للنص */
+    --highlight: 62 75% 55%; /* 13.67:1 ✓ AAA */
+
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 240 45% 10%;
+
+    --success: 142 69% 58%;
+    --success-foreground: 240 45% 10%;
+
+    --border: 240 44% 28%;
+    --input: 240 36% 62%;
+    --ring: 236 32% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.7;
+  }
+
+  /* الأرقام العربية تبقى بعرض ثابت لتصطف الأسعار */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

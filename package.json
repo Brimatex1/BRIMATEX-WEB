@@ -1,0 +1,18 @@
+{
+  "name": "brimatex",
+  "version": "1.0.0",
+  "private": true,
+  "description": "متجر بريماتكس للمراتب — واجهة React/shadcn وخادم Node بدون تبعيات",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/smoke.test.js",
+    "setup": "npm --prefix web install",
+    "build": "npm --prefix web run build",
+    "dev:api": "node server.js",
+    "dev:web": "npm --prefix web run dev",
+    "typecheck": "npm --prefix web run lint"
+  }
+}
