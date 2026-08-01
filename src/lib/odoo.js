@@ -58,7 +58,9 @@ async function fetchProducts() {
       'product.product',
       'search_read',
       [['sale_ok', '=', true]],
-      { fields: ['id', 'name', 'list_price', 'default_code'], limit: 100 }
+      // qty_available drives the dashboard's stock view and low-stock alerts;
+      // without it there is no quantity data anywhere in the system.
+      { fields: ['id', 'name', 'list_price', 'default_code', 'qty_available'], limit: 100 }
     ]
   });
 
@@ -66,7 +68,9 @@ async function fetchProducts() {
     id: p.id,
     name: p.name,
     price: p.list_price,
-    sku: p.default_code || ''
+    sku: p.default_code || '',
+    stock: typeof p.qty_available === 'number' ? p.qty_available : null,
+    inStock: typeof p.qty_available === 'number' ? p.qty_available > 0 : true
   }));
 }
 

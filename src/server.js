@@ -139,6 +139,55 @@ function validateOrder(order, allProducts) {
   return null;
 }
 
+/**
+ * Resolves the caller for /api/admin routes.
+ *
+ * Returns the user only when the session is valid AND the account is an admin.
+ * Anything else returns null after writing the response — every admin route
+ * exposes other customers' data, so the guard fails closed.
+ */
+function requireAdmin(req, res) {
+  const token = req.headers.authorization?.split(' ')[1];
+  const session = token ? auth.verifySession(token) : null;
+  if (!session) {
+    sendJson(res, 401, { error: 'غير مصرح' });
+    return null;
+  }
+  const user = auth.getUser(session.userId);
+  if (!user || !auth.isAdmin(user)) {
+    sendJson(res, 403, { error: 'هذه الصفحة للمديرين فقط' });
+    return null;
+  }
+  return user;
+}
+
+/** Every order ever placed, newest first. */
+function readOrderLog() {
+  try {
+    return fs
+      .readFileSync(ORDERS_LOG, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function writeOrderLog(orders) {
+  fs.writeFileSync(
+    ORDERS_LOG,
+    orders.length ? orders.map((o) => JSON.stringify(o)).join('\n') + '\n' : ''
+  );
+}
+
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
@@ -530,6 +579,186 @@ async function handleApi(req, res, url) {
     auth.updateUser(session.userId, { wishlist: user.wishlist });
 
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
+  }
+
+  // ===================== لوحة التحكم =====================
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/overview') {
+    if (!requireAdmin(req, res)) return;
+
+    const orders = readOrderLog();
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    const sum = (list) => list.reduce((t, o) => t + (Number(o.total) || 0), 0);
+    const at = (o) => new Date(o.receivedAt).getTime();
+
+    const today = orders.filter((o) => at(o) >= startOfDay);
+    const month = orders.filter((o) => at(o) >= startOfMonth);
+
+    const byStatus = {};
+    for (const o of orders) {
+      const key = o.paymentStatus === 'paid' ? 'paid' : o.invoiceStatus || 'draft';
+      byStatus[key] = (byStatus[key] || 0) + 1;
+    }
+
+    return sendJson(res, 200, {
+      sales: { today: sum(today), month: sum(month), total: sum(orders) },
+      counts: { today: today.length, month: month.length, total: orders.length },
+      byStatus,
+      customers: auth.listUsers().length,
+      recent: orders
+        .slice(-8)
+        .reverse()
+        .map((o) => ({
+          orderName: o.orderName,
+          customer: o.customer?.name || '—',
+          city: o.customer?.city || '',
+          total: Number(o.total) || 0,
+          paymentStatus: o.paymentStatus || 'unpaid',
+          placedAt: o.receivedAt,
+        })),
+    });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/orders') {
+    if (!requireAdmin(req, res)) return;
+
+    const status = url.searchParams.get('status');
+    const search = (url.searchParams.get('q') || '').trim().toLowerCase();
+
+    let orders = readOrderLog().reverse();
+    if (status && status !== 'all') {
+      orders = orders.filter((o) =>
+        status === 'paid' ? o.paymentStatus === 'paid' : o.paymentStatus !== 'paid'
+      );
+    }
+    if (search) {
+      orders = orders.filter((o) =>
+        [o.orderName, o.invoiceName, o.customer?.name, o.customer?.phone, o.customer?.city]
+          .some((v) => String(v || '').toLowerCase().includes(search))
+      );
+    }
+
+    return sendJson(res, 200, {
+      orders: orders.slice(0, 200).map((o) => ({
+        orderName: o.orderName,
+        invoiceName: o.invoiceName,
+        customer: o.customer || {},
+        items: Array.isArray(o.items) ? o.items : [],
+        note: o.note || '',
+        total: Number(o.total) || 0,
+        invoiceStatus: o.invoiceStatus || 'draft',
+        paymentStatus: o.paymentStatus || 'unpaid',
+        placedAt: o.receivedAt,
+        paidAt: o.paidAt || null,
+        userId: o.userId || null,
+      })),
+      totalMatching: orders.length,
+    });
+  }
+
+  if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/orders/')) {
+    if (!requireAdmin(req, res)) return;
+
+    const orderName = decodeURIComponent(url.pathname.split('/').pop());
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const ALLOWED_PAYMENT = ['unpaid', 'paid'];
+    const ALLOWED_INVOICE = ['draft', 'confirmed', 'delivered', 'cancelled'];
+    if (payload.paymentStatus && !ALLOWED_PAYMENT.includes(payload.paymentStatus)) {
+      return sendJson(res, 400, { error: 'حالة دفع غير معروفة' });
+    }
+    if (payload.invoiceStatus && !ALLOWED_INVOICE.includes(payload.invoiceStatus)) {
+      return sendJson(res, 400, { error: 'حالة طلب غير معروفة' });
+    }
+
+    const orders = readOrderLog();
+    const idx = orders.findIndex((o) => o.orderName === orderName);
+    if (idx === -1) return sendJson(res, 404, { error: 'الطلب غير موجود' });
+
+    if (payload.paymentStatus) {
+      orders[idx].paymentStatus = payload.paymentStatus;
+      orders[idx].paidAt =
+        payload.paymentStatus === 'paid' ? new Date().toISOString() : null;
+    }
+    if (payload.invoiceStatus) orders[idx].invoiceStatus = payload.invoiceStatus;
+    orders[idx].updatedAt = new Date().toISOString();
+
+    writeOrderLog(orders);
+    return sendJson(res, 200, { order: orders[idx] });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/customers') {
+    if (!requireAdmin(req, res)) return;
+
+    const orders = readOrderLog();
+    const customers = auth.listUsers().map((u) => {
+      const theirs = orders.filter((o) => o.userId === u.id);
+      return {
+        ...u,
+        orderCount: theirs.length,
+        spent: theirs.reduce((t, o) => t + (Number(o.total) || 0), 0),
+        lastOrderAt: theirs.length ? theirs[theirs.length - 1].receivedAt : null,
+      };
+    });
+
+    return sendJson(res, 200, { customers });
+  }
+
+  if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/users/')) {
+    const actor = requireAdmin(req, res);
+    if (!actor) return;
+
+    const userId = url.pathname.split('/').pop();
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+    if (!['admin', 'customer'].includes(payload.role)) {
+      return sendJson(res, 400, { error: 'دور غير معروف' });
+    }
+
+    const target = auth.getUser(userId);
+    if (!target) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
+
+    // An env-granted admin cannot be demoted here — the change would not stick.
+    if (auth.isBootstrapAdmin(target.phone)) {
+      return sendJson(res, 409, {
+        error: 'هذا الحساب مدير عبر إعدادات الخادم — يُعدَّل من ADMIN_PHONES',
+      });
+    }
+    // Guard against an admin removing their own access and locking everyone out.
+    if (target.id === actor.id && payload.role !== 'admin') {
+      return sendJson(res, 409, { error: 'لا يمكنك إزالة صلاحيتك عن نفسك' });
+    }
+
+    auth.updateUser(userId, { role: payload.role });
+    return sendJson(res, 200, { id: userId, role: payload.role });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/products') {
+    if (!requireAdmin(req, res)) return;
+
+    const result = await getProducts();
+    return sendJson(res, 200, {
+      source: result.source,
+      /** Odoo owns the catalogue when configured; the file is editable otherwise. */
+      editable: result.source !== 'odoo',
+      /** Real quantities only exist in Odoo — demo mode has a boolean. */
+      hasStockData: result.source === 'odoo',
+      products: result.products,
+    });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/health') {
