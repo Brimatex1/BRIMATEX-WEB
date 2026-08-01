@@ -13,6 +13,7 @@ const path = require('path');
 const odoo = require('./lib/odoo');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
+const settings = require('./lib/settings');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -50,6 +51,9 @@ const RATE_LIMIT_ORDERS_PER_MIN = (() => {
   return Number.isFinite(configured) && configured >= 0 ? configured : 10;
 })();
 
+/** Last Odoo error, surfaced to admins so a bad connection is diagnosable. */
+let lastOdooError = null;
+
 async function getProducts() {
   if (!odoo.isConfigured()) {
     return { source: 'demo', products: DEMO_PRODUCTS };
@@ -57,9 +61,25 @@ async function getProducts() {
   if (productCache.data && Date.now() - productCache.at < CACHE_TTL_MS) {
     return { source: 'odoo', products: productCache.data };
   }
-  const products = await odoo.fetchProducts();
-  productCache = { data: products, at: Date.now() };
-  return { source: 'odoo', products };
+
+  try {
+    const products = await odoo.fetchProducts();
+    productCache = { data: products, at: Date.now() };
+    lastOdooError = null;
+    return { source: 'odoo', products };
+  } catch (err) {
+    lastOdooError = { message: err.message, at: new Date().toISOString() };
+    console.error('[Odoo] fetch failed:', err.message);
+
+    // Serve the last good Odoo data rather than taking the shop down over a
+    // temporary outage or a mistyped setting. Never fall back to the demo
+    // catalogue here — those are placeholder prices, and quoting them as if
+    // they were real is worse than showing an error.
+    if (productCache.data) {
+      return { source: 'odoo', products: productCache.data, stale: true };
+    }
+    throw err;
+  }
 }
 
 function sendJson(res, status, payload) {
@@ -761,6 +781,89 @@ async function handleApi(req, res, url) {
       hasStockData: result.source === 'odoo',
       products: result.products,
     });
+  }
+
+  // ---- إعدادات أودو ----
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/settings/odoo') {
+    if (!requireAdmin(req, res)) return;
+    // Never includes the API key — only whether one is stored.
+    return sendJson(res, 200, { odoo: settings.readPublicOdoo(), lastError: lastOdooError });
+  }
+
+  if (req.method === 'PUT' && url.pathname === '/api/admin/settings/odoo') {
+    if (!requireAdmin(req, res)) return;
+
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const url_ = String(payload.url || '').trim();
+    if (url_ && !/^https?:\/\//i.test(url_)) {
+      return sendJson(res, 400, { error: 'العنوان يجب أن يبدأ بـ http:// أو https://' });
+    }
+
+    // Changing any connection detail invalidates the cached uid.
+    const before = settings.getOdoo();
+    const changed =
+      url_ !== before.url ||
+      String(payload.db || '').trim() !== before.db ||
+      String(payload.username || '').trim() !== before.username ||
+      Boolean(payload.apiKey);
+
+    const saved = settings.saveOdoo({
+      url: url_,
+      db: payload.db,
+      username: payload.username,
+      apiKey: payload.apiKey,
+      uid: changed ? null : before.uid,
+    });
+
+    // Products may now come from a different place.
+    productCache = { at: 0, data: null };
+    return sendJson(res, 200, { odoo: saved });
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/odoo') {
+    if (!requireAdmin(req, res)) return;
+    const cleared = settings.clearOdoo();
+    productCache = { at: 0, data: null };
+    return sendJson(res, 200, { odoo: cleared });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/admin/settings/odoo/test') {
+    if (!requireAdmin(req, res)) return;
+
+    if (!odoo.isConfigured()) {
+      return sendJson(res, 400, { error: 'أكمل بيانات الاتصال أولاً' });
+    }
+    try {
+      const info = await odoo.testConnection();
+      return sendJson(res, 200, { ok: true, ...info });
+    } catch (err) {
+      // The message comes from Odoo and is what makes a bad setting diagnosable.
+      return sendJson(res, 502, { error: `فشل الاتصال: ${err.message}` });
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/admin/sync') {
+    if (!requireAdmin(req, res)) return;
+
+    productCache = { at: 0, data: null };
+    try {
+      const result = await getProducts();
+      return sendJson(res, 200, {
+        source: result.source,
+        count: result.products.length,
+        syncedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      return sendJson(res, 502, { error: `تعذّرت المزامنة: ${err.message}` });
+    }
   }
 
   if (req.method === 'GET' && url.pathname === '/api/health') {

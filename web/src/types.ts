@@ -145,6 +145,18 @@ export interface AdminCustomer {
   lastOrderAt: string | null;
 }
 
+export interface OdooSettings {
+  url: string;
+  db: string;
+  username: string;
+  /** The key itself never reaches the browser — only whether one is stored. */
+  hasApiKey: boolean;
+  uid: number | null;
+  /** Values come from .env with no dashboard override. */
+  fromEnv: boolean;
+  configured: boolean;
+}
+
 export interface AdminProducts {
   source: string;
   /** False when Odoo owns the catalogue; edits there would be overwritten. */

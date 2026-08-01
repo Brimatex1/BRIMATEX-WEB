@@ -8,6 +8,7 @@ import type {
   Customer,
   OrderResult,
   OrderSummary,
+  OdooSettings,
   Product,
   Role,
   User,
@@ -167,4 +168,36 @@ export const api = {
 
   adminProducts: (token: string) =>
     request<AdminProducts>('/api/admin/products', authHeaders(token)),
+
+  adminOdooSettings: (token: string) =>
+    request<{ odoo: OdooSettings }>('/api/admin/settings/odoo', authHeaders(token)),
+
+  /** Send an empty apiKey to keep the stored one — it is never sent back to us. */
+  adminSaveOdoo: (
+    token: string,
+    values: { url: string; db: string; username: string; apiKey: string }
+  ) =>
+    request<{ odoo: OdooSettings }>('/api/admin/settings/odoo', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(values),
+    }),
+
+  adminClearOdoo: (token: string) =>
+    request<{ odoo: OdooSettings }>('/api/admin/settings/odoo', {
+      method: 'DELETE',
+      ...authHeaders(token),
+    }),
+
+  adminTestOdoo: (token: string) =>
+    request<{ ok: true; uid: number; serverVersion: string | null; productCount: number | null }>(
+      '/api/admin/settings/odoo/test',
+      { method: 'POST', ...authHeaders(token) }
+    ),
+
+  adminSync: (token: string) =>
+    request<{ source: string; count: number; syncedAt: string }>('/api/admin/sync', {
+      method: 'POST',
+      ...authHeaders(token),
+    }),
 };

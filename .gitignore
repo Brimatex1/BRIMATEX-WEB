@@ -12,6 +12,9 @@ src/data/orders.local.jsonl
 src/data/users.jsonl
 src/data/sessions.jsonl
 
+# Dashboard settings — holds the Odoo API key.
+src/data/settings.local.json
+
 # Environment
 .env
 .env.local

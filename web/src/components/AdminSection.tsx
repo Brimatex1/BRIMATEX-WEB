@@ -4,6 +4,7 @@ import {
   BarChart3,
   Boxes,
   Package,
+  Plug,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { OdooSettingsPanel } from '@/components/OdooSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,7 +29,7 @@ import type {
   User,
 } from '@/types';
 
-type Tab = 'overview' | 'orders' | 'products' | 'stock' | 'customers' | 'roles';
+type Tab = 'overview' | 'orders' | 'products' | 'stock' | 'customers' | 'roles' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'overview', label: 'نظرة عامة', Icon: BarChart3 },
@@ -36,6 +38,7 @@ const TABS: { id: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'stock', label: 'المخزون', Icon: AlertTriangle },
   { id: 'customers', label: 'العملاء', Icon: Users },
   { id: 'roles', label: 'الصلاحيات', Icon: ShieldCheck },
+  { id: 'settings', label: 'الإعدادات', Icon: Plug },
 ];
 
 const ORDER_STATUS: Record<string, string> = {
@@ -578,6 +581,11 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* ---------------- الإعدادات ---------------- */}
+      {!error && tab === 'settings' && token && (
+        <OdooSettingsPanel token={token} onChanged={() => void load()} />
       )}
     </section>
   );
