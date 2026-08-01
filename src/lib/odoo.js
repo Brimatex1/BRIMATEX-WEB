@@ -195,6 +195,7 @@ async function createSaleOrder(customer, items, note) {
     id: order[0].id,
     name: order[0].name,
     total: order[0].amount_total,
+    partnerId,
     invoiceId: null,
     invoiceName: null,
     invoiceDate: null,

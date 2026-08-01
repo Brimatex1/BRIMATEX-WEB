@@ -1,26 +1,30 @@
 #!/usr/bin/env node
 // Mattress & foam e-commerce storefront with Odoo integration.
-// Zero dependencies — Node 18+.
+// Node 18+.
 //
-// Run:            node server.js
-// Configure Odoo: set ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY
-//                 (without them the store runs in demo mode with sample products).
+// Run:                node server.js
+// Configure Odoo:     set ODOO_URL, ODOO_DB, ODOO_USERNAME, ODOO_API_KEY
+//                     (without them the store runs in demo mode with sample products).
+// Configure Postgres: set DATABASE_URL (without it, accounts/orders use local
+//                     files — see docs/POSTGRES_SETUP.md).
 // Configure WhatsApp: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
 
+require('./lib/load-env');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const odoo = require('./lib/odoo');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
+const orders = require('./lib/orders');
 const settings = require('./lib/settings');
+const db = require('./lib/db');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const DEMO_PRODUCTS = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'data', 'demo-products.json'), 'utf8')
 );
-const ORDERS_LOG = path.join(__dirname, 'data', 'orders.local.jsonl');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -166,46 +170,19 @@ function validateOrder(order, allProducts) {
  * Anything else returns null after writing the response — every admin route
  * exposes other customers' data, so the guard fails closed.
  */
-function requireAdmin(req, res) {
+async function requireAdmin(req, res) {
   const token = req.headers.authorization?.split(' ')[1];
-  const session = token ? auth.verifySession(token) : null;
+  const session = token ? await auth.verifySession(token) : null;
   if (!session) {
     sendJson(res, 401, { error: 'غير مصرح' });
     return null;
   }
-  const user = auth.getUser(session.userId);
+  const user = await auth.getUser(session.userId);
   if (!user || !auth.isAdmin(user)) {
     sendJson(res, 403, { error: 'هذه الصفحة للمديرين فقط' });
     return null;
   }
   return user;
-}
-
-/** Every order ever placed, newest first. */
-function readOrderLog() {
-  try {
-    return fs
-      .readFileSync(ORDERS_LOG, 'utf8')
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-function writeOrderLog(orders) {
-  fs.writeFileSync(
-    ORDERS_LOG,
-    orders.length ? orders.map((o) => JSON.stringify(o)).join('\n') + '\n' : ''
-  );
 }
 
 async function handleApi(req, res, url) {
@@ -245,22 +222,55 @@ async function handleApi(req, res, url) {
     const validationError = validateOrder(order, result.products);
     if (validationError) return sendJson(res, 400, { error: validationError });
 
+    // Orders are accepted without an account, but stamp the owner when the
+    // request carries a valid session so "my orders" can find them later.
+    const orderToken = req.headers.authorization?.split(' ')[1];
+    const orderSession = orderToken ? await auth.verifySession(orderToken) : null;
+
     if (odoo.isConfigured()) {
-      const result = await odoo.createSaleOrder(order.customer, order.items, order.note);
+      const odooResult = await odoo.createSaleOrder(order.customer, order.items, order.note);
+
+      // Persisted locally too — this used to return without saving anything,
+      // so "my orders" and the admin dashboard never showed Odoo-backed orders.
+      await orders.createOrder({
+        orderName: odooResult.name,
+        invoiceName: odooResult.invoiceName,
+        userId: orderSession?.userId,
+        source: 'odoo',
+        customer: order.customer,
+        items: order.items,
+        note: order.note || '',
+        total: odooResult.total,
+        invoiceStatus: odooResult.invoiceStatus,
+        paymentStatus: 'unpaid',
+        odooOrderId: odooResult.id,
+        odooInvoiceId: odooResult.invoiceId,
+        placedAt: new Date().toISOString(),
+      });
+
+      // Remembers which Odoo partner this account maps to, so repeat orders
+      // don't need to be re-matched by phone number.
+      if (orderSession && odooResult.partnerId) {
+        const owner = await auth.getUser(orderSession.userId);
+        if (owner && !owner.odooPartnerId) {
+          await auth.updateUser(orderSession.userId, { odooPartnerId: odooResult.partnerId });
+        }
+      }
+
       return sendJson(res, 201, {
         source: 'odoo',
-        orderId: result.id,
-        orderName: result.name,
-        invoiceId: result.invoiceId,
-        invoiceName: result.invoiceName,
-        invoiceDate: result.invoiceDate,
-        invoiceStatus: result.invoiceStatus,
-        total: result.total,
-        message: `تم إنشاء الطلب ${result.name} والفاتورة ${result.invoiceName}`,
+        orderId: odooResult.id,
+        orderName: odooResult.name,
+        invoiceId: odooResult.invoiceId,
+        invoiceName: odooResult.invoiceName,
+        invoiceDate: odooResult.invoiceDate,
+        invoiceStatus: odooResult.invoiceStatus,
+        total: odooResult.total,
+        message: `تم إنشاء الطلب ${odooResult.name} والفاتورة ${odooResult.invoiceName}`,
       });
     }
 
-    // Demo mode: append the order to a local log file with invoice simulation
+    // Demo mode: log the order locally with invoice simulation
     const orderName = `DEMO-${Date.now().toString().slice(-6)}`;
     const invoiceName = `INV-${Date.now().toString().slice(-6)}`;
     const priceById = new Map(result.products.map((p) => [p.id, Number(p.price) || 0]));
@@ -268,32 +278,21 @@ async function handleApi(req, res, url) {
       (sum, i) => sum + (priceById.get(i.productId) || 0) * (i.quantity || 0),
       0
     );
-    // Orders are accepted without an account, but stamp the owner when the
-    // request carries a valid session so "my orders" can find them later.
-    const orderToken = req.headers.authorization?.split(' ')[1];
-    const orderSession = orderToken ? auth.verifySession(orderToken) : null;
 
-    const record = {
-      ...order,
-      receivedAt: new Date().toISOString(),
+    await orders.createOrder({
       orderName,
       invoiceName,
+      userId: orderSession?.userId,
+      source: 'demo',
+      customer: order.customer,
+      items: order.items,
+      note: order.note || '',
       invoiceStatus: 'draft',
       paymentStatus: 'unpaid',
       // Persisted so the invoice lookup can report a real amount.
       total,
-      ...(orderSession ? { userId: orderSession.userId } : {}),
-    };
-    fs.appendFileSync(ORDERS_LOG, JSON.stringify(record) + '\n');
-
-    if (orderSession) {
-      const owner = auth.getUser(orderSession.userId);
-      if (owner) {
-        const orders = owner.orders || [];
-        orders.push({ orderName, invoiceName, total, placedAt: record.receivedAt });
-        auth.updateUser(orderSession.userId, { orders });
-      }
-    }
+      placedAt: new Date().toISOString(),
+    });
 
     // Send invoice via WhatsApp (non-blocking, fire-and-forget)
     whatsapp.sendInvoiceViaWhatsApp(
@@ -317,8 +316,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname.startsWith('/api/invoices/')) {
     const invoiceId = url.pathname.split('/').pop();
     if (!odoo.isConfigured()) {
-      const orderLog = fs.readFileSync(ORDERS_LOG, 'utf8').split('\n').filter(Boolean);
-      const found = orderLog.map(l => JSON.parse(l)).find(o => o.invoiceName === invoiceId);
+      const found = await orders.getOrderByInvoiceName(invoiceId);
       if (!found) return sendJson(res, 404, { error: 'الفاتورة غير موجودة' });
       return sendJson(res, 200, {
         invoiceName: found.invoiceName,
@@ -326,7 +324,7 @@ async function handleApi(req, res, url) {
         customer: found.customer.name,
         status: found.paymentStatus === 'paid' ? 'paid' : 'unpaid',
         amount: found.total || 0,
-        createdAt: found.receivedAt,
+        createdAt: found.placedAt,
       });
     }
     const status = await odoo.getInvoiceStatus(Number(invoiceId));
@@ -345,17 +343,25 @@ async function handleApi(req, res, url) {
 
     if (!odoo.isConfigured()) {
       // Demo mode: simulate payment
-      const orderLog = fs.readFileSync(ORDERS_LOG, 'utf8').split('\n').filter(Boolean);
-      const lines = orderLog.map(l => JSON.parse(l));
-      const idx = lines.findIndex(o => o.invoiceName === invoiceId);
-      if (idx === -1) return sendJson(res, 404, { error: 'الفاتورة غير موجودة' });
-      lines[idx].paymentStatus = 'paid';
-      lines[idx].paidAt = new Date().toISOString();
-      fs.writeFileSync(ORDERS_LOG, lines.map(l => JSON.stringify(l)).join('\n') + '\n');
-      return sendJson(res, 200, { invoiceId, status: 'paid', paidAt: new Date().toISOString() });
+      const found = await orders.getOrderByInvoiceName(invoiceId);
+      if (!found) return sendJson(res, 404, { error: 'الفاتورة غير موجودة' });
+      const paidAt = new Date().toISOString();
+      await orders.updateOrder(found.orderName, { paymentStatus: 'paid', paidAt });
+      return sendJson(res, 200, { invoiceId, status: 'paid', paidAt });
     }
 
     const result = await odoo.recordPayment(Number(invoiceId), payment.amount);
+
+    // Keep the local record (used by "my orders" / the admin dashboard) in
+    // sync with the payment Odoo just recorded.
+    const found = await orders.getOrderByInvoiceName(invoiceId);
+    if (found) {
+      await orders.updateOrder(found.orderName, {
+        paymentStatus: 'paid',
+        paidAt: result.recordedAt,
+      });
+    }
+
     return sendJson(res, 200, { invoiceId, status: 'paid', recordedAt: result.recordedAt });
   }
 
@@ -383,7 +389,7 @@ async function handleApi(req, res, url) {
     if (!user) {
       return sendJson(res, 409, { error: 'هذا رقم الهاتف مسجل بالفعل' });
     }
-    const token = auth.createSession(user.id);
+    const token = await auth.createSession(user.id);
     return sendJson(res, 201, {
       message: 'تم التسجيل بنجاح',
       token,
@@ -407,7 +413,7 @@ async function handleApi(req, res, url) {
     if (!user) {
       return sendJson(res, 401, { error: 'رقم الهاتف أو الكلمة المرورية غير صحيحة' });
     }
-    const token = auth.createSession(user.id);
+    const token = await auth.createSession(user.id);
     return sendJson(res, 200, {
       message: 'تم الدخول بنجاح',
       token,
@@ -420,14 +426,18 @@ async function handleApi(req, res, url) {
     if (!token) {
       return sendJson(res, 401, { error: 'لم يتم توفير رمز الجلسة' });
     }
-    const session = auth.verifySession(token);
+    const session = await auth.verifySession(token);
     if (!session) {
       return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح أو منتهي الصلاحية' });
     }
-    const user = auth.getUser(session.userId);
+    const user = await auth.getUser(session.userId);
     if (!user) {
       return sendJson(res, 404, { error: 'المستخدم غير موجود' });
     }
+    const [addresses, wishlist] = await Promise.all([
+      auth.listAddresses(user.id),
+      auth.listWishlist(user.id),
+    ]);
     return sendJson(res, 200, {
       user: {
         id: user.id,
@@ -436,9 +446,8 @@ async function handleApi(req, res, url) {
         phone: user.phone || null,
         // Effective role, so the UI knows whether to offer the dashboard.
         role: auth.roleOf(user),
-        addresses: user.addresses || [],
-        wishlist: user.wishlist || [],
-        orders: user.orders || [],
+        addresses,
+        wishlist,
       },
     });
   }
@@ -447,7 +456,7 @@ async function handleApi(req, res, url) {
     // Actually invalidate the token. Clearing it in the browser alone left it
     // usable server-side for the remainder of its 30 days.
     const token = req.headers.authorization?.split(' ')[1];
-    auth.deleteSession(token);
+    await auth.deleteSession(token);
     return sendJson(res, 200, { message: 'تم الخروج بنجاح' });
   }
 
@@ -455,7 +464,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && url.pathname === '/api/user/addresses') {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = auth.verifySession(token);
+    const session = await auth.verifySession(token);
     if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
 
     const body = await readBody(req);
@@ -470,18 +479,11 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: 'العنوان والمدينة مطلوبة' });
     }
 
-    const user = auth.getUser(session.userId);
-    if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
-
-    const newAddr = {
-      id: Math.random().toString(36).slice(2),
+    const newAddr = await auth.addAddress(session.userId, {
       address: address.trim(),
       city: city.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    user.addresses = user.addresses || [];
-    user.addresses.push(newAddr);
-    auth.updateUser(session.userId, { addresses: user.addresses });
+    });
+    if (!newAddr) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
     return sendJson(res, 201, { message: 'تم إضافة العنوان بنجاح', address: newAddr });
   }
@@ -489,15 +491,11 @@ async function handleApi(req, res, url) {
   if (req.method === 'DELETE' && url.pathname.startsWith('/api/user/addresses/')) {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = auth.verifySession(token);
+    const session = await auth.verifySession(token);
     if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
 
     const addressId = url.pathname.split('/').pop();
-    const user = auth.getUser(session.userId);
-    if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
-
-    user.addresses = (user.addresses || []).filter(a => a.id !== addressId);
-    auth.updateUser(session.userId, { addresses: user.addresses });
+    await auth.removeAddress(session.userId, addressId);
 
     return sendJson(res, 200, { message: 'تم حذف العنوان بنجاح' });
   }
@@ -506,52 +504,32 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/user/orders') {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = auth.verifySession(token);
+    const session = await auth.verifySession(token);
     if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
 
-    // Read from the log rather than user.orders: payment status is updated
-    // on the log record, so it is the accurate source.
-    let entries = [];
-    try {
-      entries = fs.readFileSync(ORDERS_LOG, 'utf8')
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => {
-          try {
-            return JSON.parse(line);
-          } catch {
-            return null;
-          }
-        })
-        .filter((o) => o && o.userId === session.userId);
-    } catch {
-      entries = [];
-    }
+    const entries = await orders.listOrdersForUser(session.userId);
+    const result = entries.map((o) => ({
+      orderName: o.orderName,
+      invoiceName: o.invoiceName,
+      invoiceStatus: o.invoiceStatus || 'draft',
+      paymentStatus: o.paymentStatus || 'unpaid',
+      total: o.total || 0,
+      items: Array.isArray(o.items) ? o.items : [],
+      note: o.note || '',
+      city: o.customer?.city || '',
+      address: o.customer?.address || '',
+      placedAt: o.placedAt,
+      paidAt: o.paidAt || null,
+    }));
 
-    const orders = entries
-      .map((o) => ({
-        orderName: o.orderName,
-        invoiceName: o.invoiceName,
-        invoiceStatus: o.invoiceStatus || 'draft',
-        paymentStatus: o.paymentStatus || 'unpaid',
-        total: o.total || 0,
-        items: Array.isArray(o.items) ? o.items : [],
-        note: o.note || '',
-        city: o.customer?.city || '',
-        address: o.customer?.address || '',
-        placedAt: o.receivedAt,
-        paidAt: o.paidAt || null,
-      }))
-      .sort((a, b) => String(b.placedAt).localeCompare(String(a.placedAt)));
-
-    return sendJson(res, 200, { orders });
+    return sendJson(res, 200, { orders: result });
   }
 
   // --- Wishlist ---
   if (req.method === 'POST' && url.pathname === '/api/user/wishlist') {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = auth.verifySession(token);
+    const session = await auth.verifySession(token);
     if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
 
     const body = await readBody(req);
@@ -567,17 +545,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: 'معرف المنتج مطلوب' });
     }
 
-    const user = auth.getUser(session.userId);
-    if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
-
-    user.wishlist = user.wishlist || [];
-    if (!user.wishlist.find(w => Number(w.productId) === productId)) {
-      user.wishlist.push({
-        productId,
-        addedAt: new Date().toISOString(),
-      });
-    }
-    auth.updateUser(session.userId, { wishlist: user.wishlist });
+    await auth.addWishlistItem(session.userId, productId);
 
     return sendJson(res, 201, { message: 'تم الإضافة للمفضلة' });
   }
@@ -585,7 +553,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'DELETE' && url.pathname.startsWith('/api/user/wishlist/')) {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = auth.verifySession(token);
+    const session = await auth.verifySession(token);
     if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
 
     // The id arrives as a path string; stored ids are numbers. Compare as numbers
@@ -594,11 +562,8 @@ async function handleApi(req, res, url) {
     if (!Number.isInteger(productId)) {
       return sendJson(res, 400, { error: 'معرف المنتج غير صالح' });
     }
-    const user = auth.getUser(session.userId);
-    if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
-    user.wishlist = (user.wishlist || []).filter(w => Number(w.productId) !== productId);
-    auth.updateUser(session.userId, { wishlist: user.wishlist });
+    await auth.removeWishlistItem(session.userId, productId);
 
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
   }
@@ -606,65 +571,51 @@ async function handleApi(req, res, url) {
   // ===================== لوحة التحكم =====================
 
   if (req.method === 'GET' && url.pathname === '/api/admin/overview') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
-    const orders = readOrderLog();
+    const allOrders = await orders.listOrders();
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
     const sum = (list) => list.reduce((t, o) => t + (Number(o.total) || 0), 0);
-    const at = (o) => new Date(o.receivedAt).getTime();
+    const at = (o) => new Date(o.placedAt).getTime();
 
-    const today = orders.filter((o) => at(o) >= startOfDay);
-    const month = orders.filter((o) => at(o) >= startOfMonth);
+    const today = allOrders.filter((o) => at(o) >= startOfDay);
+    const month = allOrders.filter((o) => at(o) >= startOfMonth);
 
     const byStatus = {};
-    for (const o of orders) {
+    for (const o of allOrders) {
       const key = o.paymentStatus === 'paid' ? 'paid' : o.invoiceStatus || 'draft';
       byStatus[key] = (byStatus[key] || 0) + 1;
     }
 
     return sendJson(res, 200, {
-      sales: { today: sum(today), month: sum(month), total: sum(orders) },
-      counts: { today: today.length, month: month.length, total: orders.length },
+      sales: { today: sum(today), month: sum(month), total: sum(allOrders) },
+      counts: { today: today.length, month: month.length, total: allOrders.length },
       byStatus,
-      customers: auth.listUsers().length,
-      recent: orders
-        .slice(-8)
-        .reverse()
-        .map((o) => ({
-          orderName: o.orderName,
-          customer: o.customer?.name || '—',
-          city: o.customer?.city || '',
-          total: Number(o.total) || 0,
-          paymentStatus: o.paymentStatus || 'unpaid',
-          placedAt: o.receivedAt,
-        })),
+      customers: (await auth.listUsers()).length,
+      recent: allOrders.slice(0, 8).map((o) => ({
+        orderName: o.orderName,
+        customer: o.customer?.name || '—',
+        city: o.customer?.city || '',
+        total: Number(o.total) || 0,
+        paymentStatus: o.paymentStatus || 'unpaid',
+        placedAt: o.placedAt,
+      })),
     });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/admin/orders') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     const status = url.searchParams.get('status');
     const search = (url.searchParams.get('q') || '').trim().toLowerCase();
 
-    let orders = readOrderLog().reverse();
-    if (status && status !== 'all') {
-      orders = orders.filter((o) =>
-        status === 'paid' ? o.paymentStatus === 'paid' : o.paymentStatus !== 'paid'
-      );
-    }
-    if (search) {
-      orders = orders.filter((o) =>
-        [o.orderName, o.invoiceName, o.customer?.name, o.customer?.phone, o.customer?.city]
-          .some((v) => String(v || '').toLowerCase().includes(search))
-      );
-    }
+    const matching = await orders.listOrders({ status, search });
 
     return sendJson(res, 200, {
-      orders: orders.slice(0, 200).map((o) => ({
+      orders: matching.slice(0, 200).map((o) => ({
         orderName: o.orderName,
         invoiceName: o.invoiceName,
         customer: o.customer || {},
@@ -673,16 +624,16 @@ async function handleApi(req, res, url) {
         total: Number(o.total) || 0,
         invoiceStatus: o.invoiceStatus || 'draft',
         paymentStatus: o.paymentStatus || 'unpaid',
-        placedAt: o.receivedAt,
+        placedAt: o.placedAt,
         paidAt: o.paidAt || null,
         userId: o.userId || null,
       })),
-      totalMatching: orders.length,
+      totalMatching: matching.length,
     });
   }
 
   if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/orders/')) {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     const orderName = decodeURIComponent(url.pathname.split('/').pop());
     const body = await readBody(req);
@@ -702,33 +653,30 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: 'حالة طلب غير معروفة' });
     }
 
-    const orders = readOrderLog();
-    const idx = orders.findIndex((o) => o.orderName === orderName);
-    if (idx === -1) return sendJson(res, 404, { error: 'الطلب غير موجود' });
-
+    const updates = {};
     if (payload.paymentStatus) {
-      orders[idx].paymentStatus = payload.paymentStatus;
-      orders[idx].paidAt =
-        payload.paymentStatus === 'paid' ? new Date().toISOString() : null;
+      updates.paymentStatus = payload.paymentStatus;
+      updates.paidAt = payload.paymentStatus === 'paid' ? new Date().toISOString() : null;
     }
-    if (payload.invoiceStatus) orders[idx].invoiceStatus = payload.invoiceStatus;
-    orders[idx].updatedAt = new Date().toISOString();
+    if (payload.invoiceStatus) updates.invoiceStatus = payload.invoiceStatus;
 
-    writeOrderLog(orders);
-    return sendJson(res, 200, { order: orders[idx] });
+    const updated = await orders.updateOrder(orderName, updates);
+    if (!updated) return sendJson(res, 404, { error: 'الطلب غير موجود' });
+
+    return sendJson(res, 200, { order: updated });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/admin/customers') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
-    const orders = readOrderLog();
-    const customers = auth.listUsers().map((u) => {
-      const theirs = orders.filter((o) => o.userId === u.id);
+    const [allOrders, users] = await Promise.all([orders.listOrders(), auth.listUsers()]);
+    const customers = users.map((u) => {
+      const theirs = allOrders.filter((o) => o.userId === u.id);
       return {
         ...u,
         orderCount: theirs.length,
         spent: theirs.reduce((t, o) => t + (Number(o.total) || 0), 0),
-        lastOrderAt: theirs.length ? theirs[theirs.length - 1].receivedAt : null,
+        lastOrderAt: theirs.length ? theirs[0].placedAt : null,
       };
     });
 
@@ -736,7 +684,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/users/')) {
-    const actor = requireAdmin(req, res);
+    const actor = await requireAdmin(req, res);
     if (!actor) return;
 
     const userId = url.pathname.split('/').pop();
@@ -751,7 +699,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 400, { error: 'دور غير معروف' });
     }
 
-    const target = auth.getUser(userId);
+    const target = await auth.getUser(userId);
     if (!target) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
     // An env-granted admin cannot be demoted here — the change would not stick.
@@ -765,12 +713,12 @@ async function handleApi(req, res, url) {
       return sendJson(res, 409, { error: 'لا يمكنك إزالة صلاحيتك عن نفسك' });
     }
 
-    auth.updateUser(userId, { role: payload.role });
+    await auth.updateUser(userId, { role: payload.role });
     return sendJson(res, 200, { id: userId, role: payload.role });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/admin/products') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     const result = await getProducts();
     return sendJson(res, 200, {
@@ -786,13 +734,13 @@ async function handleApi(req, res, url) {
   // ---- إعدادات أودو ----
 
   if (req.method === 'GET' && url.pathname === '/api/admin/settings/odoo') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
     // Never includes the API key — only whether one is stored.
     return sendJson(res, 200, { odoo: settings.readPublicOdoo(), lastError: lastOdooError });
   }
 
   if (req.method === 'PUT' && url.pathname === '/api/admin/settings/odoo') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     const body = await readBody(req);
     let payload;
@@ -829,14 +777,47 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/odoo') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
     const cleared = settings.clearOdoo();
     productCache = { at: 0, data: null };
     return sendJson(res, 200, { odoo: cleared });
   }
 
+  // ---- إعدادات فيسبوك بكسل ----
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/settings/facebook-pixel') {
+    if (!(await requireAdmin(req, res))) return;
+    return sendJson(res, 200, { facebookPixel: settings.readPublicFacebookPixel() });
+  }
+
+  if (req.method === 'PUT' && url.pathname === '/api/admin/settings/facebook-pixel') {
+    if (!(await requireAdmin(req, res))) return;
+
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const pixelId = String(payload.pixelId || '').trim();
+    if (pixelId && !/^\d{5,20}$/.test(pixelId)) {
+      return sendJson(res, 400, { error: 'رقم الـ Pixel يجب أن يتكون من أرقام فقط' });
+    }
+
+    const saved = settings.saveFacebookPixel({ pixelId });
+    return sendJson(res, 200, { facebookPixel: saved });
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/facebook-pixel') {
+    if (!(await requireAdmin(req, res))) return;
+    const cleared = settings.clearFacebookPixel();
+    return sendJson(res, 200, { facebookPixel: cleared });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/admin/settings/odoo/test') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     if (!odoo.isConfigured()) {
       return sendJson(res, 400, { error: 'أكمل بيانات الاتصال أولاً' });
@@ -851,7 +832,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/admin/sync') {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireAdmin(req, res))) return;
 
     productCache = { at: 0, data: null };
     try {
@@ -864,6 +845,13 @@ async function handleApi(req, res, url) {
     } catch (err) {
       return sendJson(res, 502, { error: `تعذّرت المزامنة: ${err.message}` });
     }
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/pixel-config') {
+    // Public — a Pixel ID isn't a secret, and every visitor's browser needs
+    // it to initialize tracking, not just admins.
+    const { pixelId } = settings.readPublicFacebookPixel();
+    return sendJson(res, 200, { pixelId });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/health') {
@@ -893,7 +881,7 @@ function serveStatic(res, urlPath) {
     'X-Frame-Options': 'SAMEORIGIN',
   };
   if (ext === '.html') {
-    headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'";
+    headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; connect-src 'self' https://www.facebook.com";
     // The SPA shell must never be cached, or users get stale asset references.
     headers['Cache-Control'] = 'no-cache';
   } else if (path.relative(PUBLIC_DIR, filePath).replace(/\\/g, '/').startsWith('assets/')) {
@@ -922,7 +910,21 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  const mode = odoo.isConfigured() ? 'Odoo متصل' : 'وضع تجريبي (بدون أودو)';
-  console.log(`متجر المراتب يعمل على http://localhost:${PORT} — ${mode}`);
+async function start() {
+  if (db.isConfigured()) {
+    await db.migrate();
+    console.log('[Postgres] متصل — الحسابات والطلبات تُحفظ في قاعدة البيانات');
+  } else {
+    console.log('[Postgres] DATABASE_URL غير مضبوط — الحسابات والطلبات تُحفظ في ملفات محلية');
+  }
+
+  server.listen(PORT, () => {
+    const mode = odoo.isConfigured() ? 'Odoo متصل' : 'وضع تجريبي (بدون أودو)';
+    console.log(`متجر المراتب يعمل على http://localhost:${PORT} — ${mode}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('[Startup] فشل بدء التشغيل:', err.message);
+  process.exit(1);
 });

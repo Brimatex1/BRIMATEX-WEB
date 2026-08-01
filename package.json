@@ -2,7 +2,7 @@
   "name": "brimatex",
   "version": "1.0.0",
   "private": true,
-  "description": "متجر بريماتكس للمراتب — واجهة React/shadcn وخادم Node بدون تبعيات",
+  "description": "متجر بريماتكس للمراتب — واجهة React/shadcn وخادم Node",
   "engines": {
     "node": ">=18"
   },
@@ -13,6 +13,10 @@
     "build": "npm --prefix web run build",
     "dev:api": "node server.js",
     "dev:web": "npm --prefix web run dev",
-    "typecheck": "npm --prefix web run lint"
+    "typecheck": "npm --prefix web run lint",
+    "migrate:pg": "node scripts/migrate-to-postgres.js"
+  },
+  "dependencies": {
+    "pg": "^8.22.0"
   }
 }
