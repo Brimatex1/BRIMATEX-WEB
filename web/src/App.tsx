@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { AuthSection } from '@/components/AuthSection';
+import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { CartSection } from '@/components/CartSection';
 import { Header } from '@/components/Header';
 import { HomeSection } from '@/components/HomeSection';
@@ -206,10 +207,9 @@ export default function App() {
       </main>
 
       <footer className="bg-primary py-12 text-center text-sm text-primary-foreground/80">
-        <div className="container">
-          <p className="mb-1 font-heading text-2xl tracking-[0.08em] text-primary-foreground">
-            BRIMATEX
-          </p>
+        <div className="container flex flex-col items-center">
+          {/* currentColor puts the mark in Cloud Dancer here, not the navy it ships as */}
+          <BrimatexLogo className="mb-4 h-16 w-auto text-primary-foreground" />
           <p>تجربة 100 ليلة · توصيل مجاني · ضمان حتى 12 سنة</p>
         </div>
       </footer>

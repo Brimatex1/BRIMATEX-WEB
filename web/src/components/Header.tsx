@@ -1,5 +1,6 @@
 import { BedDouble, Heart, Home, ShoppingBag, Sparkles, User as UserIcon } from 'lucide-react';
 
+import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { cn } from '@/lib/utils';
 import type { SectionId } from '@/types';
 
@@ -23,9 +24,14 @@ export function Header({ active, cartCount, wishlistCount, onNavigate }: HeaderP
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
       <div className="container flex h-[72px] flex-wrap items-center justify-between gap-4">
-        <span className="font-heading text-2xl font-bold tracking-[0.08em] text-primary">
-          BRIMATEX
-        </span>
+        <button
+          type="button"
+          onClick={() => onNavigate('home')}
+          aria-label="بريماتكس — الصفحة الرئيسية"
+          className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <BrimatexLogo title={null} className="h-11 w-auto text-primary transition-opacity hover:opacity-80" />
+        </button>
 
         <nav className="flex flex-wrap gap-1" aria-label="التنقل الرئيسي">
           {NAV.map(({ id, label, Icon }) => {

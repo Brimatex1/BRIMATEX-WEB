@@ -78,18 +78,44 @@ function contrast(a, b) {
 
 const css = fs.readFileSync(CSS, 'utf8');
 
-function parseBlock(selector) {
+/**
+ * Reads one theme block. Semantic tokens mostly point at the raw brand tokens
+ * (`--primary: var(--brand-ocean)`), so literals are collected first and the
+ * aliases resolved against them afterwards — `base` supplies :root values when
+ * a dark-mode alias references a token only declared there.
+ */
+function parseBlock(selector, base = {}) {
   const re = new RegExp(`${selector}\\s*\\{([\\s\\S]*?)\\n\\s*\\}`);
   const body = css.match(re)?.[1] ?? '';
-  const tokens = {};
-  for (const m of body.matchAll(/(--[a-z-]+)\s*:\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/g)) {
-    tokens[m[1]] = hslToRgb(parseFloat(m[2]), parseFloat(m[3]), parseFloat(m[4]));
+
+  const literals = {};
+  for (const m of body.matchAll(/(--[a-z0-9-]+)\s*:\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/g)) {
+    literals[m[1]] = hslToRgb(parseFloat(m[2]), parseFloat(m[3]), parseFloat(m[4]));
+  }
+
+  const aliases = {};
+  for (const m of body.matchAll(/(--[a-z0-9-]+)\s*:\s*var\(\s*(--[a-z0-9-]+)\s*\)/g)) {
+    aliases[m[1]] = m[2];
+  }
+
+  const tokens = { ...base, ...literals };
+  // An alias declared in this block always wins over the inherited value —
+  // `--card-foreground: var(--brand-cloud)` in .dark must not keep :root's.
+  for (let i = 0; i < 4; i++) {
+    for (const [token, target] of Object.entries(aliases)) {
+      if (tokens[target]) tokens[token] = tokens[target];
+    }
+  }
+
+  const unresolved = Object.keys(aliases).filter((t) => !tokens[t]);
+  if (unresolved.length) {
+    console.log(`  \x1b[33m!\x1b[0m رموز لم تُحلّ في ${selector}: ${unresolved.join(', ')}`);
   }
   return tokens;
 }
 
 const light = parseBlock(':root');
-const dark = parseBlock('\\.dark');
+const dark = parseBlock('\\.dark', light);
 
 /* ---------- 1. official palette ---------- */
 
