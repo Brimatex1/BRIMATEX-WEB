@@ -6,6 +6,7 @@ import type {
   AdminProducts,
   CartLine,
   Customer,
+  FacebookPixelSettings,
   OrderResult,
   OrderSummary,
   OdooSettings,
@@ -67,6 +68,8 @@ function authHeaders(token: string): RequestInit {
 export const api = {
   getProducts: () =>
     request<{ source: string; products: Product[] }>('/api/products'),
+
+  getPixelConfig: () => request<{ pixelId: string | null }>('/api/pixel-config'),
 
   /**
    * Orders are accepted without an account. Passing the token when signed in
@@ -198,6 +201,25 @@ export const api = {
   adminSync: (token: string) =>
     request<{ source: string; count: number; syncedAt: string }>('/api/admin/sync', {
       method: 'POST',
+      ...authHeaders(token),
+    }),
+
+  adminFacebookPixelSettings: (token: string) =>
+    request<{ facebookPixel: FacebookPixelSettings }>(
+      '/api/admin/settings/facebook-pixel',
+      authHeaders(token)
+    ),
+
+  adminSaveFacebookPixel: (token: string, pixelId: string) =>
+    request<{ facebookPixel: FacebookPixelSettings }>('/api/admin/settings/facebook-pixel', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ pixelId }),
+    }),
+
+  adminClearFacebookPixel: (token: string) =>
+    request<{ facebookPixel: FacebookPixelSettings }>('/api/admin/settings/facebook-pixel', {
+      method: 'DELETE',
       ...authHeaders(token),
     }),
 };

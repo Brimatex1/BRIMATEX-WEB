@@ -157,6 +157,13 @@ export interface OdooSettings {
   configured: boolean;
 }
 
+export interface FacebookPixelSettings {
+  pixelId: string | null;
+  /** Value comes from .env with no dashboard override. */
+  fromEnv: boolean;
+  configured: boolean;
+}
+
 export interface AdminProducts {
   source: string;
   /** False when Odoo owns the catalogue; edits there would be overwritten. */

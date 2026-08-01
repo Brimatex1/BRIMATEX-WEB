@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
 import { OdooSettingsPanel } from '@/components/OdooSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -585,7 +586,10 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
 
       {/* ---------------- الإعدادات ---------------- */}
       {!error && tab === 'settings' && token && (
-        <OdooSettingsPanel token={token} onChanged={() => void load()} />
+        <div className="space-y-6">
+          <OdooSettingsPanel token={token} onChanged={() => void load()} />
+          <FacebookPixelSettingsPanel token={token} />
+        </div>
       )}
     </section>
   );

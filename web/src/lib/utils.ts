@@ -8,6 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 /** Libyan dinar. Single source so a market change is one edit. */
 export const CURRENCY = 'د.ل';
 
+/** ISO 4217 — needed for Meta Pixel events, which don't accept the display symbol. */
+export const CURRENCY_ISO = 'LYD';
+
 /** Arabic month names with Latin digits, which is what ar-LY uses. */
 export const LOCALE = 'ar-LY';
 

@@ -22,6 +22,8 @@ const ENV_ODOO = {
   apiKey: process.env.ODOO_API_KEY || '',
 };
 
+const ENV_FACEBOOK_PIXEL_ID = process.env.FACEBOOK_PIXEL_ID || '';
+
 function readFile() {
   try {
     return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -92,4 +94,44 @@ function clearOdoo() {
   return readPublicOdoo();
 }
 
-module.exports = { getOdoo, readPublicOdoo, saveOdoo, clearOdoo };
+/**
+ * A Pixel ID isn't a secret — it's visible in every page's network requests
+ * to Facebook on any site that uses one — so unlike Odoo's API key, this is
+ * safe to return to the browser as-is. No `hasXxx` masking needed.
+ */
+function readPublicFacebookPixel() {
+  const stored = readFile().facebookPixel || {};
+  const pixelId = stored.pixelId || ENV_FACEBOOK_PIXEL_ID || '';
+  return {
+    pixelId: pixelId || null,
+    fromEnv: !stored.pixelId && Boolean(ENV_FACEBOOK_PIXEL_ID),
+    configured: Boolean(pixelId),
+  };
+}
+
+function saveFacebookPixel({ pixelId }) {
+  const data = readFile();
+  data.facebookPixel = {
+    pixelId: String(pixelId || '').trim(),
+    updatedAt: new Date().toISOString(),
+  };
+  writeFile(data);
+  return readPublicFacebookPixel();
+}
+
+function clearFacebookPixel() {
+  const data = readFile();
+  delete data.facebookPixel;
+  writeFile(data);
+  return readPublicFacebookPixel();
+}
+
+module.exports = {
+  getOdoo,
+  readPublicOdoo,
+  saveOdoo,
+  clearOdoo,
+  readPublicFacebookPixel,
+  saveFacebookPixel,
+  clearFacebookPixel,
+};

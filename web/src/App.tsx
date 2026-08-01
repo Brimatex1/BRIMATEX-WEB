@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { AdminSection } from '@/components/AdminSection';
@@ -17,6 +17,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
+import { api } from '@/lib/api';
+import { initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
 import type { Address, Category, Product, SectionId } from '@/types';
 
 export default function App() {
@@ -32,9 +34,25 @@ export default function App() {
   const auth = useAuth();
   const wishlist = useWishlist(auth.token, auth.user);
 
+  // Loads the admin-configured Pixel ID (if any) and fires the first PageView.
+  // A no-op when unconfigured — see lib/pixel.ts.
+  useEffect(() => {
+    api
+      .getPixelConfig()
+      .then(({ pixelId }) => {
+        if (pixelId) initPixel(pixelId);
+        trackPageView();
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function navigate(next: SectionId) {
     setSection(next);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    // This SPA has no router — every section switch is the "virtual page
+    // load" equivalent, so a fresh PageView belongs here, not just on boot.
+    trackPageView();
   }
 
   function openProduct(product: Product) {
@@ -43,6 +61,7 @@ export default function App() {
     setCameFromShop(section === 'shop');
     setSelectedId(product.id);
     navigate('product');
+    trackViewContent(product);
   }
 
   /** Home category cards jump into the shop with that filter already applied. */
@@ -63,6 +82,7 @@ export default function App() {
     const existing = cart.lines.find((l) => l.id === product.id);
     cart.add(product);
     toast.success(existing ? `تم تحديث الكمية: ${product.name}` : `تمت إضافة: ${product.name}`);
+    trackAddToCart(product);
 
     setJustAddedId(product.id);
     window.setTimeout(() => setJustAddedId((id) => (id === product.id ? null : id)), 1200);

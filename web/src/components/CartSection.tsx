@@ -4,6 +4,7 @@ import { Check, Minus, Plus, Trash2 } from 'lucide-react';
 import { CheckoutForm } from '@/components/CheckoutForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { trackInitiateCheckout, trackPurchase } from '@/lib/pixel';
 import { formatPrice } from '@/lib/utils';
 import type { CartLine, OrderResult, User } from '@/types';
 
@@ -34,6 +35,9 @@ export function CartSection({
   const [result, setResult] = useState<OrderResult | null>(null);
 
   function handleSuccess(order: OrderResult) {
+    // Read before onClear() empties the cart — the pixel event needs the
+    // items that were actually purchased.
+    trackPurchase(order, lines);
     setResult(order);
     setCheckingOut(false);
     onClear();
@@ -184,7 +188,13 @@ export function CartSection({
 
               {!checkingOut && (
                 <>
-                  <Button className="w-full" onClick={() => setCheckingOut(true)}>
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      trackInitiateCheckout(lines, total);
+                      setCheckingOut(true);
+                    }}
+                  >
                     متابعة إتمام الطلب
                   </Button>
                   <Button variant="ghost" className="mt-2 w-full" onClick={onContinueShopping}>
