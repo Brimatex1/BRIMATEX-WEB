@@ -1,4 +1,15 @@
-import { ArrowLeft, BedDouble, Clock, Moon, ShieldCheck, Sparkles, Truck, Wallet } from 'lucide-react';
+import { useState } from 'react';
+import {
+  ArrowLeft,
+  BedDouble,
+  Clock,
+  Moon,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Truck,
+  Wallet,
+} from 'lucide-react';
 
 import { ProductVisual } from '@/components/ProductVisual';
 import { Reveal } from '@/components/Reveal';
@@ -36,12 +47,16 @@ const CATEGORY_COPY: Record<Category, { title: string; body: string }> = {
 
 const CATEGORY_ORDER: Category[] = ['mattress', 'pillow', 'bedding'];
 
+/** Shortcuts under the search box — the terms people actually type. */
+const QUICK_SEARCHES = ['مرتبة طبية', 'وسادة', 'ذاكرة', 'مقاس 180'];
+
 interface HomeSectionProps {
   products: Product[];
   loading: boolean;
   onShopCategory: (category: Category | 'all') => void;
   onOpenProduct: (product: Product) => void;
   onStartQuiz: () => void;
+  onSearch: (query: string) => void;
 }
 
 export function HomeSection({
@@ -50,7 +65,9 @@ export function HomeSection({
   onShopCategory,
   onOpenProduct,
   onStartQuiz,
+  onSearch,
 }: HomeSectionProps) {
+  const [draft, setDraft] = useState('');
   const groups = CATEGORY_ORDER.map((category) => {
     const items = products.filter((p) => p.category === category);
     const from = items.length ? Math.min(...items.map((p) => p.price)) : 0;
@@ -76,19 +93,63 @@ export function HomeSection({
               وجرّبها 100 ليلة في بيتك، وادفع عند الاستلام.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" onClick={() => onShopCategory('mattress')}>
-                تسوّق المراتب
-              </Button>
+            {/* Search lives here now — the homepage is the way into the catalogue */}
+            <form
+              className="mt-8"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSearch(draft);
+              }}
+              role="search"
+            >
+              <label htmlFor="home-search" className="sr-only">
+                ابحث في المنتجات
+              </label>
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute top-1/2 size-5 -translate-y-1/2 text-muted-foreground start-4"
+                  aria-hidden="true"
+                />
+                <input
+                  id="home-search"
+                  type="search"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="ابحث عن مرتبة، وسادة، أو رقم منتج…"
+                  className="h-14 w-full rounded-full border border-input bg-card ps-12 pe-32 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
+                <Button type="submit" className="absolute top-1/2 -translate-y-1/2 end-2">
+                  بحث
+                </Button>
+              </div>
+            </form>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">شائع:</span>
+              {QUICK_SEARCHES.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => {
+                    setDraft(term);
+                    onSearch(term);
+                  }}
+                  className="rounded-full border px-3 py-1 text-muted-foreground motion-safe:transition-colors hover:border-accent/50 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
               <Button size="lg" variant="outline" onClick={onStartQuiz}>
                 <Sparkles aria-hidden="true" />
                 ساعدني أختار
               </Button>
+              <Button size="lg" variant="ghost" onClick={() => onShopCategory('all')}>
+                تصفّح كل المنتجات
+              </Button>
             </div>
-
-            <p className="mt-5 text-sm text-muted-foreground">
-              لا تعرف أي مرتبة تناسبك؟ أجب عن أربعة أسئلة ونرشّح لك واحدة.
-            </p>
           </div>
 
           {featured && (

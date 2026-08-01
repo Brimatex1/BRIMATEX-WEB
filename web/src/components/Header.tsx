@@ -1,4 +1,4 @@
-import { BedDouble, Heart, Home, ShoppingBag, Sparkles, User as UserIcon } from 'lucide-react';
+import { Heart, Home, ShoppingBag, Sparkles, User as UserIcon } from 'lucide-react';
 
 import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { cn } from '@/lib/utils';
@@ -11,9 +11,13 @@ interface HeaderProps {
   onNavigate: (section: SectionId) => void;
 }
 
-const NAV: { id: SectionId; label: string; Icon: typeof BedDouble }[] = [
+/**
+ * No "shop" tab: the homepage is the way in — search, categories and products
+ * all start there. The shop section still exists as the destination for search
+ * results and category browsing, it just is not a top-level destination.
+ */
+const NAV: { id: SectionId; label: string; Icon: typeof Home }[] = [
   { id: 'home', label: 'الرئيسية', Icon: Home },
-  { id: 'shop', label: 'المتجر', Icon: BedDouble },
   { id: 'quiz', label: 'ساعدني أختار', Icon: Sparkles },
   { id: 'wishlist', label: 'المفضلة', Icon: Heart },
   { id: 'cart', label: 'السلة', Icon: ShoppingBag },
@@ -35,9 +39,14 @@ export function Header({ active, cartCount, wishlistCount, onNavigate }: HeaderP
 
         <nav className="flex flex-wrap gap-1" aria-label="التنقل الرئيسي">
           {NAV.map(({ id, label, Icon }) => {
-            // Sub-pages have no tab of their own — highlight the tab they came from.
+            // Sub-pages have no tab of their own — highlight the tab they came
+            // from. Shop and product both descend from the homepage now.
             const current =
-              active === 'product' ? 'shop' : active === 'orders' ? 'auth' : active;
+              active === 'shop' || active === 'product'
+                ? 'home'
+                : active === 'orders'
+                  ? 'auth'
+                  : active;
             const isActive = current === id;
 
             return (

@@ -23,6 +23,8 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [justAddedId, setJustAddedId] = useState<number | null>(null);
   const [shopCategory, setShopCategory] = useState<Category | 'all'>('all');
+  const [shopQuery, setShopQuery] = useState('');
+  const [cameFromShop, setCameFromShop] = useState(false);
 
   const catalogue = useProducts();
   const cart = useCart();
@@ -35,6 +37,9 @@ export default function App() {
   }
 
   function openProduct(product: Product) {
+    // Remembered so "back" returns where the visitor actually came from —
+    // the shop listing, or the homepage when opened from a card there.
+    setCameFromShop(section === 'shop');
     setSelectedId(product.id);
     navigate('product');
   }
@@ -42,6 +47,14 @@ export default function App() {
   /** Home category cards jump into the shop with that filter already applied. */
   function shopCategoryFrom(category: Category | 'all') {
     setShopCategory(category);
+    setShopQuery('');
+    navigate('shop');
+  }
+
+  /** The homepage search box is the main way into the catalogue. */
+  function searchFromHome(query: string) {
+    setShopQuery(query);
+    setShopCategory('all');
     navigate('shop');
   }
 
@@ -98,6 +111,7 @@ export default function App() {
             onShopCategory={shopCategoryFrom}
             onOpenProduct={openProduct}
             onStartQuiz={() => navigate('quiz')}
+            onSearch={searchFromHome}
           />
         )}
 
@@ -115,6 +129,9 @@ export default function App() {
             products={catalogue.products}
             category={shopCategory}
             onCategoryChange={setShopCategory}
+            query={shopQuery}
+            onQueryChange={setShopQuery}
+            onBackHome={() => navigate('home')}
             loading={catalogue.loading}
             error={catalogue.error}
             onReload={catalogue.reload}
@@ -138,7 +155,7 @@ export default function App() {
               saved={wishlist.has(selected.id)}
               wishlistPending={wishlist.pending === selected.id}
               onAdd={handleAdd}
-              onBack={() => navigate('shop')}
+              onBack={() => navigate(cameFromShop ? 'shop' : 'home')}
               onToggleWishlist={handleToggleWishlist}
               onOpenProduct={openProduct}
             />

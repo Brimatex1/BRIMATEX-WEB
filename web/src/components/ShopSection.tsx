@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Clock, Search, ShieldCheck, Truck, X } from 'lucide-react';
+import { ArrowRight, Check, Clock, Search, ShieldCheck, Truck, X } from 'lucide-react';
 
 import { ProductCard } from '@/components/ProductCard';
 import { Reveal } from '@/components/Reveal';
@@ -34,9 +34,12 @@ const SORTS: { id: SortKey; label: string }[] = [
 
 interface ShopSectionProps {
   products: Product[];
-  /** Lifted so the homepage category cards can deep-link into a filtered shop. */
+  /** Lifted so the homepage search box and category cards can deep-link here. */
   category: Category | 'all';
   onCategoryChange: (category: Category | 'all') => void;
+  query: string;
+  onQueryChange: (query: string) => void;
+  onBackHome: () => void;
   loading: boolean;
   error: string | null;
   onReload: () => void;
@@ -52,6 +55,9 @@ export function ShopSection({
   products,
   category,
   onCategoryChange,
+  query,
+  onQueryChange,
+  onBackHome,
   loading,
   error,
   onReload,
@@ -62,7 +68,6 @@ export function ShopSection({
   wishlistPending,
   justAddedId,
 }: ShopSectionProps) {
-  const [query, setQuery] = useState('');
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [sort, setSort] = useState<SortKey>('featured');
 
@@ -95,8 +100,12 @@ export function ShopSection({
 
   const filtersActive = query.trim() !== '' || category !== 'all' || maxPrice !== null;
 
+  const heading = query.trim()
+    ? 'نتائج البحث'
+    : (CATEGORIES.find((c) => c.id === category)?.label ?? 'كل المنتجات');
+
   function resetFilters() {
-    setQuery('');
+    onQueryChange('');
     onCategoryChange('all');
     setMaxPrice(null);
     setSort('featured');
@@ -104,15 +113,22 @@ export function ShopSection({
 
   return (
     <section className="container animate-fade-up">
-      <div className="pt-12 pb-6">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-          مجموعة 2026
-        </p>
+      <div className="pt-6">
+        <Button variant="ghost" onClick={onBackHome} className="px-2">
+          <ArrowRight aria-hidden="true" />
+          الرئيسية
+        </Button>
+      </div>
+
+      {/* The heading reflects how the visitor arrived — a search or a category */}
+      <div className="pt-4 pb-6">
         <h1 className="font-heading text-4xl font-semibold leading-tight tracking-tight text-primary sm:text-5xl">
-          متجر المراتب الفاخرة
+          {heading}
         </h1>
-        <p className="mt-4 max-w-[62ch] text-muted-foreground">
-          نوم أعمق يبدأ من مرتبة مصنوعة بعناية. اطلب مباشرة دون تسجيل، وادفع عند الاستلام.
+        <p className="mt-3 text-muted-foreground">
+          {query.trim()
+            ? `نتائج البحث عن «${query.trim()}»`
+            : 'اطلب مباشرة دون تسجيل، وادفع عند الاستلام.'}
         </p>
       </div>
 
@@ -139,7 +155,7 @@ export function ShopSection({
                   id="shop-search"
                   type="search"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={(e) => onQueryChange(e.target.value)}
                   placeholder="ابحث بالاسم أو رقم المنتج"
                   className="ps-9"
                 />
