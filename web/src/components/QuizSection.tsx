@@ -47,8 +47,8 @@ const QUESTIONS: { id: QuestionId; title: string; choices: Choice[] }[] = [
     id: 'budget',
     title: 'ما ميزانيتك تقريباً؟',
     choices: [
-      { value: 'low', label: 'أقل من 2000 ر.س' },
-      { value: 'mid', label: '2000 – 3000 ر.س' },
+      { value: 'low', label: 'أقل من 2000 د.ل' },
+      { value: 'mid', label: '2000 – 3000 د.ل' },
       { value: 'high', label: 'المهم الأفضل' },
     ],
   },
@@ -193,7 +193,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
               <span className="font-heading text-3xl font-semibold tabular text-primary">
                 {formatPrice(best.product.price)}
               </span>
-              <span className="ms-1 text-sm text-muted-foreground">ر.س</span>
+              <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
@@ -229,7 +229,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
                       {product.name}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">{product.specs?.firmness}</p>
-                    <p className="mt-2 tabular text-sm">{formatPrice(product.price)} ر.س</p>
+                    <p className="mt-2 tabular text-sm">{formatPrice(product.price)} د.ل</p>
                   </div>
                 </button>
               ))}

@@ -99,7 +99,7 @@ export function ProductDetail({
             <span className="font-heading text-4xl font-semibold tabular text-primary">
               {formatPrice(product.price)}
             </span>
-            <span className="ms-1 text-sm text-muted-foreground">ر.س</span>
+            <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
           </p>
           <p className="mt-1 text-sm text-success">توصيل مجاني · ادفع عند الاستلام</p>
 
@@ -293,7 +293,7 @@ export function ProductDetail({
                     </th>
                     <td className="py-4 pe-4">{size?.label ?? '—'}</td>
                     <td className="py-4 pe-4">{specs?.firmness ?? '—'}</td>
-                    <td className="py-4 tabular">{formatPrice(product.price)} ر.س</td>
+                    <td className="py-4 tabular">{formatPrice(product.price)} د.ل</td>
                   </tr>
                   {related.map((other) => (
                     <tr key={other.id} className="border-b">
@@ -308,7 +308,7 @@ export function ProductDetail({
                       </th>
                       <td className="py-4 pe-4">{other.size?.label ?? '—'}</td>
                       <td className="py-4 pe-4">{other.specs?.firmness ?? '—'}</td>
-                      <td className="py-4 tabular">{formatPrice(other.price)} ر.س</td>
+                      <td className="py-4 tabular">{formatPrice(other.price)} د.ل</td>
                     </tr>
                   ))}
                 </tbody>

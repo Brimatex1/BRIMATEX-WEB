@@ -119,7 +119,7 @@ export function AddressBook({ token, addresses, onChange }: AddressBookProps) {
                 id="addr-city"
                 value={fields.city}
                 onChange={(e) => update('city', e.target.value)}
-                placeholder="الرياض"
+                placeholder="طرابلس"
                 autoComplete="address-level2"
                 aria-invalid={Boolean(errors.city)}
               />

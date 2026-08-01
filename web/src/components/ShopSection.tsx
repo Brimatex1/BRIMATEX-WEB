@@ -8,7 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+import { cn, formatPrice } from '@/lib/utils';
 import type { Category, Product, SortKey } from '@/types';
 
 const TRUST = [
@@ -183,7 +183,7 @@ export function ShopSection({
                 <Label htmlFor="shop-price">
                   السعر الأقصى:{' '}
                   <span className="tabular">
-                    {maxPrice === null ? 'بلا حد' : `${maxPrice.toLocaleString('ar-EG')} ر.س`}
+                    {maxPrice === null ? 'بلا حد' : `${formatPrice(maxPrice)} د.ل`}
                   </span>
                 </Label>
                 <input

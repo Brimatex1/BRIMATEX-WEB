@@ -62,7 +62,7 @@ export function CartSection({
             <p className="mt-4 text-lg">
               الإجمالي:{' '}
               <strong className="font-heading text-2xl tabular text-accent">
-                {formatPrice(result.total)} ر.س
+                {formatPrice(result.total)} د.ل
               </strong>
             </p>
             <p className="mt-4 text-sm text-muted-foreground">
@@ -127,7 +127,7 @@ export function CartSection({
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold">{line.name}</p>
                       <p className="text-sm tabular text-muted-foreground">
-                        {formatPrice(line.price)} ر.س للقطعة
+                        {formatPrice(line.price)} د.ل للقطعة
                       </p>
                     </div>
 
@@ -155,7 +155,7 @@ export function CartSection({
                     </div>
 
                     <p className="min-w-24 text-start font-semibold tabular sm:text-end">
-                      {formatPrice(line.price * line.qty)} ر.س
+                      {formatPrice(line.price * line.qty)} د.ل
                     </p>
 
                     <Button
@@ -178,7 +178,7 @@ export function CartSection({
               <div className="mb-6 flex items-baseline justify-between">
                 <span>الإجمالي</span>
                 <strong className="font-heading text-3xl font-semibold tabular">
-                  {formatPrice(total)} ر.س
+                  {formatPrice(total)} د.ل
                 </strong>
               </div>
 

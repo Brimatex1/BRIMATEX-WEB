@@ -167,7 +167,7 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
               <Input
                 {...fieldProps('phone')}
                 type="tel"
-                placeholder="05xxxxxxxx"
+                placeholder="09xxxxxxxx"
                 autoComplete="tel"
               />
               {errors.phone && (
@@ -183,7 +183,7 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
               </Label>
               <Input
                 {...fieldProps('city')}
-                placeholder="الرياض"
+                placeholder="طرابلس"
                 autoComplete="address-level2"
               />
               {errors.city && (

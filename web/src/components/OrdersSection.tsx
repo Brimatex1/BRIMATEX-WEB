@@ -20,7 +20,7 @@ interface OrdersSectionProps {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  return d.toLocaleDateString('ar-LY', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export function OrdersSection({
@@ -153,7 +153,7 @@ export function OrdersSection({
                 <div className="flex items-baseline justify-between border-t pt-3">
                   <span className="text-muted-foreground">الإجمالي</span>
                   <strong className="font-heading text-xl tabular text-accent">
-                    {formatPrice(order.total)} ر.س
+                    {formatPrice(order.total)} د.ل
                   </strong>
                 </div>
 

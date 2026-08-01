@@ -91,7 +91,7 @@ export function ProductCard({
           <span className="font-heading text-3xl font-semibold tabular text-primary">
             {formatPrice(product.price)}
           </span>
-          <span className="ms-1 text-sm text-muted-foreground">ر.س</span>
+          <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
         </p>
         <p className="mt-2 text-xs text-success">بدون تسجيل · ادفع عند الاستلام</p>
       </CardContent>

@@ -27,7 +27,7 @@ const PROMISES = [
   { Icon: Moon, title: 'تجربة 100 ليلة', body: 'جرّبها في بيتك، وأرجعها إن لم تناسبك.' },
   { Icon: ShieldCheck, title: 'ضمان حتى 12 سنة', body: 'ضمان مكتوب على البنية والخامات.' },
   { Icon: Truck, title: 'توصيل مجاني', body: 'إلى باب منزلك دون رسوم إضافية.' },
-  { Icon: Wallet, title: 'ادفع عند الاستلام', body: 'لا تدفع ريالاً قبل أن تستلم.' },
+  { Icon: Wallet, title: 'ادفع عند الاستلام', body: 'لا تدفع ديناراً قبل أن تستلم.' },
 ];
 
 const CATEGORY_COPY: Record<Category, { title: string; body: string }> = {
@@ -173,8 +173,8 @@ export function HomeSection({
               <div className="absolute bottom-4 rounded-xl border bg-card/95 p-4 shadow-lg backdrop-blur start-4">
                 <p className="text-xs text-muted-foreground">يبدأ من</p>
                 <p className="font-heading text-2xl font-semibold tabular text-primary">
-                  {formatPrice(Math.min(...products.map((p) => p.price)))}
-                  <span className="ms-1 text-sm font-normal text-muted-foreground">ر.س</span>
+                  {formatPrice(Math.min(...products.map((p) => p.price)))}{' '}
+                  <span className="text-sm font-normal text-muted-foreground">د.ل</span>
                 </p>
               </div>
             </div>
@@ -244,7 +244,7 @@ export function HomeSection({
                     <span className="font-heading text-xl font-semibold tabular text-primary">
                       {formatPrice(group.from)}
                     </span>{' '}
-                    ر.س
+                    د.ل
                   </p>
                   <Button
                     variant="outline"
@@ -305,7 +305,7 @@ export function HomeSection({
                       <span className="font-heading text-xl font-semibold tabular text-primary">
                         {formatPrice(product.price)}
                       </span>
-                      <span className="ms-1 text-sm text-muted-foreground">ر.س</span>
+                      <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
                     </p>
                   </button>
                   </Reveal>

@@ -187,7 +187,7 @@ export function AuthSection({
                 type="tel"
                 value={fields.phone}
                 onChange={(e) => update('phone', e.target.value)}
-                placeholder="05xxxxxxxx"
+                placeholder="09xxxxxxxx"
                 autoComplete="tel"
                 aria-invalid={Boolean(errors.phone)}
               />

@@ -29,7 +29,7 @@ async function sendInvoiceViaWhatsApp(customerPhone, invoiceName, invoiceStatus,
 *رقم الطلب:* ${orderName}
 *رقم الفاتورة:* ${invoiceName}
 *الحالة:* ${invoiceStatus === 'posted' ? '✅ منشورة' : invoiceStatus === 'paid' ? '✅ مدفوعة' : '📋 مسودة'}
-*المبلغ:* ${total} ر.س
+*المبلغ:* ${total} د.ل
 
 شكراً لاختيارك بريماتكس 🛏️
 للمزيد من المعلومات، يرجى زيارة موقعنا أو التواصل معنا.
