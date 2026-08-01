@@ -1,10 +1,15 @@
 import type {
   Address,
+  AdminCustomer,
+  AdminOrder,
+  AdminOverview,
+  AdminProducts,
   CartLine,
   Customer,
   OrderResult,
   OrderSummary,
   Product,
+  Role,
   User,
 } from '@/types';
 
@@ -122,4 +127,44 @@ export const api = {
       method: 'DELETE',
       ...authHeaders(token),
     }),
+
+  /* ------------------------------------------------------------ dashboard */
+
+  adminOverview: (token: string) =>
+    request<AdminOverview>('/api/admin/overview', authHeaders(token)),
+
+  adminOrders: (token: string, params?: { status?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status && params.status !== 'all') qs.set('status', params.status);
+    if (params?.q?.trim()) qs.set('q', params.q.trim());
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return request<{ orders: AdminOrder[]; totalMatching: number }>(
+      `/api/admin/orders${suffix}`,
+      authHeaders(token)
+    );
+  },
+
+  adminUpdateOrder: (
+    token: string,
+    orderName: string,
+    changes: { paymentStatus?: string; invoiceStatus?: string }
+  ) =>
+    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(orderName)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(changes),
+    }),
+
+  adminCustomers: (token: string) =>
+    request<{ customers: AdminCustomer[] }>('/api/admin/customers', authHeaders(token)),
+
+  adminSetRole: (token: string, userId: string, role: Role) =>
+    request<{ id: string; role: Role }>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ role }),
+    }),
+
+  adminProducts: (token: string) =>
+    request<AdminProducts>('/api/admin/products', authHeaders(token)),
 };

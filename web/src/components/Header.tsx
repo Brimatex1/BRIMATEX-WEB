@@ -1,4 +1,4 @@
-import { Heart, Home, ShoppingBag, Sparkles, User as UserIcon } from 'lucide-react';
+import { Heart, Home, LayoutDashboard, ShoppingBag, Sparkles, User as UserIcon } from 'lucide-react';
 
 import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,8 @@ interface HeaderProps {
   active: SectionId;
   cartCount: number;
   wishlistCount: number;
+  /** The dashboard tab is appended only for admins. */
+  isAdmin: boolean;
   onNavigate: (section: SectionId) => void;
 }
 
@@ -24,7 +26,17 @@ const NAV: { id: SectionId; label: string; Icon: typeof Home }[] = [
   { id: 'auth', label: 'حسابي', Icon: UserIcon },
 ];
 
-export function Header({ active, cartCount, wishlistCount, onNavigate }: HeaderProps) {
+export function Header({
+  active,
+  cartCount,
+  wishlistCount,
+  isAdmin,
+  onNavigate,
+}: HeaderProps) {
+  const items = isAdmin
+    ? [...NAV, { id: 'admin' as SectionId, label: 'اللوحة', Icon: LayoutDashboard }]
+    : NAV;
+
   return (
     <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
       {/* min-h, not a fixed height: the row grew past a hard 72px on small
@@ -43,7 +55,7 @@ export function Header({ active, cartCount, wishlistCount, onNavigate }: HeaderP
         </button>
 
         <nav className="flex items-center gap-0.5 sm:gap-1" aria-label="التنقل الرئيسي">
-          {NAV.map(({ id, label, Icon }) => {
+          {items.map(({ id, label, Icon }) => {
             // Sub-pages have no tab of their own — highlight the tab they came
             // from. Shop and product both descend from the homepage now.
             const current =

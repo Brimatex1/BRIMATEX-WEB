@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { AdminSection } from '@/components/AdminSection';
 import { AuthSection } from '@/components/AuthSection';
 import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { CartSection } from '@/components/CartSection';
@@ -103,6 +104,7 @@ export default function App() {
         active={section}
         cartCount={cart.count}
         wishlistCount={wishlist.ids.length}
+        isAdmin={auth.user?.role === 'admin'}
         onNavigate={navigate}
       />
 
@@ -209,6 +211,14 @@ export default function App() {
             onClear={cart.clear}
             onContinueShopping={() => navigate('shop')}
             onViewOrders={() => navigate('orders')}
+          />
+        )}
+
+        {section === 'admin' && (
+          <AdminSection
+            user={auth.user}
+            token={auth.token}
+            onGoHome={() => navigate('home')}
           />
         )}
 

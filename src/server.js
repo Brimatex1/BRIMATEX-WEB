@@ -414,6 +414,8 @@ async function handleApi(req, res, url) {
         email: user.email,
         name: user.name,
         phone: user.phone || null,
+        // Effective role, so the UI knows whether to offer the dashboard.
+        role: auth.roleOf(user),
         addresses: user.addresses || [],
         wishlist: user.wishlist || [],
         orders: user.orders || [],
