@@ -310,7 +310,7 @@ async function handleApi(req, res, url) {
     if (password.length < 6) {
       return sendJson(res, 400, { error: 'الكلمة المرورية يجب أن تكون 6 أحرف على الأقل' });
     }
-    const user = auth.createUser(phone, password, name);
+    const user = await auth.createUser(phone, password, name);
     if (!user) {
       return sendJson(res, 409, { error: 'هذا رقم الهاتف مسجل بالفعل' });
     }
@@ -334,7 +334,7 @@ async function handleApi(req, res, url) {
     if (!phone?.trim() || !password?.trim()) {
       return sendJson(res, 400, { error: 'رقم الهاتف والكلمة المرورية مطلوبة' });
     }
-    const user = auth.authenticate(phone, password);
+    const user = await auth.authenticate(phone, password);
     if (!user) {
       return sendJson(res, 401, { error: 'رقم الهاتف أو الكلمة المرورية غير صحيحة' });
     }
@@ -373,6 +373,10 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+    // Actually invalidate the token. Clearing it in the browser alone left it
+    // usable server-side for the remainder of its 30 days.
+    const token = req.headers.authorization?.split(' ')[1];
+    auth.deleteSession(token);
     return sendJson(res, 200, { message: 'تم الخروج بنجاح' });
   }
 

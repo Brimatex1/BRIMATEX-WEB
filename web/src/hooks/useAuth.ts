@@ -47,6 +47,11 @@ export function useAuth() {
   }, []);
 
   const signOut = useCallback(() => {
+    // Tell the server to drop the session, but never block signing out on it —
+    // if the request fails the local state must still be cleared.
+    const current = localStorage.getItem(TOKEN_KEY);
+    if (current) void api.logout(current).catch(() => undefined);
+
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);

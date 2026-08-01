@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const USERS_FILE = path.join(__dirname, '..', 'data', 'users.jsonl');
 const SESSIONS_FILE = path.join(__dirname, '..', 'data', 'sessions.jsonl');
 
+const SESSION_DAYS = 30;
+const SCRYPT_KEYLEN = 64;
+
 function ensureFiles() {
   if (!fs.existsSync(USERS_FILE)) {
     fs.writeFileSync(USERS_FILE, '');
@@ -14,47 +17,148 @@ function ensureFiles() {
   }
 }
 
+/* ---------------------------------------------------------------- passwords */
+
+/**
+ * Stored as `scrypt$<salt>$<hash>`.
+ *
+ * The previous scheme was a bare SHA-256 hex digest: fast to brute-force and
+ * unsalted, so one rainbow table cracks every account at once. Existing hashes
+ * are still accepted at login and transparently re-hashed — see verifyPassword.
+ */
 function hashPassword(password) {
+  return new Promise((resolve, reject) => {
+    const salt = crypto.randomBytes(16).toString('hex');
+    crypto.scrypt(password, salt, SCRYPT_KEYLEN, (err, derived) => {
+      if (err) return reject(err);
+      resolve(`scrypt$${salt}$${derived.toString('hex')}`);
+    });
+  });
+}
+
+function legacyHash(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
+
+/** Constant-time compare that tolerates differing lengths. */
+function safeEqual(a, b) {
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Resolves { ok, needsUpgrade }. `needsUpgrade` marks an old SHA-256 hash that
+ * matched, so the caller can replace it with a scrypt one while it holds the
+ * plaintext — the only moment an upgrade is possible.
+ */
+function verifyPassword(password, stored) {
+  return new Promise((resolve, reject) => {
+    if (typeof stored !== 'string' || !stored) {
+      return resolve({ ok: false, needsUpgrade: false });
+    }
+
+    if (!stored.startsWith('scrypt$')) {
+      return resolve({ ok: safeEqual(legacyHash(password), stored), needsUpgrade: true });
+    }
+
+    const [, salt, expected] = stored.split('$');
+    if (!salt || !expected) return resolve({ ok: false, needsUpgrade: false });
+
+    crypto.scrypt(password, salt, SCRYPT_KEYLEN, (err, derived) => {
+      if (err) return reject(err);
+      resolve({ ok: safeEqual(derived.toString('hex'), expected), needsUpgrade: false });
+    });
+  });
+}
+
+/* ------------------------------------------------------------------- tokens */
 
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-function createUser(phone, password, name) {
+/* -------------------------------------------------------------------- users */
+
+async function createUser(phone, password, name) {
   ensureFiles();
   const users = readUsers();
 
-  if (users.find(u => u.phone === phone)) {
+  if (users.find((u) => u.phone === phone)) {
     return null;
   }
 
   const user = {
     id: crypto.randomUUID(),
     email: `user_${Date.now()}@brimatex.local`,
-    passwordHash: hashPassword(password),
+    passwordHash: await hashPassword(password),
     name: name.trim(),
     phone: phone.trim(),
     createdAt: new Date().toISOString(),
     addresses: [],
     wishlist: [],
-    orders: []
+    orders: [],
   };
 
   fs.appendFileSync(USERS_FILE, JSON.stringify(user) + '\n');
   return user;
 }
 
-function authenticate(phone, password) {
+async function authenticate(phone, password) {
   ensureFiles();
   const users = readUsers();
-  const user = users.find(u => u.phone === phone);
+  const user = users.find((u) => u.phone === phone);
 
   if (!user) return null;
-  if (user.passwordHash !== hashPassword(password)) return null;
+
+  const { ok, needsUpgrade } = await verifyPassword(password, user.passwordHash);
+  if (!ok) return null;
+
+  if (needsUpgrade) {
+    // Move the account off SHA-256 now that the plaintext is in hand.
+    updateUser(user.id, { passwordHash: await hashPassword(password) });
+  }
 
   return user;
+}
+
+function getUser(userId) {
+  ensureFiles();
+  const users = readUsers();
+  return users.find((u) => u.id === userId) || null;
+}
+
+function updateUser(userId, updates) {
+  ensureFiles();
+  const users = readUsers();
+  const idx = users.findIndex((u) => u.id === userId);
+
+  if (idx === -1) return null;
+
+  users[idx] = { ...users[idx], ...updates };
+  fs.writeFileSync(USERS_FILE, users.map((u) => JSON.stringify(u)).join('\n') + '\n');
+
+  return users[idx];
+}
+
+/* ----------------------------------------------------------------- sessions */
+
+function writeSessions(sessions) {
+  fs.writeFileSync(
+    SESSIONS_FILE,
+    sessions.length ? sessions.map((s) => JSON.stringify(s)).join('\n') + '\n' : ''
+  );
+}
+
+/** Drops expired rows. Without this the file grows forever. */
+function pruneSessions() {
+  ensureFiles();
+  const now = Date.now();
+  const sessions = readSessions();
+  const live = sessions.filter((s) => new Date(s.expiresAt).getTime() > now);
+  if (live.length !== sessions.length) writeSessions(live);
+  return live;
 }
 
 function createSession(userId) {
@@ -64,17 +168,19 @@ function createSession(userId) {
     token,
     userId,
     createdAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    expiresAt: new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000).toISOString(),
   };
 
-  fs.appendFileSync(SESSIONS_FILE, JSON.stringify(session) + '\n');
+  // Prune on write so expiry cleanup needs no scheduler.
+  const live = pruneSessions();
+  writeSessions([...live, session]);
   return token;
 }
 
 function verifySession(token) {
   ensureFiles();
-  const sessions = readSessions();
-  const session = sessions.find(s => s.token === token);
+  if (!token) return null;
+  const session = readSessions().find((s) => s.token === token);
 
   if (!session) return null;
   if (new Date(session.expiresAt) < new Date()) return null;
@@ -82,33 +188,30 @@ function verifySession(token) {
   return session;
 }
 
-function getUser(userId) {
+/**
+ * Invalidates a token server-side. Logout previously only cleared the browser's
+ * copy, leaving the token usable for the rest of its 30 days.
+ */
+function deleteSession(token) {
   ensureFiles();
-  const users = readUsers();
-  return users.find(u => u.id === userId) || null;
+  if (!token) return false;
+  const sessions = readSessions();
+  const remaining = sessions.filter((s) => s.token !== token);
+  if (remaining.length === sessions.length) return false;
+  writeSessions(remaining);
+  return true;
 }
 
-function updateUser(userId, updates) {
-  ensureFiles();
-  const users = readUsers();
-  const idx = users.findIndex(u => u.id === userId);
-
-  if (idx === -1) return null;
-
-  users[idx] = { ...users[idx], ...updates };
-  fs.writeFileSync(USERS_FILE, users.map(u => JSON.stringify(u)).join('\n') + '\n');
-
-  return users[idx];
-}
+/* ------------------------------------------------------------------ storage */
 
 function readUsers() {
   ensureFiles();
   try {
-    const content = fs.readFileSync(USERS_FILE, 'utf8');
-    return content
+    return fs
+      .readFileSync(USERS_FILE, 'utf8')
       .split('\n')
-      .filter(line => line.trim())
-      .map(line => JSON.parse(line));
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
   } catch {
     return [];
   }
@@ -117,11 +220,11 @@ function readUsers() {
 function readSessions() {
   ensureFiles();
   try {
-    const content = fs.readFileSync(SESSIONS_FILE, 'utf8');
-    return content
+    return fs
+      .readFileSync(SESSIONS_FILE, 'utf8')
       .split('\n')
-      .filter(line => line.trim())
-      .map(line => JSON.parse(line));
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
   } catch {
     return [];
   }
@@ -132,6 +235,8 @@ module.exports = {
   authenticate,
   createSession,
   verifySession,
+  deleteSession,
+  pruneSessions,
   getUser,
-  updateUser
+  updateUser,
 };

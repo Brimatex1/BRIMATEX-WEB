@@ -95,6 +95,13 @@ export const api = {
 
   me: (token: string) => request<{ user: User }>('/api/auth/me', authHeaders(token)),
 
+  /** Invalidates the token server-side; clearing localStorage alone does not. */
+  logout: (token: string) =>
+    request<{ message: string }>('/api/auth/logout', {
+      method: 'POST',
+      ...authHeaders(token),
+    }),
+
   getOrders: (token: string) =>
     request<{ orders: OrderSummary[] }>('/api/user/orders', authHeaders(token)),
 
