@@ -68,7 +68,7 @@ export function ProductDetail({
       </div>
 
       {/* ---------- Buy panel ---------- */}
-      <section className="container grid gap-10 pb-14 pt-4 md:grid-cols-[1.15fr_1fr]">
+      <section className="container grid gap-10 pb-14 pt-4 lg:grid-cols-[1.15fr_1fr]">
         <div className="space-y-4">
           <ProductVisual product={product} variant="hero" />
           <div className="grid grid-cols-3 gap-4">
@@ -78,7 +78,7 @@ export function ProductDetail({
           </div>
         </div>
 
-        <div className="md:sticky md:top-24 md:self-start">
+        <div className="lg:sticky lg:top-24 lg:self-start">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             {product.category && (
               <Badge variant="secondary">{CATEGORY_LABEL[product.category]}</Badge>

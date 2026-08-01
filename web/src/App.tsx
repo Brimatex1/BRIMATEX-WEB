@@ -89,9 +89,12 @@ export default function App() {
 
   return (
     <>
+      {/* start-0/top-0 even while hidden: sr-only is absolute but without an
+          inset it keeps its static position, which in RTL lands past the right
+          edge and adds ~20px of horizontal scroll on narrow screens. */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:start-0 focus:top-0 focus:z-50 focus:rounded-b-md focus:bg-primary focus:px-6 focus:py-2 focus:text-sm focus:text-primary-foreground"
+        className="sr-only absolute top-0 start-0 focus:not-sr-only focus:z-50 focus:rounded-b-md focus:bg-primary focus:px-6 focus:py-2 focus:text-sm focus:text-primary-foreground"
       >
         تخطّي إلى المحتوى
       </a>

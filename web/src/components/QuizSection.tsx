@@ -167,7 +167,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
           {best.product.name}
         </h1>
 
-        <div className="mt-8 grid gap-8 md:grid-cols-[1.1fr_1fr]">
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
           <ProductVisual product={best.product} variant="hero" />
 
           <div>

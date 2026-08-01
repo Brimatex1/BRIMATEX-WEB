@@ -80,7 +80,9 @@ export function HomeSection({
     <div className="animate-fade-up">
       {/* ---------- Hero ---------- */}
       <section className="border-b bg-secondary/40">
-        <div className="container grid items-center gap-10 py-14 md:grid-cols-2 md:py-20">
+        {/* Splits at lg, not md: at 768 the two columns squeezed the search
+            field to ~330px and truncated its placeholder. */}
+        <div className="container grid items-center gap-10 py-10 sm:py-14 lg:grid-cols-2 lg:py-20">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
               مجموعة 2026
@@ -116,9 +118,22 @@ export function HomeSection({
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder="ابحث عن مرتبة، وسادة، أو رقم منتج…"
-                  className="h-14 w-full rounded-full border border-input bg-card ps-12 pe-32 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  // Trailing padding tracks the button, which shrinks to an
+                  // icon on phones — a fixed pe-32 cut the placeholder off.
+                  className="h-12 w-full rounded-full border border-input bg-card ps-11 pe-16 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-14 sm:ps-12 sm:pe-28"
                 />
-                <Button type="submit" className="absolute top-1/2 -translate-y-1/2 end-2">
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="absolute top-1/2 size-11 -translate-y-1/2 end-1.5 sm:hidden"
+                  aria-label="بحث"
+                >
+                  <Search aria-hidden="true" />
+                </Button>
+                <Button
+                  type="submit"
+                  className="absolute top-1/2 hidden -translate-y-1/2 end-2 sm:inline-flex"
+                >
                   بحث
                 </Button>
               </div>
@@ -134,7 +149,7 @@ export function HomeSection({
                     setDraft(term);
                     onSearch(term);
                   }}
-                  className="rounded-full border px-3 py-1 text-muted-foreground motion-safe:transition-colors hover:border-accent/50 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="inline-flex min-h-9 items-center rounded-full border px-3.5 text-muted-foreground motion-safe:transition-colors hover:border-accent/50 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   {term}
                 </button>
@@ -205,13 +220,13 @@ export function HomeSection({
         <p className="mt-2 text-muted-foreground">كل ما تحتاجه غرفة نومك.</p>
 
         {loading ? (
-          <div className="mt-8 grid gap-8 md:grid-cols-3">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-72 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
         ) : (
-          <div className="mt-8 grid gap-8 md:grid-cols-3">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
             {groups.map((group, i) => (
               <Reveal key={group.category} delay={i * 90} className="flex">
               <Card className="group/cat flex flex-1 flex-col overflow-hidden motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-xl">

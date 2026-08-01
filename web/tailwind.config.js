@@ -5,7 +5,8 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: '1.5rem',
+      // A flat 1.5rem costs 48px of a 375px screen; scale it with the viewport.
+      padding: { DEFAULT: '1rem', sm: '1.5rem', lg: '2rem' },
       screens: { '2xl': '1200px' },
     },
     extend: {
