@@ -22,14 +22,16 @@ jobs:
       run: |
         node --check server.js
         node --check src/server.js
-        for file in src/lib/*.js; do node --check "$file"; done
+        for file in src/lib/*.js src/lib/store/*.js; do node --check "$file"; done
 
     - name: Validate structure
       run: |
         [ -f "src/lib/auth.js" ] || exit 1
         [ -f "src/lib/odoo.js" ] || exit 1
         [ -f "src/lib/whatsapp.js" ] || exit 1
-        [ -f "src/public/index.html" ] || exit 1
+        # src/public/index.html is Vite's build output (gitignored, only
+        # exists after `npm run build`) — check the real source instead.
+        [ -f "web/index.html" ] || exit 1
         [ -f "src/data/demo-products.json" ] || exit 1
         echo "✅ All required files present"
 
@@ -50,6 +52,9 @@ jobs:
 
     - name: Check Node.js version
       run: node --version
+
+    - name: Install dependencies
+      run: npm ci
 
     - name: Test server startup
       run: |
