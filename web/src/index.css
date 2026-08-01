@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * BRIMATEX — نظام الألوان
+ *
+ * مشتق من دليل هوية بريماتكس الرسمي. التوثيق الكامل في docs/BRAND_COLORS.md:
+ *   Dark Ocean   #282868   اللون الأساسي
+ *   Blue Violet  #666bb1   ثانوي / حلقة التركيز
+ *   Sun Glare    #dee337   نداء الفعل (خلفية فقط — انظر الملاحظة أدناه)
+ *   Porcelain    #9dc9cf   لمسات هادئة / رسوم المنتجات
+ *   Nebula       #d9e3e2   أسطح ثانوية
+ *   Cloud Dancer #f1f0ec   خلفية الصفحة
+ *
+ * كل زوج (خلفية/نص) هنا مفحوص آلياً ضد WCAG AA في
+ * tests/brand.check.js — لا تعدّل قيمة دون تشغيل الفحص.
+ *
+ * ملاحظة على Sun Glare: تباينه مع الأبيض 1.39:1 فقط، لذا لا يصلح
+ * لوناً للنص إطلاقاً. يُستخدم خلفيةً مع نص Dark Ocean فوقه (9.51:1).
+ */
+
+@layer base {
+  :root {
+    /* ── مقياس Dark Ocean ── */
+    --ocean-50: 240 25% 97%;
+    --ocean-100: 240 23% 94%;
+    --ocean-200: 240 24% 87%;
+    --ocean-300: 240 36% 75%;
+    --ocean-400: 240 36% 62%;
+    --ocean-500: 240 44% 48%;
+    --ocean-600: 240 44% 40%;
+    --ocean-700: 240 44% 33%;
+    --ocean-800: 240 44% 28%; /* ← لون العلامة #282868 */
+    --ocean-900: 240 45% 20%;
+    --ocean-950: 240 45% 10%;
+
+    /* ── ألوان الهوية الخام ──
+       مأخوذة حرفياً من دليل هوية بريماتكس. ثوابت لا تتغيّر بين الفاتح والداكن،
+       ولا تُستخدم مباشرة في المكوّنات — الرموز الدلالية أدناه هي الواجهة. */
+    --brand-ocean: 240 44.4% 28.2%; /* Dark Ocean   #282868 */
+    --brand-violet: 236 32.5% 54.7%; /* Blue Violet  #666BB1 */
+    --brand-porcelain: 187 34.2% 71.4%; /* Porcelain    #9DC9CF */
+    --brand-nebula: 174 15.2% 87.1%; /* Nebula       #D9E3E2 */
+    --brand-cloud: 48 15.2% 93.5%; /* Cloud Dancer #F1F0EC */
+    --brand-sun: 61.74 75.44% 55.29%; /* Sun Glare    #DEE337 */
+
+    /* ── الرموز الدلالية — الوضع الفاتح ── */
+    --background: var(--brand-cloud); /* Cloud Dancer */
+    --foreground: 240 45% 10%; /* 16.62:1 ✓ AAA */
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 45% 10%; /* 18.95:1 ✓ AAA */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 45% 10%;
+
+    --primary: var(--brand-ocean); /* Dark Ocean */
+    --primary-foreground: 0 0% 100%; /* 13.18:1 ✓ AAA */
+
+    --secondary: var(--brand-nebula); /* Nebula */
+    --secondary-foreground: var(--brand-ocean); /* 10.06:1 ✓ AAA */
+
+    --muted: 174 15.2% 94%; /* Nebula مُفتَّح — كان رمادياً خارج اللوحة */
+    --muted-foreground: 173 15% 33%; /* 5.87:1 ✓ AA */
+
+    --accent: var(--brand-sun); /* Sun Glare — خلفية نداء الفعل */
+    --accent-foreground: var(--brand-ocean); /* 9.51:1 ✓ AAA */
+
+    /* نص مميَّز (عناوين فرعية، روابط، تنقل نشط).
+       Sun Glare لا يصلح هنا، فنستخدم Blue Violet داكناً. */
+    --highlight: 237 32% 33%; /* 8.98:1 على الخلفية ✓ AAA */
+
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 72% 29%;
+    --success-foreground: 0 0% 100%;
+
+    --border: var(--brand-nebula); /* Nebula — فواصل زخرفية */
+    --input: var(--brand-violet); /* Blue Violet — حدود الحقول 4.1:1 ✓ */
+    --ring: var(--brand-violet); /* Blue Violet — 4.88:1 ✓ */
+
+    /* Porcelain: لون الهوية السادس. يُستخدم للأسطح الهادئة والرسوم التوضيحية
+       (بصريات المنتجات)، وكان معرَّفاً في اللوحة بلا استخدام في الوضع الفاتح. */
+    --surface-calm: var(--brand-porcelain);
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: var(--ocean-950); /* Dark Ocean 950 */
+    --foreground: var(--brand-cloud); /* Cloud Dancer — 16.62:1 ✓ AAA */
+
+    --card: 240 45% 20%;
+    --card-foreground: var(--brand-cloud); /* 11.53:1 ✓ AAA */
+
+    --popover: 240 45% 20%;
+    --popover-foreground: var(--brand-cloud);
+
+    --primary: var(--brand-cloud); /* معكوس: زر فاتح على خلفية داكنة */
+    --primary-foreground: var(--brand-ocean); /* 11.94:1 ✓ AAA */
+
+    --secondary: var(--brand-ocean);
+    --secondary-foreground: var(--brand-cloud);
+
+    --muted: var(--brand-ocean);
+    --muted-foreground: var(--brand-porcelain); /* Porcelain — 8.04:1 ✓ AAA */
+
+    --accent: var(--brand-sun); /* Sun Glare يعمل على الداكن أيضاً */
+    --accent-foreground: var(--ocean-950); /* 15.15:1 ✓ AAA */
+
+    /* على الخلفية الداكنة يصبح Sun Glare نفسه صالحاً للنص */
+    --highlight: var(--brand-sun); /* 13.67:1 ✓ AAA */
+
+    --destructive: 0 91% 71%;
+    --destructive-foreground: var(--ocean-950);
+
+    --success: 142 69% 58%;
+    --success-foreground: var(--ocean-950);
+
+    --border: var(--brand-ocean);
+    --input: 240 36% 62%;
+    --ring: var(--brand-violet);
+
+    /* Porcelain مخفوض الإضاءة ليستقر على الخلفية الداكنة */
+    --surface-calm: 187 30% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: 1.7;
+  }
+
+  /* الأرقام العربية تبقى بعرض ثابت لتصطف الأسعار */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

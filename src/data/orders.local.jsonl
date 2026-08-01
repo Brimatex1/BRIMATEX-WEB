@@ -1,6 +1,0 @@
-{"token":"cd2c48807b09c546ba5db074e305007a7e1acae275daa94e069a5d79a7223e82","userId":"6924415f-4835-4ba6-bf16-73601bfd3fb6","createdAt":"2026-07-29T11:40:15.080Z","expiresAt":1787917215080}
-{"token":"c2418a9be0ae153c2ca685c49adc657acb20cc3f4ee613eaeb93628470ba4346","userId":"6924415f-4835-4ba6-bf16-73601bfd3fb6","createdAt":"2026-07-29T11:40:17.579Z","expiresAt":1787917217579}
-{"token":"3b4c8efcb374d0c9d767fca2fb38732739f4b68bb83d97526b6d3d0b36841012","userId":"eb96a9f5-9e26-41d9-9c2f-890c79ee38dc","createdAt":"2026-07-29T11:49:13.847Z","expiresAt":1787917753847}
-{"token":"eea1a61b92a5a78cdd51a8504e726760dafb6115d872d9c32b1fe676a7dc5aac","userId":"d20435f7-9118-4a67-a52e-2a170743c5c0","createdAt":"2026-07-29T12:00:54.390Z","expiresAt":1787918454390}
-{"customer":{"name":"محمد","phone":"0501111111","city":"الرياض","address":"حي النيل"},"items":[{"productId":1,"quantity":1}],"note":"التوصيل صباحاً","receivedAt":"2026-07-30T19:13:59.933Z","orderName":"DEMO-839933","invoiceName":"INV-839933","invoiceStatus":"draft","paymentStatus":"unpaid"}
-{"customer":{"name":"محمد","phone":"0501111111","city":"الرياض","address":"حي النيل"},"items":[{"productId":1,"quantity":1}],"note":"توصيل صباحاً","receivedAt":"2026-07-30T19:41:04.661Z","orderName":"DEMO-464660","invoiceName":"INV-464660","invoiceStatus":"draft","paymentStatus":"unpaid"}

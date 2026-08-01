@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بريماتكس — متجر المراتب الفاخرة</title>
+  <meta name="description" content="متجر المراتب الفاخرة — جودة عالية، توصيل مجاني، ادفع عند الاستلام">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant:wght@500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a href="#main" class="skip-link">تخطّي إلى المحتوى</a>
+
+  <header class="header">
+    <div class="container header-inner">
+      <span class="logo">BRIMATEX</span>
+      <nav class="nav" aria-label="التنقل الرئيسي">
+        <button class="nav-btn active" type="button" data-section="shop" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1Z"/><path d="M3 9 5 4h14l2 5"/><path d="M9 13h6"/>
+          </svg>
+          <span>المتجر</span>
+        </button>
+        <button class="nav-btn" type="button" data-section="cart">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+          <span>السلة <span id="cartCount">(0)</span></span>
+        </button>
+        <button class="nav-btn" type="button" data-section="auth">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span>حسابي</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============ المتجر ============ -->
+    <section id="shop" class="section active">
+      <div class="container">
+        <div class="page-head">
+          <p class="eyebrow">مجموعة 2026</p>
+          <h1>متجر المراتب الفاخرة</h1>
+          <p class="subtitle">نوم أعمق يبدأ من مرتبة مصنوعة بعناية. اطلب مباشرة دون تسجيل، وادفع عند الاستلام.</p>
+        </div>
+
+        <ul class="trust-row">
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            بدون تسجيل
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+            توصيل مجاني
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+            ضمان 12 سنة
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            تجربة 100 ليلة
+          </li>
+        </ul>
+
+        <div id="products" class="products-grid">
+          <p class="loading">جاري تحميل المنتجات…</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ السلة ============ -->
+    <section id="cart" class="section">
+      <div class="container narrow">
+        <div class="page-head">
+          <h1>سلة المشتريات</h1>
+          <p class="subtitle">راجع اختياراتك ثم أكمل الطلب — الدفع عند الاستلام.</p>
+        </div>
+
+        <div id="cartItems" class="cart-items">
+          <p class="empty-state">السلة فارغة — اختر منتجاتك من المتجر</p>
+        </div>
+
+        <div id="cartSummary" class="cart-summary" hidden>
+          <div class="cart-total"><span>الإجمالي</span><strong><span id="cartTotal">0</span> ر.س</strong></div>
+          <button id="checkoutBtn" class="btn btn-primary btn-block" type="button">متابعة إتمام الطلب</button>
+          <button id="goShopBtn" class="btn btn-ghost btn-block" type="button">متابعة التسوّق</button>
+        </div>
+
+        <!-- نموذج إتمام الطلب -->
+        <div id="checkoutBox" class="checkout-box" hidden>
+          <h2>بيانات التوصيل</h2>
+          <p class="auth-subtitle">لا حاجة لإنشاء حساب — أدخل بياناتك وسنتواصل معك.</p>
+
+          <form id="checkoutForm" class="checkout-form" onsubmit="return false">
+            <div class="field-row">
+              <div class="field">
+                <label for="co-name">الاسم الكامل <span class="req">*</span></label>
+                <input type="text" id="co-name" class="input" autocomplete="name" placeholder="اسمك">
+              </div>
+              <div class="field">
+                <label for="co-phone">رقم الجوال <span class="req">*</span></label>
+                <input type="tel" id="co-phone" class="input" autocomplete="tel" placeholder="05xxxxxxxx">
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label for="co-city">المدينة <span class="req">*</span></label>
+                <input type="text" id="co-city" class="input" autocomplete="address-level2" placeholder="الرياض">
+              </div>
+              <div class="field">
+                <label for="co-email">البريد الإلكتروني <span class="opt">(اختياري)</span></label>
+                <input type="email" id="co-email" class="input" autocomplete="email" placeholder="name@example.com">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="co-address">العنوان بالتفصيل <span class="req">*</span></label>
+              <input type="text" id="co-address" class="input" autocomplete="street-address" placeholder="الحي، الشارع، رقم المبنى">
+            </div>
+
+            <div class="field">
+              <label for="co-note">ملاحظات <span class="opt">(اختياري)</span></label>
+              <textarea id="co-note" class="input" rows="2" placeholder="مثال: التوصيل مساءً"></textarea>
+            </div>
+
+            <div class="checkout-actions">
+              <button id="submitOrderBtn" class="btn btn-primary" type="button">تأكيد الطلب</button>
+              <button id="cancelCheckoutBtn" class="btn btn-secondary" type="button">رجوع</button>
+            </div>
+            <p class="form-reassure">بالضغط على تأكيد الطلب فأنت توافق على الدفع عند الاستلام.</p>
+          </form>
+        </div>
+
+        <!-- رسالة النجاح -->
+        <div id="orderSuccess" class="order-success" hidden></div>
+      </div>
+    </section>
+
+    <!-- ============ الحساب ============ -->
+    <section id="auth" class="section">
+      <div class="container narrow">
+        <div class="auth-container">
+          <form id="login-form" class="auth-form" onsubmit="return false">
+            <h2>تسجيل الدخول</h2>
+            <p class="auth-subtitle">اختياري — لحفظ سجل طلباتك وعناوينك.</p>
+
+            <label for="login-phone">رقم الهاتف</label>
+            <input type="tel" id="login-phone" class="input" placeholder="05xxxxxxxx" autocomplete="tel">
+
+            <label for="login-password">كلمة المرور</label>
+            <input type="password" id="login-password" class="input" placeholder="••••••••" autocomplete="current-password">
+
+            <button id="loginBtn" class="btn btn-primary btn-block" type="button">دخول</button>
+            <p class="form-foot"><a href="#" data-toggle-auth>إنشاء حساب جديد</a></p>
+          </form>
+
+          <form id="register-form" class="auth-form" hidden onsubmit="return false">
+            <h2>إنشاء حساب</h2>
+            <p class="auth-subtitle">يستغرق أقل من دقيقة.</p>
+
+            <label for="register-name">الاسم الكامل</label>
+            <input type="text" id="register-name" class="input" placeholder="اسمك" autocomplete="name">
+
+            <label for="register-phone">رقم الهاتف</label>
+            <input type="tel" id="register-phone" class="input" placeholder="05xxxxxxxx" autocomplete="tel">
+
+            <label for="register-password">كلمة المرور <span class="opt">(6 أحرف على الأقل)</span></label>
+            <input type="password" id="register-password" class="input" placeholder="••••••••" autocomplete="new-password">
+
+            <button id="registerBtn" class="btn btn-primary btn-block" type="button">تسجيل</button>
+            <p class="form-foot"><a href="#" data-toggle-auth>لديّ حساب بالفعل</a></p>
+          </form>
+
+          <div id="user-info" class="auth-form" hidden>
+            <h2 id="user-name"></h2>
+            <p class="auth-subtitle">رقم الهاتف: <span id="user-phone"></span></p>
+            <button id="logoutBtn" class="btn btn-secondary btn-block" type="button">تسجيل الخروج</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p class="footer-brand">BRIMATEX</p>
+      <p>تجربة 100 ليلة · توصيل مجاني · ضمان حتى 12 سنة</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
