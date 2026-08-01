@@ -1,6 +1,7 @@
 import { ArrowRight, BadgeCheck, Check, Heart, Moon, ShieldCheck, Truck, Wallet } from 'lucide-react';
 
 import { ProductVisual } from '@/components/ProductVisual';
+import { Reveal } from '@/components/Reveal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn, formatPrice } from '@/lib/utils';
@@ -113,8 +114,9 @@ export function ProductDetail({
                 role="img"
                 aria-label={`الصلابة ${firmness} من 10`}
               >
+                {/* المؤشر ينزلق إلى موضعه بدل أن يقفز */}
                 <div
-                  className="absolute top-1/2 size-4 -translate-y-1/2 rounded-full border-2 border-card bg-accent shadow"
+                  className="absolute top-1/2 size-4 -translate-y-1/2 rounded-full border-2 border-card bg-accent shadow motion-safe:transition-[inset-inline-start] motion-safe:duration-700 motion-safe:ease-out"
                   style={{ insetInlineStart: `calc(${(firmness / 10) * 100}% - 8px)` }}
                 />
               </div>
@@ -194,14 +196,17 @@ export function ProductDetail({
           <h2 className="font-heading text-3xl font-semibold text-primary">كيف صُنعت</h2>
           <p className="mt-2 text-muted-foreground">الطبقات من الأعلى إلى القاعدة.</p>
 
+          {/* الطبقات تظهر تباعاً من الأعلى للأسفل، كأن المرتبة تُفتح */}
           <ol className="mt-8 space-y-3">
             {layers.map((layer, i) => (
-              <li key={layer} className="flex items-center gap-4 rounded-xl border p-4">
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 font-heading font-semibold tabular text-accent">
-                  {i + 1}
-                </span>
-                <span>{layer}</span>
-              </li>
+              <Reveal key={layer} delay={i * 120}>
+                <li className="flex items-center gap-4 rounded-xl border p-4 motion-safe:transition-colors hover:border-accent/50 hover:bg-muted/50">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 font-heading font-semibold tabular text-accent">
+                    {i + 1}
+                  </span>
+                  <span>{layer}</span>
+                </li>
+              </Reveal>
             ))}
           </ol>
         </section>
@@ -213,13 +218,15 @@ export function ProductDetail({
           <div className="container py-14">
             <h2 className="font-heading text-3xl font-semibold text-primary">المميزات</h2>
             <ul className="mt-8 grid gap-5 sm:grid-cols-2">
-              {features.map((f) => (
-                <li key={f} className="flex items-start gap-3">
-                  <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent/15">
-                    <Check className="size-3.5 text-accent" aria-hidden="true" />
-                  </span>
-                  <span>{f}</span>
-                </li>
+              {features.map((f, i) => (
+                <Reveal key={f} delay={i * 80}>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent/15">
+                      <Check className="size-3.5 text-accent" aria-hidden="true" />
+                    </span>
+                    <span>{f}</span>
+                  </li>
+                </Reveal>
               ))}
             </ul>
           </div>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Check, Clock, Search, ShieldCheck, Truck, X } from 'lucide-react';
 
 import { ProductCard } from '@/components/ProductCard';
+import { Reveal } from '@/components/Reveal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -265,9 +266,10 @@ export function ShopSection({
 
       {!loading && !error && visible.length > 0 && (
         <div className="grid grid-cols-1 gap-8 pb-12 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((product) => (
+          {visible.map((product, i) => (
+            // Stagger caps at 6 so a long grid does not crawl in
+            <Reveal key={product.id} delay={Math.min(i, 6) * 60} className="flex">
             <ProductCard
-              key={product.id}
               product={product}
               justAdded={justAddedId === product.id}
               saved={isSaved(product.id)}
@@ -276,6 +278,7 @@ export function ShopSection({
               onOpen={onOpen}
               onToggleWishlist={onToggleWishlist}
             />
+            </Reveal>
           ))}
         </div>
       )}

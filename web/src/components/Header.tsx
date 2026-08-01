@@ -57,9 +57,19 @@ export function Header({ active, cartCount, wishlistCount, onNavigate }: HeaderP
                 <Icon className="size-[19px]" aria-hidden="true" />
                 <span>
                   {label}
-                  {id === 'cart' && <span className="tabular"> ({cartCount})</span>}
+                  {id === 'cart' && (
+                    // key on the count so React remounts the span and replays
+                    // the pop each time an item lands in the cart
+                    <span key={cartCount} className="tabular motion-safe:animate-pop inline-block">
+                      {' '}
+                      ({cartCount})
+                    </span>
+                  )}
                   {id === 'wishlist' && wishlistCount > 0 && (
-                    <span className="tabular"> ({wishlistCount})</span>
+                    <span key={wishlistCount} className="tabular motion-safe:animate-pop inline-block">
+                      {' '}
+                      ({wishlistCount})
+                    </span>
                   )}
                 </span>
               </button>

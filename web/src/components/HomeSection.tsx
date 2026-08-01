@@ -1,6 +1,7 @@
 import { ArrowLeft, BedDouble, Clock, Moon, ShieldCheck, Sparkles, Truck, Wallet } from 'lucide-react';
 
 import { ProductVisual } from '@/components/ProductVisual';
+import { Reveal } from '@/components/Reveal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatPrice } from '@/lib/utils';
@@ -108,14 +109,14 @@ export function HomeSection({
       {/* ---------- Promises ---------- */}
       <section className="border-b">
         <div className="container grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
-          {PROMISES.map(({ Icon, title, body }) => (
-            <div key={title}>
-              <div className="mb-3 grid size-11 place-items-center rounded-full bg-accent/15 text-accent">
+          {PROMISES.map(({ Icon, title, body }, i) => (
+            <Reveal key={title} delay={i * 80}>
+              <div className="group/promise mb-3 grid size-11 place-items-center rounded-full bg-accent/15 text-accent motion-safe:transition-transform motion-safe:duration-300 hover:scale-110">
                 <Icon className="size-5" aria-hidden="true" />
               </div>
               <h2 className="font-heading text-lg font-semibold text-primary">{title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{body}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -150,9 +151,13 @@ export function HomeSection({
           </div>
         ) : (
           <div className="mt-8 grid gap-8 md:grid-cols-3">
-            {groups.map((group) => (
-              <Card key={group.category} className="flex flex-col overflow-hidden">
-                <ProductVisual product={group.items[0]} className="rounded-none" />
+            {groups.map((group, i) => (
+              <Reveal key={group.category} delay={i * 90} className="flex">
+              <Card className="group/cat flex flex-1 flex-col overflow-hidden motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-xl">
+                <ProductVisual
+                  product={group.items[0]}
+                  className="rounded-none motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover/cat:scale-[1.04]"
+                />
                 <CardContent className="flex flex-1 flex-col pt-6">
                   <h3 className="font-heading text-2xl font-semibold text-primary">
                     {group.title}
@@ -174,6 +179,7 @@ export function HomeSection({
                   </Button>
                 </CardContent>
               </Card>
+              </Reveal>
             ))}
           </div>
         )}
@@ -200,17 +206,19 @@ export function HomeSection({
               {products
                 .filter((p) => p.category === 'mattress')
                 .slice(0, 4)
-                .map((product) => (
+                .map((product, i) => (
+                  <Reveal key={product.id} delay={i * 70}>
                   <button
-                    key={product.id}
                     type="button"
                     onClick={() => onOpenProduct(product)}
-                    className="group rounded-xl text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="group w-full rounded-xl text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <ProductVisual
-                      product={product}
-                      className="transition-shadow group-hover:shadow-xl"
-                    />
+                    <div className="overflow-hidden rounded-xl">
+                      <ProductVisual
+                        product={product}
+                        className="motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-[1.05]"
+                      />
+                    </div>
                     <h3 className="mt-4 font-semibold text-primary group-hover:text-accent">
                       {product.name}
                     </h3>
@@ -224,6 +232,7 @@ export function HomeSection({
                       <span className="ms-1 text-sm text-muted-foreground">ر.س</span>
                     </p>
                   </button>
+                  </Reveal>
                 ))}
             </div>
           </div>

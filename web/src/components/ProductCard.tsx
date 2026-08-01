@@ -27,14 +27,23 @@ export function ProductCard({
   onToggleWishlist,
 }: ProductCardProps) {
   return (
-    <Card className="flex flex-col overflow-hidden transition-shadow hover:border-accent/45 hover:shadow-xl">
+    <Card
+      className={cn(
+        'group/card flex flex-col overflow-hidden',
+        'motion-safe:transition-[transform,box-shadow,border-color] motion-safe:duration-300',
+        'hover:border-accent/45 hover:shadow-xl motion-safe:hover:-translate-y-1'
+      )}
+    >
       <button
         type="button"
         onClick={() => onOpen(product)}
         aria-label={`عرض تفاصيل ${product.name}`}
-        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
-        <ProductVisual product={product} className="rounded-none" />
+        <ProductVisual
+          product={product}
+          className="rounded-none motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover/card:scale-[1.04]"
+        />
       </button>
 
       <CardHeader>
