@@ -11,7 +11,7 @@
     "test": "node tests/smoke.test.js && node tests/brand.check.js",
     "setup": "npm --prefix web install",
     "postinstall": "npm --prefix web install",
-    "build": "npm --prefix web run build",
+    "build": "npm --prefix web install && npm --prefix web run build",
     "dev:api": "node server.js",
     "dev:web": "npm --prefix web run dev",
     "typecheck": "npm --prefix web run lint",
