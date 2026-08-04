@@ -11,8 +11,10 @@ import type {
   OrderSummary,
   OdooSettings,
   Product,
+  ProductOverrides,
   Role,
   User,
+  WhatsappSupportSettings,
 } from '@/types';
 
 export class ApiError extends Error {
@@ -70,6 +72,9 @@ export const api = {
     request<{ source: string; products: Product[] }>('/api/products'),
 
   getPixelConfig: () => request<{ pixelId: string | null }>('/api/pixel-config'),
+
+  getWhatsappConfig: () =>
+    request<{ phone: string | null; message: string }>('/api/whatsapp-config'),
 
   /**
    * Orders are accepted without an account. Passing the token when signed in
@@ -172,6 +177,35 @@ export const api = {
   adminProducts: (token: string) =>
     request<AdminProducts>('/api/admin/products', authHeaders(token)),
 
+  adminProductOverrides: (token: string, productId: number) =>
+    request<ProductOverrides>(`/api/admin/products/${productId}/overrides`, authHeaders(token)),
+
+  /** Only send the fields that changed — the endpoint patches, it doesn't replace. */
+  adminSaveProductOverrides: (
+    token: string,
+    productId: number,
+    changes: { iconKeys?: string[]; description?: string | null; enabled?: boolean }
+  ) =>
+    request<ProductOverrides>(`/api/admin/products/${productId}/overrides`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(changes),
+    }),
+
+  /** `imageDataUrl` is a data: URL (e.g. from FileReader.readAsDataURL) — JPEG/PNG/WebP, 5MB max. */
+  adminUploadProductImage: (token: string, productId: number, imageDataUrl: string) =>
+    request<ProductOverrides>(`/api/admin/products/${productId}/image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ imageDataUrl }),
+    }),
+
+  adminRemoveProductImage: (token: string, productId: number) =>
+    request<ProductOverrides>(`/api/admin/products/${productId}/image`, {
+      method: 'DELETE',
+      ...authHeaders(token),
+    }),
+
   adminOdooSettings: (token: string) =>
     request<{ odoo: OdooSettings }>('/api/admin/settings/odoo', authHeaders(token)),
 
@@ -219,6 +253,25 @@ export const api = {
 
   adminClearFacebookPixel: (token: string) =>
     request<{ facebookPixel: FacebookPixelSettings }>('/api/admin/settings/facebook-pixel', {
+      method: 'DELETE',
+      ...authHeaders(token),
+    }),
+
+  adminWhatsappSupportSettings: (token: string) =>
+    request<{ whatsappSupport: WhatsappSupportSettings }>(
+      '/api/admin/settings/whatsapp-support',
+      authHeaders(token)
+    ),
+
+  adminSaveWhatsappSupport: (token: string, phone: string, message: string) =>
+    request<{ whatsappSupport: WhatsappSupportSettings }>('/api/admin/settings/whatsapp-support', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ phone, message }),
+    }),
+
+  adminClearWhatsappSupport: (token: string) =>
+    request<{ whatsappSupport: WhatsappSupportSettings }>('/api/admin/settings/whatsapp-support', {
       method: 'DELETE',
       ...authHeaders(token),
     }),

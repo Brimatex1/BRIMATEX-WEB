@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Check, Clock, Search, ShieldCheck, Truck, X } from 'lucide-react';
+import { ArrowRight, Clock, Search, Truck, X } from 'lucide-react';
 
 import { ProductCard } from '@/components/ProductCard';
 import { Reveal } from '@/components/Reveal';
@@ -7,15 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Slider } from '@/components/ui/slider';
 import { cn, formatPrice } from '@/lib/utils';
 import type { Category, Product, SortKey } from '@/types';
 
 const TRUST = [
-  { Icon: Check, label: 'بدون تسجيل' },
   { Icon: Truck, label: 'توصيل مجاني' },
-  { Icon: ShieldCheck, label: 'ضمان 12 سنة' },
-  { Icon: Clock, label: 'تجربة 100 ليلة' },
+  { Icon: Clock, label: 'تجربة 30 ليلة' },
 ];
 
 const CATEGORIES: { id: Category | 'all'; label: string }[] = [
@@ -164,18 +164,18 @@ export function ShopSection({
 
             <div className="space-y-1.5">
               <Label htmlFor="shop-sort">الترتيب</Label>
-              <select
-                id="shop-sort"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                className="h-11 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                {SORTS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+                <SelectTrigger id="shop-sort" className="w-auto min-w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORTS.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {priceCeiling > 0 && (
@@ -186,18 +186,14 @@ export function ShopSection({
                     {maxPrice === null ? 'بلا حد' : `${formatPrice(maxPrice)} د.ل`}
                   </span>
                 </Label>
-                <input
+                <Slider
                   id="shop-price"
-                  type="range"
                   min={0}
                   max={priceCeiling}
                   step={50}
-                  value={maxPrice ?? priceCeiling}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setMaxPrice(v >= priceCeiling ? null : v);
-                  }}
-                  className="h-11 w-full accent-accent"
+                  value={[maxPrice ?? priceCeiling]}
+                  onValueChange={([v]) => setMaxPrice(v >= priceCeiling ? null : v)}
+                  className="h-11"
                 />
               </div>
             )}

@@ -3,6 +3,27 @@
 @tailwind utilities;
 
 /**
+ * خط Iwanzaza — العلامة التجارية. يغطي الحروف العربية بالكامل؛ لا يغطي
+ * اللاتينية، فتتراجع تلقائياً للخط التالي في font-heading (Cormorant).
+ */
+@font-face {
+  font-family: 'Iwanzaza';
+  src:
+    url('/fonts/iwanzaza-regular.otf') format('opentype'),
+    url('/fonts/iwanzaza-regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Iwanzaza';
+  src: url('/fonts/iwanzaza-bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/**
  * BRIMATEX — نظام الألوان
  *
  * مشتق من دليل هوية بريماتكس الرسمي. التوثيق الكامل في docs/BRAND_COLORS.md:

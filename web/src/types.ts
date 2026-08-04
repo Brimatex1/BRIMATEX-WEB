@@ -16,6 +16,17 @@ export interface ProductSpecs {
   trialNights: number;
 }
 
+/** One size/height option of a product that has more than one — see Product.variants. */
+export interface ProductVariant {
+  id: number;
+  /** e.g. "190*80 / 12" — Odoo's own attribute value label, shown as-is. */
+  label: string;
+  sku?: string;
+  price: number;
+  stock?: number | null;
+  inStock?: boolean;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -30,9 +41,19 @@ export interface Product {
   size?: ProductSize;
   specs?: ProductSpecs;
   features?: string[];
+  /** Keys into web/src/lib/icons.ts — which spec icons this product shows. */
+  iconFeatures?: string[];
   inStock?: boolean;
+  /** Admin can switch a product off from the dashboard; hidden from /api/products when false. */
+  enabled?: boolean;
   /** Null until real photography exists — ProductVisual draws a placeholder. */
   image?: string | null;
+  /**
+   * Other sizes/heights of this same product (an Odoo product template with
+   * more than one variant). Undefined for single-variant and demo products —
+   * there's nothing to pick between, so no size selector is shown.
+   */
+  variants?: ProductVariant[];
 }
 
 export interface CartLine {
@@ -162,6 +183,23 @@ export interface FacebookPixelSettings {
   /** Value comes from .env with no dashboard override. */
   fromEnv: boolean;
   configured: boolean;
+}
+
+export interface WhatsappSupportSettings {
+  phone: string | null;
+  message: string;
+  /** Value comes from .env with no dashboard override. */
+  fromEnv: boolean;
+  configured: boolean;
+}
+
+/** Admin-set per-product overrides — see src/lib/productOverrides.js. */
+export interface ProductOverrides {
+  productId: number;
+  iconKeys: string[];
+  description: string | null;
+  enabled: boolean;
+  imageUrl: string | null;
 }
 
 export interface AdminProducts {

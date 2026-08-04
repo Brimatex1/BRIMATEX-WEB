@@ -16,10 +16,13 @@ export default defineConfig({
     cssCodeSplit: false,
   },
   server: {
-    port: 5173,
-    // During `npm run dev`, forward API calls to the Node backend.
+    port: Number(process.env.PORT) || 5173,
+    // During `npm run dev`, forward API calls and admin-uploaded product
+    // images to the Node backend — both are served from src/public/ at
+    // runtime, which only the backend (not Vite's dev server) can see.
     proxy: {
       '/api': { target: 'http://localhost:3000', changeOrigin: true },
+      '/uploads': { target: 'http://localhost:3000', changeOrigin: true },
     },
   },
 });

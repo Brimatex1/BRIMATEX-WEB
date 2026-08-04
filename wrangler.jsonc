@@ -1,0 +1,13 @@
+{
+  // Serves the built frontend (src/public) as a static-assets Worker.
+  // The API/orders/Odoo backend is NOT here — server.js needs a host that
+  // keeps a persistent Node process running (cPanel, Railway), which
+  // Workers' request-scoped runtime doesn't provide. This Worker is the
+  // storefront's static shell only.
+  "name": "brimatex-web1",
+  "compatibility_date": "2026-01-01",
+  "assets": {
+    "directory": "src/public",
+    "not_found_handling": "single-page-application"
+  }
+}

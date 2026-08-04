@@ -1,8 +1,17 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import type { Category } from '@/types';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+/** Categories not open for purchase yet — shown as "قريباً" instead of a buy button. */
+export const COMING_SOON_CATEGORIES: Category[] = ['pillow', 'bedding'];
+
+export function isComingSoon(category?: Category): boolean {
+  return category ? COMING_SOON_CATEGORIES.includes(category) : false;
 }
 
 /** Libyan dinar. Single source so a market change is one edit. */

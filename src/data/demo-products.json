@@ -19,7 +19,7 @@
       "firmnessLevel": 7,
       "coverFabric": "قماش قطني مبطّن قابل للفك والغسل",
       "warrantyYears": 10,
-      "trialNights": 100
+      "trialNights": 30
     },
     "features": [
       "نوابض منفصلة تقلل انتقال الحركة",
@@ -49,7 +49,7 @@
       "firmnessLevel": 5,
       "coverFabric": "قماش مزدوج الوجه صيفي وشتوي",
       "warrantyYears": 10,
-      "trialNights": 100
+      "trialNights": 30
     },
     "features": [
       "وجهان للاستخدام حسب الفصل",
@@ -78,8 +78,8 @@
       "firmness": "متوسطة",
       "firmnessLevel": 6,
       "coverFabric": "قماش تنسيل ناعم قابل للفك",
-      "warrantyYears": 12,
-      "trialNights": 100
+      "warrantyYears": 10,
+      "trialNights": 30
     },
     "features": [
       "إسفنج ذاكرة يتشكّل حسب الجسم",
@@ -108,75 +108,14 @@
       "firmness": "متوسطة إلى طرية",
       "firmnessLevel": 4,
       "coverFabric": "قماش مطرّز بخيوط فضية مضادة للعث",
-      "warrantyYears": 12,
-      "trialNights": 100
+      "warrantyYears": 10,
+      "trialNights": 30
     },
     "features": [
       "دعم مستقل لكل جانب من السرير",
       "لاتكس طبيعي مضاد للحساسية",
       "مقابض جانبية تسهّل التحريك",
       "حواف مقوّاة بإطار محيطي"
-    ],
-    "inStock": true,
-    "image": null
-  },
-  {
-    "id": 5,
-    "name": "وسادة ذاكرة الرغوة - حجم 60×40",
-    "price": 350,
-    "sku": "PILLOW-MEMORY-60",
-    "category": "pillow",
-    "tagline": "دعم للرقبة يتشكّل حسب النوم",
-    "description": "وسادة من إسفنج الذاكرة تتشكّل حسب وضعية الرأس والرقبة وتعود لشكلها تدريجياً. تناسب النوم على الظهر أو الجنب وتخفف شد الرقبة عند الاستيقاظ.",
-    "size": {
-      "width": 60,
-      "length": 40,
-      "height": 12,
-      "label": "60×40 سم"
-    },
-    "specs": {
-      "material": "إسفنج ذاكرة عالي الكثافة",
-      "firmness": "متوسطة",
-      "firmnessLevel": 5,
-      "coverFabric": "كيس خارجي قطني قابل للغسل",
-      "warrantyYears": 2,
-      "trialNights": 30
-    },
-    "features": [
-      "تتشكّل حسب الرأس والرقبة",
-      "كيس خارجي قابل للفك والغسل",
-      "خامة مسامية جيدة التهوية"
-    ],
-    "inStock": true,
-    "image": null
-  },
-  {
-    "id": 6,
-    "name": "طقم ملاءات السرير - 100% قطن",
-    "price": 450,
-    "sku": "SHEETS-COTTON-SET",
-    "category": "bedding",
-    "tagline": "قطن خالص بأربع قطع",
-    "description": "طقم ملاءات من القطن الخالص يضم ملاءة بمطاط محيطي وغطاء لحاف وكيسي مخدة. نسيج يزداد نعومة مع الغسل ويحافظ على لونه.",
-    "size": {
-      "width": 200,
-      "length": 200,
-      "height": 30,
-      "label": "يناسب مراتب حتى 200×200 سم"
-    },
-    "specs": {
-      "material": "قطن 100% بكثافة نسج 300 خيط",
-      "firmness": null,
-      "firmnessLevel": null,
-      "coverFabric": "قطن مفرد الطبقة",
-      "warrantyYears": 1,
-      "trialNights": 0
-    },
-    "features": [
-      "أربع قطع: ملاءة وغطاء لحاف وكيسا مخدة",
-      "مطاط محيطي يثبّت الملاءة",
-      "ألوان ثابتة لا تبهت بالغسل",
-      "قابل للغسل في الغسالة حتى 60 درجة"
     ],
     "inStock": true,
     "image": null

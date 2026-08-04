@@ -1,10 +1,11 @@
 import { BadgeCheck, Heart } from 'lucide-react';
 
+import { FeatureIcons } from '@/components/FeatureIcons';
 import { ProductVisual } from '@/components/ProductVisual';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn, formatPrice } from '@/lib/utils';
+import { cn, formatPrice, isComingSoon } from '@/lib/utils';
 import type { Product } from '@/types';
 
 interface ProductCardProps {
@@ -26,6 +27,11 @@ export function ProductCard({
   onOpen,
   onToggleWishlist,
 }: ProductCardProps) {
+  const comingSoon = isComingSoon(product.category);
+  // More than one size/height means "add to cart" is ambiguous from a card —
+  // send the customer to the product page to pick one first.
+  const hasVariants = (product.variants?.length ?? 0) > 1;
+
   return (
     <Card
       className={cn(
@@ -71,11 +77,14 @@ export function ProductCard({
           </Button>
         </div>
 
-        {product.sku && (
-          <Badge variant="secondary" className="w-fit tabular">
-            {product.sku}
-          </Badge>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {product.sku && (
+            <Badge variant="secondary" className="w-fit tabular">
+              {product.sku}
+            </Badge>
+          )}
+          {comingSoon && <Badge variant="outline">قريباً</Badge>}
+        </div>
       </CardHeader>
 
       <CardContent className="flex-1">
@@ -83,9 +92,15 @@ export function ProductCard({
           {product.tagline ?? product.description ?? 'جودة عالية · خامات مختارة بعناية'}
         </p>
 
-        {product.size?.label && (
-          <p className="mt-2 text-xs text-muted-foreground">المقاس: {product.size.label}</p>
+        {hasVariants ? (
+          <p className="mt-2 text-xs text-muted-foreground">{product.variants!.length} مقاسات متاحة</p>
+        ) : (
+          product.size?.label && (
+            <p className="mt-2 text-xs text-muted-foreground">المقاس: {product.size.label}</p>
+          )
         )}
+
+        <FeatureIcons keys={product.iconFeatures} compact className="mt-3" />
 
         <p className="mt-4">
           <span className="font-heading text-3xl font-semibold tabular text-primary">
@@ -97,19 +112,33 @@ export function ProductCard({
       </CardContent>
 
       <CardFooter className="flex-col gap-2">
-        <Button className="w-full" onClick={() => onAdd(product)} disabled={justAdded}>
-          {justAdded ? (
-            <>
-              <BadgeCheck aria-hidden="true" />
-              تمت الإضافة
-            </>
-          ) : (
-            'إضافة للسلة'
-          )}
-        </Button>
-        <Button variant="outline" className="w-full" onClick={() => onOpen(product)}>
-          التفاصيل
-        </Button>
+        {hasVariants ? (
+          <Button className="w-full" onClick={() => onOpen(product)}>
+            اختر المقاس
+          </Button>
+        ) : (
+          <>
+            <Button
+              className="w-full"
+              onClick={() => onAdd(product)}
+              disabled={justAdded || comingSoon}
+            >
+              {comingSoon ? (
+                'قريباً'
+              ) : justAdded ? (
+                <>
+                  <BadgeCheck aria-hidden="true" />
+                  تمت الإضافة
+                </>
+              ) : (
+                'إضافة للسلة'
+              )}
+            </Button>
+            <Button variant="outline" className="w-full" onClick={() => onOpen(product)}>
+              التفاصيل
+            </Button>
+          </>
+        )}
       </CardFooter>
     </Card>
   );

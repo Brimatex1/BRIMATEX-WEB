@@ -109,24 +109,98 @@ async function testConnection() {
   };
 }
 
-async function fetchProducts() {
-  const result = await call(
-    'product.product',
-    'search_read',
-    [[['sale_ok', '=', true]]],
-    // qty_available drives the dashboard's stock view and low-stock alerts;
-    // without it there is no quantity data anywhere in the system.
-    { fields: ['id', 'name', 'list_price', 'default_code', 'qty_available'], limit: 100 }
-  );
+// One page/batch at a time rather than a single unbounded call — a catalog
+// this size is fine in a handful of round trips, and it caps how much a
+// runaway catalog could ever demand in one request.
+const PAGE_SIZE = 200;
 
-  return result.map((p) => ({
-    id: p.id,
-    name: p.name,
-    price: p.list_price,
-    sku: p.default_code || '',
-    stock: typeof p.qty_available === 'number' ? p.qty_available : null,
-    inStock: typeof p.qty_available === 'number' ? p.qty_available > 0 : true,
-  }));
+async function searchReadAll(model, domain, kwargs) {
+  const result = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const page = await call(model, 'search_read', [domain], { ...kwargs, limit: PAGE_SIZE, offset });
+    result.push(...page);
+    if (page.length < PAGE_SIZE) break;
+  }
+  return result;
+}
+
+async function readInBatches(model, ids, kwargs) {
+  const result = [];
+  for (let i = 0; i < ids.length; i += PAGE_SIZE) {
+    const batch = await call(model, 'read', [ids.slice(i, i + PAGE_SIZE)], kwargs);
+    result.push(...batch);
+  }
+  return result;
+}
+
+/**
+ * A mattress in Odoo is a product template with one or more variants (size,
+ * height, ...) — this used to fetch product.product directly, which is the
+ * *variant* table, so every size of every mattress showed up as its own
+ * product card. Grouped here into one card per template, each carrying its
+ * variants for the size picker on the product page.
+ */
+async function fetchProducts() {
+  const templates = await searchReadAll('product.template', [['sale_ok', '=', true]], {
+    fields: ['id', 'name', 'product_variant_ids'],
+  });
+  if (templates.length === 0) return [];
+
+  const variantIds = templates.flatMap((t) => t.product_variant_ids);
+  const variants = await readInBatches('product.product', variantIds, {
+    fields: ['id', 'default_code', 'list_price', 'qty_available', 'product_template_attribute_value_ids'],
+  });
+
+  const ptavIds = [...new Set(variants.flatMap((v) => v.product_template_attribute_value_ids))];
+  const ptavNameById = new Map();
+  if (ptavIds.length > 0) {
+    const ptavs = await readInBatches('product.template.attribute.value', ptavIds, { fields: ['id', 'name'] });
+    for (const p of ptavs) ptavNameById.set(p.id, p.name);
+  }
+
+  const variantsByTemplateId = new Map();
+  for (const t of templates) variantsByTemplateId.set(t.id, []);
+  const variantById = new Map(variants.map((v) => [v.id, v]));
+  for (const t of templates) {
+    for (const vid of t.product_variant_ids) {
+      const v = variantById.get(vid);
+      if (!v) continue;
+      variantsByTemplateId.get(t.id).push({
+        id: v.id,
+        // Falls back to the raw ids when a value's name didn't come back —
+        // still a usable (if ugly) label rather than a blank option.
+        label: v.product_template_attribute_value_ids.map((id) => ptavNameById.get(id) || id).join(' / '),
+        sku: v.default_code || '',
+        price: v.list_price,
+        stock: typeof v.qty_available === 'number' ? v.qty_available : null,
+        inStock: typeof v.qty_available === 'number' ? v.qty_available > 0 : true,
+      });
+    }
+  }
+
+  return templates.map((t) => {
+    const vs = variantsByTemplateId.get(t.id);
+    // The first variant (Odoo's own product_variant_ids order) is the card's
+    // stable identity — fixed regardless of stock, so admin overrides (keyed
+    // by this id) and cart/order lookups don't shift between fetches.
+    const primary = vs[0];
+    return {
+      id: primary.id,
+      name: t.name,
+      price: primary.price,
+      sku: primary.sku,
+      stock: primary.stock,
+      inStock: vs.some((v) => v.inStock),
+      // The whole Odoo catalogue is mattresses today — Odoo has no notion of
+      // the site's mattress/pillow/bedding split, so this is a fixed default
+      // rather than something read from a field. Revisit if pillows/bedding
+      // ever get added to Odoo.
+      category: 'mattress',
+      // A single-variant template (or one with no attributes at all) has
+      // nothing to pick between, so no size selector is needed for it.
+      variants: vs.length > 1 ? vs : undefined,
+    };
+  });
 }
 
 async function fetchProductImage(productId) {

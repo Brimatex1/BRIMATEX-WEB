@@ -5,17 +5,18 @@ import {
   Clock,
   Moon,
   Search,
-  ShieldCheck,
   Sparkles,
   Truck,
   Wallet,
 } from 'lucide-react';
 
+import { ProductCard } from '@/components/ProductCard';
 import { ProductVisual } from '@/components/ProductVisual';
 import { Reveal } from '@/components/Reveal';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, isComingSoon } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 
 /**
@@ -24,8 +25,7 @@ import type { Category, Product } from '@/types';
  * inventing them would be false advertising.
  */
 const PROMISES = [
-  { Icon: Moon, title: 'تجربة 100 ليلة', body: 'جرّبها في بيتك، وأرجعها إن لم تناسبك.' },
-  { Icon: ShieldCheck, title: 'ضمان حتى 12 سنة', body: 'ضمان مكتوب على البنية والخامات.' },
+  { Icon: Moon, title: 'تجربة 30 ليلة', body: 'جرّبها في بيتك، وأرجعها إن لم تناسبك.' },
   { Icon: Truck, title: 'توصيل مجاني', body: 'إلى باب منزلك دون رسوم إضافية.' },
   { Icon: Wallet, title: 'ادفع عند الاستلام', body: 'لا تدفع ديناراً قبل أن تستلم.' },
 ];
@@ -57,6 +57,11 @@ interface HomeSectionProps {
   onOpenProduct: (product: Product) => void;
   onStartQuiz: () => void;
   onSearch: (query: string) => void;
+  onAdd: (product: Product) => void;
+  onToggleWishlist: (product: Product) => void;
+  isSaved: (productId: number) => boolean;
+  wishlistPending: number | null;
+  justAddedId: number | null;
 }
 
 export function HomeSection({
@@ -66,13 +71,26 @@ export function HomeSection({
   onOpenProduct,
   onStartQuiz,
   onSearch,
+  onAdd,
+  onToggleWishlist,
+  isSaved,
+  wishlistPending,
+  justAddedId,
 }: HomeSectionProps) {
   const [draft, setDraft] = useState('');
-  const groups = CATEGORY_ORDER.map((category) => {
+  const groups = CATEGORY_ORDER.map((category, i) => {
     const items = products.filter((p) => p.category === category);
     const from = items.length ? Math.min(...items.map((p) => p.price)) : 0;
-    return { category, items, from, ...CATEGORY_COPY[category] };
-  }).filter((g) => g.items.length > 0);
+    // No products yet for a "coming soon" category — a stand-in keeps
+    // ProductVisual's category-shaped placeholder art without a real product.
+    const visualProduct: Product = items[0] ?? {
+      id: -(i + 1),
+      name: CATEGORY_COPY[category].title,
+      price: 0,
+      category,
+    };
+    return { category, items, from, visualProduct, ...CATEGORY_COPY[category] };
+  }).filter((g) => g.items.length > 0 || isComingSoon(g.category));
 
   const featured = products.find((p) => p.category === 'mattress') ?? products[0];
 
@@ -92,7 +110,7 @@ export function HomeSection({
             </h1>
             <p className="mt-5 max-w-[52ch] text-lg text-muted-foreground">
               مراتب مصمّمة ومختبَرة لتناسب طريقة نومك. اطلب مباشرة دون تسجيل،
-              وجرّبها 100 ليلة في بيتك، وادفع عند الاستلام.
+              وجرّبها 30 ليلة في بيتك، وادفع عند الاستلام.
             </p>
 
             {/* Search lives here now — the homepage is the way into the catalogue */}
@@ -231,21 +249,28 @@ export function HomeSection({
               <Reveal key={group.category} delay={i * 90} className="flex">
               <Card className="group/cat flex flex-1 flex-col overflow-hidden motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-xl">
                 <ProductVisual
-                  product={group.items[0]}
+                  product={group.visualProduct}
                   className="rounded-none motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover/cat:scale-[1.04]"
                 />
                 <CardContent className="flex flex-1 flex-col pt-6">
-                  <h3 className="font-heading text-2xl font-semibold text-primary">
-                    {group.title}
-                  </h3>
-                  <p className="mt-2 flex-1 text-sm text-muted-foreground">{group.body}</p>
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    يبدأ من{' '}
-                    <span className="font-heading text-xl font-semibold tabular text-primary">
-                      {formatPrice(group.from)}
-                    </span>{' '}
-                    د.ل
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-heading text-2xl font-semibold text-primary">
+                      {group.title}
+                    </h3>
+                    {isComingSoon(group.category) && <Badge variant="outline">قريباً</Badge>}
+                  </div>
+                  {group.items.length > 0 && (
+                    <>
+                      <p className="mt-2 flex-1 text-sm text-muted-foreground">{group.body}</p>
+                      <p className="mt-4 text-sm text-muted-foreground">
+                        يبدأ من{' '}
+                        <span className="font-heading text-xl font-semibold tabular text-primary">
+                          {formatPrice(group.from)}
+                        </span>{' '}
+                        د.ل
+                      </p>
+                    </>
+                  )}
                   <Button
                     variant="outline"
                     className="mt-5 w-full"
@@ -278,36 +303,21 @@ export function HomeSection({
               </Button>
             </div>
 
-            <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {products
                 .filter((p) => p.category === 'mattress')
                 .slice(0, 4)
                 .map((product, i) => (
-                  <Reveal key={product.id} delay={i * 70}>
-                  <button
-                    type="button"
-                    onClick={() => onOpenProduct(product)}
-                    className="group w-full rounded-xl text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <div className="overflow-hidden rounded-xl">
-                      <ProductVisual
-                        product={product}
-                        className="motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover:scale-[1.05]"
-                      />
-                    </div>
-                    <h3 className="mt-4 font-semibold text-primary group-hover:text-accent">
-                      {product.name}
-                    </h3>
-                    {product.size?.label && (
-                      <p className="mt-1 text-xs text-muted-foreground">{product.size.label}</p>
-                    )}
-                    <p className="mt-2">
-                      <span className="font-heading text-xl font-semibold tabular text-primary">
-                        {formatPrice(product.price)}
-                      </span>
-                      <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
-                    </p>
-                  </button>
+                  <Reveal key={product.id} delay={i * 70} className="flex">
+                    <ProductCard
+                      product={product}
+                      justAdded={justAddedId === product.id}
+                      saved={isSaved(product.id)}
+                      wishlistPending={wishlistPending === product.id}
+                      onAdd={onAdd}
+                      onOpen={onOpenProduct}
+                      onToggleWishlist={onToggleWishlist}
+                    />
                   </Reveal>
                 ))}
             </div>
@@ -319,10 +329,10 @@ export function HomeSection({
       <section className="container py-16 text-center">
         <BedDouble className="mx-auto mb-4 size-10 text-accent" aria-hidden="true" />
         <h2 className="font-heading text-3xl font-semibold text-primary">
-          جرّبها 100 ليلة في بيتك
+          جرّبها 30 ليلة في بيتك
         </h2>
         <p className="mx-auto mt-3 max-w-[56ch] text-muted-foreground">
-          المرتبة لا تُجرَّب في دقيقتين داخل معرض. خذها إلى بيتك، ونم عليها مئة
+          المرتبة لا تُجرَّب في دقيقتين داخل معرض. خذها إلى بيتك، ونم عليها ثلاثين
           ليلة — وإن لم تناسبك أرجعها.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">

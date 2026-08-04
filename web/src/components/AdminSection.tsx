@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 
 import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
 import { OdooSettingsPanel } from '@/components/OdooSettingsPanel';
+import { ProductOverridesEditor } from '@/components/ProductOverridesEditor';
+import { WhatsAppSettingsPanel } from '@/components/WhatsAppSettingsPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +83,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
   const [orderFilter, setOrderFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
   const [orderQuery, setOrderQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -130,6 +133,32 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
     } finally {
       setBusy(null);
     }
+  }
+
+  function handleOverridesSaved(
+    productId: number,
+    changes: { iconFeatures?: string[]; description?: string | null; enabled?: boolean; image?: string | null }
+  ) {
+    setCatalogue((prev) =>
+      prev
+        ? {
+            ...prev,
+            products: prev.products.map((p) =>
+              p.id === productId
+                ? {
+                    ...p,
+                    ...(changes.iconFeatures !== undefined && { iconFeatures: changes.iconFeatures }),
+                    ...(changes.description !== undefined && {
+                      description: changes.description || p.description,
+                    }),
+                    ...(changes.enabled !== undefined && { enabled: changes.enabled }),
+                    ...(changes.image !== undefined && { image: changes.image }),
+                  }
+                : p
+            ),
+          }
+        : prev
+    );
   }
 
   async function changeRole(target: AdminCustomer, role: Role) {
@@ -434,23 +463,57 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
                   <th scope="col" className="p-3 text-start font-medium">السعر</th>
                   <th scope="col" className="p-3 text-start font-medium">المخزون</th>
                   <th scope="col" className="p-3 text-start font-medium">الحالة</th>
+                  <th scope="col" className="p-3 text-start font-medium">في المتجر</th>
+                  <th scope="col" className="p-3 text-start font-medium"></th>
                 </tr>
               </thead>
               <tbody>
                 {catalogue.products.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0">
-                    <td className="p-3 font-medium">{p.name}</td>
-                    <td className="p-3 tabular text-muted-foreground">{p.sku ?? '—'}</td>
-                    <td className="p-3 tabular">{money(p.price)}</td>
-                    <td className="p-3 tabular">
-                      {catalogue.hasStockData && typeof p.stock === 'number' ? p.stock : '—'}
-                    </td>
-                    <td className="p-3">
-                      <Badge variant={p.inStock === false ? 'outline' : 'success'}>
-                        {p.inStock === false ? 'غير متوفر' : 'متوفر'}
-                      </Badge>
-                    </td>
-                  </tr>
+                  <Fragment key={p.id}>
+                    <tr className={cn('border-b last:border-0', p.enabled === false && 'opacity-60')}>
+                      <td className="p-3 font-medium">{p.name}</td>
+                      <td className="p-3 tabular text-muted-foreground">{p.sku ?? '—'}</td>
+                      <td className="p-3 tabular">{money(p.price)}</td>
+                      <td className="p-3 tabular">
+                        {catalogue.hasStockData && typeof p.stock === 'number' ? p.stock : '—'}
+                      </td>
+                      <td className="p-3">
+                        <Badge variant={p.inStock === false ? 'outline' : 'success'}>
+                          {p.inStock === false ? 'غير متوفر' : 'متوفر'}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        {/* Distinct from stock status — this is the admin's own on/off
+                            switch, not Odoo's. A disabled product stays visible here
+                            (dimmed) so it can be found and re-enabled. */}
+                        <Badge variant={p.enabled === false ? 'outline' : 'success'}>
+                          {p.enabled === false ? 'معطّل' : 'مفعّل'}
+                        </Badge>
+                      </td>
+                      <td className="p-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingProductId(editingProductId === p.id ? null : p.id)}
+                        >
+                          تعديل المنتج
+                          {(p.iconFeatures?.length ?? 0) > 0 && ` · ${p.iconFeatures?.length} مميزات`}
+                        </Button>
+                      </td>
+                    </tr>
+                    {editingProductId === p.id && token && (
+                      <tr className="border-b last:border-0">
+                        <td colSpan={7} className="bg-muted/20 p-3">
+                          <ProductOverridesEditor
+                            token={token}
+                            product={p}
+                            onSaved={handleOverridesSaved}
+                            onClose={() => setEditingProductId(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -589,6 +652,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
         <div className="space-y-6">
           <OdooSettingsPanel token={token} onChanged={() => void load()} />
           <FacebookPixelSettingsPanel token={token} />
+          <WhatsAppSettingsPanel token={token} />
         </div>
       )}
     </section>
