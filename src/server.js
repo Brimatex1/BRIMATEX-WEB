@@ -17,6 +17,7 @@ const odoo = require('./lib/odoo');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
 const orders = require('./lib/orders');
+const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
 const db = require('./lib/db');
 
@@ -34,6 +35,7 @@ const MIME = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
@@ -58,19 +60,45 @@ const RATE_LIMIT_ORDERS_PER_MIN = (() => {
 /** Last Odoo error, surfaced to admins so a bad connection is diagnosable. */
 let lastOdooError = null;
 
+/**
+ * Icons, a description override, an image override, and enabled/disabled
+ * are admin-set metadata, stored separately from the product itself (see
+ * src/lib/productOverrides.js) so they survive an Odoo re-sync — Odoo owns
+ * name/price/stock and overwrites those every sync, but never touches
+ * these.
+ *
+ * `enabled` is left on every product here (never filtered) — callers decide:
+ * the public catalogue hides disabled products, the admin catalogue needs to
+ * keep seeing them or a disabled product could never be re-enabled.
+ */
+async function withOverrides(products) {
+  const all = await productOverrides.getAllOverrides();
+  return products.map((p) => {
+    const o = all[String(p.id)];
+    if (!o) return { ...p, iconFeatures: [], enabled: true };
+    return {
+      ...p,
+      iconFeatures: o.iconKeys,
+      description: o.description || p.description,
+      enabled: o.enabled,
+      image: o.imageUrl || p.image,
+    };
+  });
+}
+
 async function getProducts() {
   if (!odoo.isConfigured()) {
-    return { source: 'demo', products: DEMO_PRODUCTS };
+    return { source: 'demo', products: await withOverrides(DEMO_PRODUCTS) };
   }
   if (productCache.data && Date.now() - productCache.at < CACHE_TTL_MS) {
-    return { source: 'odoo', products: productCache.data };
+    return { source: 'odoo', products: await withOverrides(productCache.data) };
   }
 
   try {
     const products = await odoo.fetchProducts();
     productCache = { data: products, at: Date.now() };
     lastOdooError = null;
-    return { source: 'odoo', products };
+    return { source: 'odoo', products: await withOverrides(products) };
   } catch (err) {
     lastOdooError = { message: err.message, at: new Date().toISOString() };
     console.error('[Odoo] fetch failed:', err.message);
@@ -80,10 +108,42 @@ async function getProducts() {
     // catalogue here — those are placeholder prices, and quoting them as if
     // they were real is worse than showing an error.
     if (productCache.data) {
-      return { source: 'odoo', products: productCache.data, stale: true };
+      return { source: 'odoo', products: await withOverrides(productCache.data), stale: true };
     }
     throw err;
   }
+}
+
+/** The public catalogue never lists a product an admin has switched off. */
+function visibleOnly(products) {
+  return products.filter((p) => p.enabled !== false);
+}
+
+/**
+ * A product with size/height options (see src/lib/odoo.js) is one card
+ * carrying several sellable ids in `variants` — the card's own `id` is only
+ * one of them. Order validation and pricing need every real id reachable,
+ * so this indexes the card *and* each of its variants (inheriting the
+ * card's name/category/enabled/etc, with the variant's own price/sku/stock).
+ */
+function productLookup(products) {
+  const byId = new Map();
+  for (const p of products) {
+    byId.set(p.id, p);
+    for (const v of p.variants ?? []) {
+      byId.set(v.id, { ...p, ...v, variants: undefined });
+    }
+  }
+  return byId;
+}
+
+/** Removes a previously admin-uploaded product image. Silently no-ops for
+ * anything that isn't one of ours (a null override, or a future non-upload
+ * image source) — never deletes based on an untrusted path. */
+function deleteUploadedFile(imageUrl) {
+  if (!imageUrl || !imageUrl.startsWith('/uploads/products/')) return;
+  const filePath = path.join(PUBLIC_DIR, imageUrl);
+  fs.unlink(filePath, () => {});
 }
 
 function sendJson(res, status, payload) {
@@ -97,12 +157,12 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-function readBody(req) {
+function readBody(req, maxBytes = 100_000) {
   return new Promise((resolve, reject) => {
     let data = '';
     const onData = (chunk) => {
       data += chunk;
-      if (data.length > 100_000) {
+      if (data.length > maxBytes) {
         req.removeListener('data', onData);
         req.removeListener('end', onEnd);
         req.removeListener('error', onError);
@@ -142,6 +202,12 @@ function isValidPhone(phone) {
   return digits >= PHONE_MIN_DIGITS && digits <= PHONE_MAX_DIGITS;
 }
 
+// Mirrors web/src/lib/utils.ts's COMING_SOON_CATEGORIES — backs up the
+// disabled buy button in case an order is posted directly against the API.
+// Every Odoo-sourced product is tagged 'mattress' (see src/lib/odoo.js), so
+// this only bites pillow/bedding demo products until Odoo carries them too.
+const COMING_SOON_CATEGORIES = new Set(['pillow', 'bedding']);
+
 function validateOrder(order, allProducts) {
   if (!order || typeof order !== 'object') return 'بيانات الطلب غير صالحة';
   const { customer, items } = order;
@@ -151,11 +217,11 @@ function validateOrder(order, allProducts) {
   if (!customer?.city?.trim()) return 'المدينة مطلوبة';
   if (!customer?.address?.trim()) return 'العنوان مطلوب';
   if (!Array.isArray(items) || items.length === 0) return 'السلة فارغة';
-  const validIds = new Set(allProducts.map((p) => p.id));
+  const productById = productLookup(allProducts);
   for (const item of items) {
-    if (!Number.isInteger(item.productId) || !validIds.has(item.productId)) {
-      return 'منتج غير موجود';
-    }
+    const product = Number.isInteger(item.productId) ? productById.get(item.productId) : null;
+    if (!product || product.enabled === false) return 'منتج غير موجود';
+    if (COMING_SOON_CATEGORIES.has(product.category)) return 'هذا المنتج غير متاح للطلب بعد';
     if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) {
       return 'كمية غير صالحة';
     }
@@ -188,7 +254,7 @@ async function requireAdmin(req, res) {
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
-    return sendJson(res, 200, result);
+    return sendJson(res, 200, { ...result, products: visibleOnly(result.products) });
   }
 
   const imageMatch = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
@@ -273,7 +339,9 @@ async function handleApi(req, res, url) {
     // Demo mode: log the order locally with invoice simulation
     const orderName = `DEMO-${Date.now().toString().slice(-6)}`;
     const invoiceName = `INV-${Date.now().toString().slice(-6)}`;
-    const priceById = new Map(result.products.map((p) => [p.id, Number(p.price) || 0]));
+    const priceById = new Map(
+      [...productLookup(result.products)].map(([id, p]) => [id, Number(p.price) || 0])
+    );
     const total = order.items.reduce(
       (sum, i) => sum + (priceById.get(i.productId) || 0) * (i.quantity || 0),
       0
@@ -731,6 +799,103 @@ async function handleApi(req, res, url) {
     });
   }
 
+  // ---- تخصيص المنتج (أيقونات، وصف، تفعيل) ----
+
+  const overridesMatch = url.pathname.match(/^\/api\/admin\/products\/(\d+)\/overrides$/);
+  if (overridesMatch && (req.method === 'GET' || req.method === 'PATCH')) {
+    if (!(await requireAdmin(req, res))) return;
+    const productId = Number(overridesMatch[1]);
+
+    if (req.method === 'GET') {
+      const current = await productOverrides.getOverridesForProduct(productId);
+      return sendJson(res, 200, { productId, ...current });
+    }
+
+    // PATCH — only the fields present in the body are changed.
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const changes = {};
+    if (payload.iconKeys !== undefined) {
+      if (!Array.isArray(payload.iconKeys) || !payload.iconKeys.every((k) => typeof k === 'string')) {
+        return sendJson(res, 400, { error: 'قائمة الأيقونات غير صالحة' });
+      }
+      changes.iconKeys = payload.iconKeys;
+    }
+    if (payload.description !== undefined) {
+      if (payload.description !== null && typeof payload.description !== 'string') {
+        return sendJson(res, 400, { error: 'الوصف غير صالح' });
+      }
+      // An empty string clears the override, falling back to the source's own description.
+      changes.description = payload.description ? payload.description.trim() || null : null;
+    }
+    if (payload.enabled !== undefined) {
+      if (typeof payload.enabled !== 'boolean') {
+        return sendJson(res, 400, { error: 'قيمة التفعيل غير صالحة' });
+      }
+      changes.enabled = payload.enabled;
+    }
+
+    const saved = await productOverrides.setOverridesForProduct(productId, changes);
+    return sendJson(res, 200, { productId, ...saved });
+  }
+
+  // ---- صورة المنتج (رفع من اللوحة) ----
+
+  const imageOverrideMatch = url.pathname.match(/^\/api\/admin\/products\/(\d+)\/image$/);
+  if (imageOverrideMatch && (req.method === 'POST' || req.method === 'DELETE')) {
+    if (!(await requireAdmin(req, res))) return;
+    const productId = Number(imageOverrideMatch[1]);
+
+    if (req.method === 'DELETE') {
+      const current = await productOverrides.getOverridesForProduct(productId);
+      deleteUploadedFile(current.imageUrl);
+      const saved = await productOverrides.setOverridesForProduct(productId, { imageUrl: null });
+      return sendJson(res, 200, { productId, ...saved });
+    }
+
+    // POST — body is a base64 data URL; ~7MB caps the decoded image around 5MB.
+    let body;
+    try {
+      body = await readBody(req, 7_000_000);
+    } catch (err) {
+      return sendJson(res, 413, { error: err.message });
+    }
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const match = /^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/.exec(payload.imageDataUrl || '');
+    if (!match) {
+      return sendJson(res, 400, { error: 'صيغة الصورة يجب أن تكون JPEG أو PNG أو WebP' });
+    }
+    const [, ext, base64] = match;
+    const buffer = Buffer.from(base64, 'base64');
+    if (buffer.length > 5_000_000) {
+      return sendJson(res, 413, { error: 'حجم الصورة يتجاوز 5 ميجابايت' });
+    }
+
+    const current = await productOverrides.getOverridesForProduct(productId);
+    deleteUploadedFile(current.imageUrl);
+
+    const filename = `${productId}-${Date.now()}.${ext === 'jpg' ? 'jpeg' : ext}`;
+    const uploadsDir = path.join(PUBLIC_DIR, 'uploads', 'products');
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+
+    const imageUrl = `/uploads/products/${filename}`;
+    const saved = await productOverrides.setOverridesForProduct(productId, { imageUrl });
+    return sendJson(res, 200, { productId, ...saved });
+  }
+
   // ---- إعدادات أودو ----
 
   if (req.method === 'GET' && url.pathname === '/api/admin/settings/odoo') {
@@ -816,6 +981,41 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { facebookPixel: cleared });
   }
 
+  // ---- إعدادات دعم واتساب ----
+
+  if (req.method === 'GET' && url.pathname === '/api/admin/settings/whatsapp-support') {
+    if (!(await requireAdmin(req, res))) return;
+    return sendJson(res, 200, { whatsappSupport: settings.readPublicWhatsappSupport() });
+  }
+
+  if (req.method === 'PUT' && url.pathname === '/api/admin/settings/whatsapp-support') {
+    if (!(await requireAdmin(req, res))) return;
+
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const phone = String(payload.phone || '').trim();
+    if (phone && !/^\+?[0-9]{8,15}$/.test(phone)) {
+      return sendJson(res, 400, {
+        error: 'رقم الهاتف يجب أن يكون بالصيغة الدولية (أرقام فقط، مع + اختياري)',
+      });
+    }
+
+    const saved = settings.saveWhatsappSupport({ phone, message: payload.message });
+    return sendJson(res, 200, { whatsappSupport: saved });
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/whatsapp-support') {
+    if (!(await requireAdmin(req, res))) return;
+    const cleared = settings.clearWhatsappSupport();
+    return sendJson(res, 200, { whatsappSupport: cleared });
+  }
+
   if (req.method === 'POST' && url.pathname === '/api/admin/settings/odoo/test') {
     if (!(await requireAdmin(req, res))) return;
 
@@ -852,6 +1052,13 @@ async function handleApi(req, res, url) {
     // it to initialize tracking, not just admins.
     const { pixelId } = settings.readPublicFacebookPixel();
     return sendJson(res, 200, { pixelId });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/whatsapp-config') {
+    // Public — the number is printed on the button; every visitor needs it
+    // to build the wa.me link, not just admins.
+    const { phone, message } = settings.readPublicWhatsappSupport();
+    return sendJson(res, 200, { phone, message });
   }
 
   if (req.method === 'GET' && url.pathname === '/api/health') {

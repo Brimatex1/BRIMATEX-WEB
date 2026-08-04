@@ -24,6 +24,19 @@ const ENV_ODOO = {
 
 const ENV_FACEBOOK_PIXEL_ID = process.env.FACEBOOK_PIXEL_ID || '';
 
+// The store's one support line — fixed by the business, not expected to
+// change. Kept as a hard default (rather than requiring .env on every
+// deployment) so the button works out of the box; still overridable via
+// WHATSAPP_SUPPORT_PHONE or the dashboard if it ever needs to.
+const DEFAULT_WHATSAPP_PHONE = '+218935770070';
+
+const ENV_WHATSAPP_SUPPORT = {
+  phone: process.env.WHATSAPP_SUPPORT_PHONE || DEFAULT_WHATSAPP_PHONE,
+  message: process.env.WHATSAPP_SUPPORT_MESSAGE || '',
+};
+
+const DEFAULT_WHATSAPP_MESSAGE = 'مرحباً، لدي استفسار بخصوص منتجات بريماتكس.';
+
 function readFile() {
   try {
     return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
@@ -126,6 +139,42 @@ function clearFacebookPixel() {
   return readPublicFacebookPixel();
 }
 
+/**
+ * The support phone number isn't a secret either — it's the number printed
+ * on the button itself — so like the Pixel ID it's returned to the browser
+ * as-is.
+ */
+function readPublicWhatsappSupport() {
+  const stored = readFile().whatsappSupport || {};
+  const phone = stored.phone || ENV_WHATSAPP_SUPPORT.phone || '';
+  const message =
+    stored.message != null ? stored.message : ENV_WHATSAPP_SUPPORT.message || DEFAULT_WHATSAPP_MESSAGE;
+  return {
+    phone: phone || null,
+    message,
+    fromEnv: !stored.phone && Boolean(ENV_WHATSAPP_SUPPORT.phone),
+    configured: Boolean(phone),
+  };
+}
+
+function saveWhatsappSupport({ phone, message }) {
+  const data = readFile();
+  data.whatsappSupport = {
+    phone: String(phone || '').trim(),
+    message: String(message ?? DEFAULT_WHATSAPP_MESSAGE).trim(),
+    updatedAt: new Date().toISOString(),
+  };
+  writeFile(data);
+  return readPublicWhatsappSupport();
+}
+
+function clearWhatsappSupport() {
+  const data = readFile();
+  delete data.whatsappSupport;
+  writeFile(data);
+  return readPublicWhatsappSupport();
+}
+
 module.exports = {
   getOdoo,
   readPublicOdoo,
@@ -134,4 +183,7 @@ module.exports = {
   readPublicFacebookPixel,
   saveFacebookPixel,
   clearFacebookPixel,
+  readPublicWhatsappSupport,
+  saveWhatsappSupport,
+  clearWhatsappSupport,
 };

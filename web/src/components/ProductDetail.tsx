@@ -1,10 +1,13 @@
-import { ArrowRight, BadgeCheck, Check, Heart, Moon, ShieldCheck, Truck, Wallet } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, BadgeCheck, Heart, Moon, Truck, Wallet } from 'lucide-react';
 
+import { FeatureIcons } from '@/components/FeatureIcons';
 import { ProductVisual } from '@/components/ProductVisual';
-import { Reveal } from '@/components/Reveal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn, formatPrice } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn, formatPrice, isComingSoon } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -13,20 +16,11 @@ const CATEGORY_LABEL: Record<Category, string> = {
   bedding: 'مفروشات',
 };
 
-/** Splits the material string into named layers, top-of-bed first. */
-function readLayers(material?: string): string[] {
-  if (!material) return [];
-  return material
-    .replace(/^[^:]*:\s*/, '')
-    .split(/\s*[+،]\s*|\s+مع\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 interface ProductDetailProps {
   product: Product;
   related: Product[];
-  justAdded: boolean;
+  /** Compared against the picked variant, not just the product — see justAdded below. */
+  justAddedId: number | null;
   saved: boolean;
   wishlistPending: boolean;
   onAdd: (product: Product) => void;
@@ -38,7 +32,7 @@ interface ProductDetailProps {
 export function ProductDetail({
   product,
   related,
-  justAdded,
+  justAddedId,
   saved,
   wishlistPending,
   onAdd,
@@ -46,17 +40,38 @@ export function ProductDetail({
   onToggleWishlist,
   onOpenProduct,
 }: ProductDetailProps) {
-  const { specs, size, features } = product;
-  const layers = readLayers(specs?.material);
+  const { specs, size } = product;
   const firmness = specs?.firmnessLevel;
+  const comingSoon = isComingSoon(product.category);
 
-  const specRows: { label: string; value: string }[] = [];
-  if (specs?.material) specRows.push({ label: 'الخامة', value: specs.material });
-  if (specs?.firmness) specRows.push({ label: 'درجة الصلابة', value: specs.firmness });
-  if (specs?.coverFabric) specRows.push({ label: 'القماش الخارجي', value: specs.coverFabric });
-  if (size?.label) specRows.push({ label: 'المقاس', value: size.label });
-  if (size?.height) specRows.push({ label: 'السماكة', value: `${size.height} سم` });
-  if (product.sku) specRows.push({ label: 'رقم المنتج', value: product.sku });
+  // A product with size/height options carries them in `variants` (see
+  // src/lib/odoo.js) — this is the customer's picked one, defaulting to the
+  // first. Re-picked whenever a different product is opened.
+  const [selectedVariantId, setSelectedVariantId] = useState(product.variants?.[0]?.id ?? product.id);
+  useEffect(() => {
+    setSelectedVariantId(product.variants?.[0]?.id ?? product.id);
+  }, [product.id, product.variants]);
+
+  const justAdded = justAddedId === selectedVariantId;
+
+  const selectedVariant = product.variants?.find((v) => v.id === selectedVariantId);
+  const effectivePrice = selectedVariant?.price ?? product.price;
+  const effectiveInStock = selectedVariant ? selectedVariant.inStock !== false : product.inStock !== false;
+  const effectiveSku = selectedVariant?.sku || product.sku;
+  // What actually gets added to the cart / ordered — the template's display
+  // fields (name, images, description, icons) with the chosen variant's own
+  // id/price/sku/stock, since that id is what Odoo needs to price and fulfil
+  // the right size.
+  const cartProduct: Product = selectedVariant
+    ? {
+        ...product,
+        id: selectedVariant.id,
+        price: selectedVariant.price,
+        sku: selectedVariant.sku,
+        stock: selectedVariant.stock,
+        inStock: selectedVariant.inStock,
+      }
+    : product;
 
   return (
     <div className="animate-fade-up">
@@ -83,10 +98,17 @@ export function ProductDetail({
             {product.category && (
               <Badge variant="secondary">{CATEGORY_LABEL[product.category]}</Badge>
             )}
-            {product.inStock === false ? (
+            {comingSoon ? (
+              <Badge variant="outline">قريباً</Badge>
+            ) : !effectiveInStock ? (
               <Badge variant="outline" className="text-destructive">غير متوفر حالياً</Badge>
             ) : (
               <Badge variant="success">متوفر</Badge>
+            )}
+            {effectiveSku && (
+              <Badge variant="secondary" className="tabular">
+                {effectiveSku}
+              </Badge>
             )}
           </div>
 
@@ -97,11 +119,33 @@ export function ProductDetail({
 
           <p className="mt-6">
             <span className="font-heading text-4xl font-semibold tabular text-primary">
-              {formatPrice(product.price)}
+              {formatPrice(effectivePrice)}
             </span>
             <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
           </p>
           <p className="mt-1 text-sm text-success">توصيل مجاني · ادفع عند الاستلام</p>
+
+          {product.variants && product.variants.length > 1 && (
+            <div className="mt-6 space-y-1.5">
+              <Label htmlFor="variant-select">المقاس</Label>
+              <Select
+                value={String(selectedVariantId)}
+                onValueChange={(v) => setSelectedVariantId(Number(v))}
+              >
+                <SelectTrigger id="variant-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {product.variants.map((v) => (
+                    <SelectItem key={v.id} value={String(v.id)} disabled={v.inStock === false}>
+                      {v.label}
+                      {v.inStock === false && ' — غير متوفر'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {typeof firmness === 'number' && (
             <div className="mt-7">
@@ -131,10 +175,12 @@ export function ProductDetail({
             <Button
               size="lg"
               className="w-full"
-              onClick={() => onAdd(product)}
-              disabled={justAdded || product.inStock === false}
+              onClick={() => onAdd(cartProduct)}
+              disabled={justAdded || !effectiveInStock || comingSoon}
             >
-              {justAdded ? (
+              {comingSoon ? (
+                'قريباً'
+              ) : justAdded ? (
                 <>
                   <BadgeCheck aria-hidden="true" />
                   تمت الإضافة
@@ -163,10 +209,6 @@ export function ProductDetail({
               </li>
             )}
             <li className="flex items-center gap-2.5">
-              <ShieldCheck className="size-4 shrink-0 text-accent" aria-hidden="true" />
-              ضمان {specs?.warrantyYears ?? 12} سنة
-            </li>
-            <li className="flex items-center gap-2.5">
               <Truck className="size-4 shrink-0 text-accent" aria-hidden="true" />
               توصيل مجاني إلى باب المنزل
             </li>
@@ -190,71 +232,12 @@ export function ProductDetail({
         </section>
       )}
 
-      {/* ---------- Construction ---------- */}
-      {layers.length > 0 && (
-        <section className="container py-14">
-          <h2 className="font-heading text-3xl font-semibold text-primary">كيف صُنعت</h2>
-          <p className="mt-2 text-muted-foreground">الطبقات من الأعلى إلى القاعدة.</p>
-
-          {/* الطبقات تظهر تباعاً من الأعلى للأسفل، كأن المرتبة تُفتح */}
-          <ol className="mt-8 space-y-3">
-            {layers.map((layer, i) => (
-              <Reveal key={layer} delay={i * 120}>
-                <li className="flex items-center gap-4 rounded-xl border p-4 motion-safe:transition-colors hover:border-accent/50 hover:bg-muted/50">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-accent/15 font-heading font-semibold tabular text-accent">
-                    {i + 1}
-                  </span>
-                  <span>{layer}</span>
-                </li>
-              </Reveal>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {/* ---------- Features ---------- */}
-      {features && features.length > 0 && (
-        <section className="border-t">
-          <div className="container py-14">
-            <h2 className="font-heading text-3xl font-semibold text-primary">المميزات</h2>
-            <ul className="mt-8 grid gap-5 sm:grid-cols-2">
-              {features.map((f, i) => (
-                <Reveal key={f} delay={i * 80}>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-accent/15">
-                      <Check className="size-3.5 text-accent" aria-hidden="true" />
-                    </span>
-                    <span>{f}</span>
-                  </li>
-                </Reveal>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
-
-      {/* ---------- Specs ---------- */}
-      {specRows.length > 0 && (
+      {/* ---------- Icon specs ---------- */}
+      {product.iconFeatures && product.iconFeatures.length > 0 && (
         <section className="border-t bg-secondary/30">
-          <div className="container max-w-3xl py-14">
-            <h2 className="font-heading text-3xl font-semibold text-primary">المواصفات</h2>
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <tbody>
-                  {specRows.map((row) => (
-                    <tr key={row.label} className="border-b">
-                      <th
-                        scope="row"
-                        className="w-44 py-3.5 pe-4 text-start font-medium text-muted-foreground"
-                      >
-                        {row.label}
-                      </th>
-                      <td className="py-3.5">{row.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="container py-14">
+            <h2 className="font-heading text-3xl font-semibold text-primary">مواصفات بارزة</h2>
+            <FeatureIcons keys={product.iconFeatures} className="mt-8" />
           </div>
         </section>
       )}
@@ -291,9 +274,9 @@ export function ProductDetail({
                     <th scope="row" className="py-4 pe-4 text-start font-semibold">
                       {product.name} <span className="text-accent">(تعرضه الآن)</span>
                     </th>
-                    <td className="py-4 pe-4">{size?.label ?? '—'}</td>
+                    <td className="py-4 pe-4">{selectedVariant?.label ?? size?.label ?? '—'}</td>
                     <td className="py-4 pe-4">{specs?.firmness ?? '—'}</td>
-                    <td className="py-4 tabular">{formatPrice(product.price)} د.ل</td>
+                    <td className="py-4 tabular">{formatPrice(effectivePrice)} د.ل</td>
                   </tr>
                   {related.map((other) => (
                     <tr key={other.id} className="border-b">

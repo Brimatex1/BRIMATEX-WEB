@@ -11,7 +11,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        heading: ['Cormorant', 'Georgia', 'serif'],
+        // Iwanzaza covers Arabic only — Latin/digit glyphs it lacks fall
+        // through to Cormorant automatically, per-character.
+        heading: ['Iwanzaza', 'Cormorant', 'Georgia', 'serif'],
         sans: ['Montserrat', 'Segoe UI', 'Tahoma', 'sans-serif'],
       },
       colors: {

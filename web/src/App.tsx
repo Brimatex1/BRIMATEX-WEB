@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AdminSection } from '@/components/AdminSection';
@@ -11,6 +12,8 @@ import { OrdersSection } from '@/components/OrdersSection';
 import { ProductDetail } from '@/components/ProductDetail';
 import { QuizSection } from '@/components/QuizSection';
 import { ShopSection } from '@/components/ShopSection';
+import { SocialLinks } from '@/components/SocialLinks';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { WishlistSection } from '@/components/WishlistSection';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,6 +31,7 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<Category | 'all'>('all');
   const [shopQuery, setShopQuery] = useState('');
   const [cameFromShop, setCameFromShop] = useState(false);
+  const [whatsapp, setWhatsapp] = useState<{ phone: string; message: string } | null>(null);
 
   const catalogue = useProducts();
   const cart = useCart();
@@ -42,6 +46,13 @@ export default function App() {
       .then(({ pixelId }) => {
         if (pixelId) initPixel(pixelId);
         trackPageView();
+      })
+      .catch(() => {});
+
+    api
+      .getWhatsappConfig()
+      .then(({ phone, message }) => {
+        if (phone) setWhatsapp({ phone, message });
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,6 +148,11 @@ export default function App() {
             onOpenProduct={openProduct}
             onStartQuiz={() => navigate('quiz')}
             onSearch={searchFromHome}
+            onAdd={handleAdd}
+            onToggleWishlist={handleToggleWishlist}
+            isSaved={wishlist.has}
+            wishlistPending={wishlist.pending}
+            justAddedId={justAddedId}
           />
         )}
 
@@ -176,7 +192,7 @@ export default function App() {
               related={catalogue.products.filter(
                 (p) => p.id !== selected.id && p.category === selected.category
               )}
-              justAdded={justAddedId === selected.id}
+              justAddedId={justAddedId}
               saved={wishlist.has(selected.id)}
               wishlistPending={wishlist.pending === selected.id}
               onAdd={handleAdd}
@@ -256,13 +272,27 @@ export default function App() {
         )}
       </main>
 
-      <footer className="bg-primary py-12 text-center text-sm text-primary-foreground/80">
-        <div className="container flex flex-col items-center">
+      <footer className="bg-primary pt-12 text-center text-sm text-primary-foreground/80">
+        <div className="container flex flex-col items-center pb-8">
           {/* currentColor puts the mark in Cloud Dancer here, not the navy it ships as */}
           <BrimatexLogo className="mb-4 h-16 w-auto text-primary-foreground" />
-          <p>تجربة 100 ليلة · توصيل مجاني · ضمان حتى 12 سنة</p>
+          <p>تجربة 30 ليلة · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات</p>
+          <p className="mt-2 flex items-center gap-1.5 text-primary-foreground/70">
+            <MapPin className="size-4" aria-hidden="true" />
+            طرابلس، ليبيا
+          </p>
+          <SocialLinks className="mt-5" />
+        </div>
+        <div className="border-t border-primary-foreground/10 py-4">
+          <p className="text-xs text-primary-foreground/60">
+            © 2026 بريماتكس لصناعة الإسفنج الصناعي والمراتب. جميع الحقوق محفوظة.
+          </p>
         </div>
       </footer>
+
+      {section === 'home' && whatsapp && (
+        <WhatsAppButton phone={whatsapp.phone} message={whatsapp.message} />
+      )}
 
       <Toaster />
     </>

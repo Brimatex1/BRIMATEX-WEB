@@ -85,6 +85,21 @@ create table if not exists orders (
 );
 create index if not exists orders_user_id_idx on orders(user_id);
 create index if not exists orders_placed_at_idx on orders(placed_at desc);
+
+-- Admin overrides, keyed by product id. Independent of where the product
+-- itself lives (demo catalogue or Odoo) — Odoo owns name/price/stock and
+-- overwrites those on every sync, but never touches this table, so an
+-- admin's icon/description/enabled choices for a product survive re-syncing it.
+create table if not exists product_overrides (
+  product_id integer primary key,
+  icon_keys jsonb not null default '[]',
+  description text,
+  enabled boolean not null default true,
+  image_url text,
+  updated_at timestamptz not null default now()
+);
+alter table if exists product_overrides add column if not exists image_url text;
+drop table if exists product_icon_features;
 `;
 
 let migrated = false;

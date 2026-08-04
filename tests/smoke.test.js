@@ -125,6 +125,7 @@ async function testStatic() {
 
 /* ---------------- 3. Products API ---------------- */
 let products = [];
+let odooConfigured = false;
 async function testProducts() {
   group('3. واجهة المنتجات');
   const r = await request('GET', '/api/products');
@@ -139,6 +140,7 @@ async function testProducts() {
 
   const h = await request('GET', '/api/health');
   check('GET /api/health يرجع ok', h.status === 200 && h.json?.ok === true);
+  odooConfigured = h.json?.odooConfigured === true;
 }
 
 /* ---------------- 4. Order flow ---------------- */
@@ -163,21 +165,30 @@ async function testOrders() {
   });
   check('يُرفض: JSON تالف (400)', badJson.status === 400, `status ${badJson.status}`);
 
-  const ok = await request('POST', '/api/orders', valid);
-  check('طلب صحيح يُقبل (201)', ok.status === 201, `status ${ok.status} — ${ok.body.slice(0, 80)}`);
-  check('الاستجابة تحوي رقم الطلب', !!ok.json?.orderName);
-  check('الاستجابة تحوي رقم الفاتورة', !!ok.json?.invoiceName);
+  // A "valid" order here actually creates a real quotation — safe against the
+  // demo catalogue, but against a live Odoo it would litter the real sales
+  // pipeline with test data every test run. Skip creating one when Odoo is
+  // configured; the validation-rejection cases below never reach Odoo (they
+  // 400 first) and stay safe to run either way.
+  if (odooConfigured) {
+    console.log('  \x1b[33m⚠\x1b[0m  Odoo متصل — تخطّي اختبارات إنشاء الطلبات الحقيقية لتفادي تلويث بيانات المبيعات');
+  } else {
+    const ok = await request('POST', '/api/orders', valid);
+    check('طلب صحيح يُقبل (201)', ok.status === 201, `status ${ok.status} — ${ok.body.slice(0, 80)}`);
+    check('الاستجابة تحوي رقم الطلب', !!ok.json?.orderName);
+    check('الاستجابة تحوي رقم الفاتورة', !!ok.json?.invoiceName);
 
-  const expected = Number(p1.price) * 2;
-  check(`الإجمالي محسوب بسعر المنتج الحقيقي (${expected})`, ok.json?.total === expected, `got ${ok.json?.total}`);
+    const expected = Number(p1.price) * 2;
+    check(`الإجمالي محسوب بسعر المنتج الحقيقي (${expected})`, ok.json?.total === expected, `got ${ok.json?.total}`);
 
-  // Multi-item total
-  const multi = await request('POST', '/api/orders', {
-    customer: valid.customer,
-    items: [{ productId: p1.id, quantity: 1 }, { productId: p2.id, quantity: 3 }],
-  });
-  const expectedMulti = Number(p1.price) * 1 + Number(p2.price) * 3;
-  check('الإجمالي صحيح لعدة منتجات مختلفة', multi.json?.total === expectedMulti, `expected ${expectedMulti}, got ${multi.json?.total}`);
+    // Multi-item total
+    const multi = await request('POST', '/api/orders', {
+      customer: valid.customer,
+      items: [{ productId: p1.id, quantity: 1 }, { productId: p2.id, quantity: 3 }],
+    });
+    const expectedMulti = Number(p1.price) * 1 + Number(p2.price) * 3;
+    check('الإجمالي صحيح لعدة منتجات مختلفة', multi.json?.total === expectedMulti, `expected ${expectedMulti}, got ${multi.json?.total}`);
+  }
 
   // Validation
   const cases = [
@@ -197,12 +208,18 @@ async function testOrders() {
 
   // Rate limiting: the test server runs with RATE_LIMIT_ORDERS_PER_MIN=50.
   // Burn through the remaining quota, then confirm the next order is throttled.
-  let throttled = { status: 0 };
-  for (let i = 0; i < 60; i++) {
-    throttled = await request('POST', '/api/orders', valid);
-    if (throttled.status === 429) break;
+  // Each attempt here is a real order too — same live-Odoo hazard as above,
+  // except worse (up to 60 of them), so it gets the same guard.
+  if (odooConfigured) {
+    console.log('  \x1b[33m⚠\x1b[0m  Odoo متصل — تخطّي اختبار حد الطلبات (يُنشئ حتى 60 طلباً حقيقياً)');
+  } else {
+    let throttled = { status: 0 };
+    for (let i = 0; i < 60; i++) {
+      throttled = await request('POST', '/api/orders', valid);
+      if (throttled.status === 429) break;
+    }
+    check('حد الطلبات يعمل بعد تجاوز الحصة (429)', throttled.status === 429, `status ${throttled.status}`);
   }
-  check('حد الطلبات يعمل بعد تجاوز الحصة (429)', throttled.status === 429, `status ${throttled.status}`);
 
   const apiClient = fs.readFileSync(path.join(ROOT, 'web', 'src', 'lib', 'api.ts'), 'utf8');
   check('الواجهة تتعامل مع خطأ 429', /429/.test(apiClient));
@@ -278,7 +295,17 @@ async function testSecurity() {
     env: { ...process.env, PORT, ODOO_URL: '', TWILIO_ACCOUNT_SID: '', RATE_LIMIT_ORDERS_PER_MIN: '50' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  await new Promise((r) => setTimeout(r, 1500));
+  // A flat sleep isn't enough once DATABASE_URL is configured — startup then
+  // waits on a real network round-trip to Postgres before listen() fires.
+  // Poll instead, up to 10s.
+  for (let i = 0; i < 50; i++) {
+    try {
+      await request('GET', '/api/health');
+      break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
 
   try {
     await testStatic();
