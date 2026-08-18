@@ -102,6 +102,11 @@ export function HomeSection({
             field to ~330px and truncated its placeholder. */}
         <div className="container grid items-center gap-10 py-10 sm:py-14 lg:grid-cols-2 lg:py-20">
           <div>
+            {/* The header only has room for the full trade name from `sm` up,
+                so phones get it here, at the top of the first thing they see. */}
+            <p className="mb-3 text-base font-semibold leading-snug text-primary sm:hidden">
+              بريماتكس لصناعة الإسفنج الصناعي والمراتب
+            </p>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
               مجموعة 2026
             </p>
