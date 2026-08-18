@@ -126,5 +126,16 @@ async function main() {
 
 main().catch((err) => {
   console.error('فشلت الترحلة:', err.message);
+  // Some hosts only surface the exit code from the dashboard's "run script"
+  // button, not stdout/stderr — write the full error somewhere readable
+  // from File Manager instead of requiring a terminal.
+  try {
+    fs.writeFileSync(
+      path.join(__dirname, '..', 'src', 'data', 'migrate-error.log'),
+      `${new Date().toISOString()}\n${err.stack || err.message}\n`
+    );
+  } catch {
+    // Best-effort — the console.error above is the fallback.
+  }
   process.exit(1);
 });

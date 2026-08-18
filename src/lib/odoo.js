@@ -5,6 +5,7 @@
 // Runs in demo mode when nothing is configured.
 
 const settings = require('./settings');
+const http = require('./http');
 
 // Read per call rather than captured at boot, so saving settings from the
 // dashboard takes effect without a restart.
@@ -26,17 +27,7 @@ async function jsonRpc(method, params) {
   const payload = { jsonrpc: '2.0', method, params, id: Math.random() };
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    }
-
-    const data = await res.json();
+    const data = await http.postJson(url, payload);
     if (data.error) {
       throw new Error(data.error.data?.message || data.error.message);
     }

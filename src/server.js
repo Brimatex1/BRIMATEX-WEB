@@ -382,6 +382,12 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'GET' && url.pathname.startsWith('/api/invoices/')) {
+    // Admin-only — nothing in the frontend calls this, and unauthenticated it
+    // let anyone enumerate small sequential ids to read another customer's
+    // order (name, amount, status). Payment status changes already have a
+    // dedicated admin route (PATCH /api/admin/orders/:id); this one exists
+    // for the dashboard to look up a single invoice.
+    if (!(await requireAdmin(req, res))) return;
     const invoiceId = url.pathname.split('/').pop();
     if (!odoo.isConfigured()) {
       const found = await orders.getOrderByInvoiceName(invoiceId);
@@ -400,6 +406,10 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'POST' && url.pathname.startsWith('/api/invoices/')) {
+    // Admin-only — this records a real Odoo payment for a client-chosen
+    // amount against a client-chosen invoice id. It was reachable with no
+    // session check at all; nothing in the frontend calls it either.
+    if (!(await requireAdmin(req, res))) return;
     const invoiceId = url.pathname.split('/').pop();
     const body = await readBody(req);
     let payment;
@@ -1132,6 +1142,15 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error('[Startup] فشل بدء التشغيل:', err.message);
+  // On cPanel the only trace of a failed boot is Passenger's stderr.log, and
+  // pg throws an AggregateError (empty .message) when every address of the
+  // database host refuses the connection — which logged a bare
+  // "فشل بدء التشغيل:" with no reason at all. Print the sub-errors and the
+  // stack as well, so the log says what actually went wrong.
+  console.error('[Startup] فشل بدء التشغيل:', err.message || err.name || err);
+  for (const sub of err.errors || []) {
+    console.error(`  - ${sub.code || ''} ${sub.message}`);
+  }
+  console.error(err.stack);
   process.exit(1);
 });
