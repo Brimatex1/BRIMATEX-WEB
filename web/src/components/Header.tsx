@@ -45,13 +45,25 @@ export function Header({
         <button
           type="button"
           onClick={() => onNavigate('home')}
-          aria-label="بريماتكس — الصفحة الرئيسية"
-          className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="بريماتكس لصناعة الإسفنج الصناعي والمراتب — الصفحة الرئيسية"
+          className="flex shrink-0 items-center gap-2 rounded-md transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:gap-3"
         >
           <BrimatexLogo
             title={null}
-            className="h-8 w-auto text-primary transition-opacity hover:opacity-80 sm:h-10 md:h-11"
+            className="h-8 w-auto shrink-0 text-primary sm:h-10 md:h-11"
           />
+
+          {/* The full trade name, spelled out beside the mark. Hidden on
+              phones — five nav buttons plus the logo already fill a 375px
+              row, so the name is repeated at the top of the homepage there. */}
+          <span
+            aria-hidden="true"
+            // Capped per breakpoint so the name wraps instead of pushing the
+            // nav off-screen; only at `lg` does it fit on a single line.
+            className="hidden max-w-[11rem] text-start text-sm font-bold leading-snug text-primary sm:block md:max-w-[15rem] md:text-base lg:max-w-none lg:text-lg"
+          >
+            بريماتكس لصناعة الإسفنج الصناعي والمراتب
+          </span>
         </button>
 
         <nav className="flex items-center gap-0.5 sm:gap-1" aria-label="التنقل الرئيسي">
@@ -75,7 +87,7 @@ export function Header({
                 type="button"
                 onClick={() => onNavigate(id)}
                 aria-current={isActive ? 'page' : undefined}
-                // Labels are hidden below `md`, so the button needs its own name
+                // Labels are hidden below `lg`, so the button needs its own name
                 aria-label={showCount ? `${label} (${count})` : label}
                 className={cn(
                   // min-h keeps the touch height; a min-w of 44 made five
@@ -91,8 +103,9 @@ export function Header({
               >
                 <Icon className="size-[19px] shrink-0" aria-hidden="true" />
 
-                {/* Five labelled items do not fit a phone — icons only there */}
-                <span className="hidden md:inline" aria-hidden="true">
+                {/* Labels wait for lg: at md the trade name beside the logo
+                    plus five labelled buttons overflow the row */}
+                <span className="hidden lg:inline" aria-hidden="true">
                   {label}
                   {showCount && (
                     // keyed on the count so React remounts and replays the pop
@@ -108,7 +121,7 @@ export function Header({
                   <span
                     key={`badge-${count}`}
                     aria-hidden="true"
-                    className="absolute -top-0.5 grid min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-[18px] text-accent-foreground motion-safe:animate-pop end-0 md:hidden"
+                    className="absolute -top-0.5 grid min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold leading-[18px] text-accent-foreground motion-safe:animate-pop end-0 lg:hidden"
                   >
                     {count}
                   </span>

@@ -141,9 +141,15 @@ async function listWishlist(userId) {
 }
 
 async function addWishlistItem(userId, productId) {
+  // "where not exists" instead of ON CONFLICT: production runs PostgreSQL 9.2
+  // (see tests/postgres92.check.js). Racing inserts still cannot duplicate —
+  // the primary key rejects the loser.
   await db.query(
-    `insert into wishlist_items (user_id, product_id) values ($1, $2)
-     on conflict (user_id, product_id) do nothing`,
+    `insert into wishlist_items (user_id, product_id)
+     select $1::uuid, $2::integer
+     where not exists (
+       select 1 from wishlist_items where user_id = $1::uuid and product_id = $2::integer
+     )`,
     [userId, productId]
   );
   return true;

@@ -2,6 +2,8 @@
 // Supports Twilio WhatsApp API and demo mode.
 // Configure: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
 
+const http = require('./http');
+
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
 const TWILIO_WHATSAPP_FROM = process.env.TWILIO_WHATSAPP_FROM || 'whatsapp:+14155552671';
@@ -61,21 +63,19 @@ async function sendTwilioWhatsApp(toPhone, message) {
   formData.append('To', `whatsapp:${toPhone}`);
   formData.append('Body', message);
 
-  const res = await fetch(url, {
-    method: 'POST',
+  const res = await http.postRaw(url, {
     headers: {
-      'Authorization': `Basic ${auth}`,
+      Authorization: `Basic ${auth}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: formData,
+    body: formData.toString(),
   });
 
   if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`Twilio error ${res.status}: ${error}`);
+    throw new Error(`Twilio error ${res.status}: ${res.text}`);
   }
 
-  return res.json();
+  return JSON.parse(res.text);
 }
 
 module.exports = {
