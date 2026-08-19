@@ -3,6 +3,31 @@
 This guide explains how to move accounts, sessions, addresses, wishlist and order
 history onto a real PostgreSQL database.
 
+## القاعدة الملزمة: توافق PostgreSQL 9.2
+
+الإنتاج على brimatex.ly يعمل على **PostgreSQL 9.2.24** (استضافة cPanel من Libyan
+Spider). أي SQL جديد في هذا المشروع يجب أن يبقى ضمن ما تدعمه 9.2 — والخطأ هنا
+لا يظهر بهدوء: المخطط يُنفَّذ عند كل إقلاع، فكلمة غير مدعومة توقف الموقع كله.
+
+| ممنوع | البديل المستخدم هنا |
+|-------|---------------------|
+| `jsonb` (9.4+) | `json` |
+| `on conflict` (9.5+) | `insert … select … where not exists`، أو `update` ثم `insert` عند `rowCount === 0` |
+| `create index if not exists` (9.5+) | كتلة `do $$ … pg_class … $$` |
+| `add column if not exists` (9.6+) | كتلة `do $$ … information_schema.columns … $$` |
+| `generated as identity` (10+) | `serial` أو معرّف يولّده التطبيق |
+| `gen_random_uuid()` (13+) | يولّده التطبيق |
+
+`npm test` يفرض هذه القاعدة عبر `tests/postgres92.check.js`، ويفحص أيضاً أن
+`src/lib/no-undici.js` هو أول استدعاء في الخادم وفي كل سكربت يحمّل `pg` —
+بدونه ينهار التطبيق لأن هذه الاستضافة لا تشغّل WebAssembly.
+
+للتشخيص على الإنتاج بلا أي توقّف: cPanel ← Setup Node.js App ← Run JS script ←
+`diag:pg` (وبمعامل `--apply` يطبّق المخطط).
+
+إن انتقلت الاستضافة إلى إصدار أحدث، احذف `tests/postgres92.check.js` وتصير
+الصيغ الحديثة متاحة.
+
 ## Overview
 
 The store keeps two kinds of data in two different places:
