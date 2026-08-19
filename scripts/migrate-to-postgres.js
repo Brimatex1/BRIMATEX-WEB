@@ -1,13 +1,19 @@
 #!/usr/bin/env node
 // One-off: copies existing local accounts/orders (src/data/*.jsonl) into the
 // PostgreSQL database configured by DATABASE_URL. Safe to re-run — existing
-// rows are left untouched (ON CONFLICT DO NOTHING).
+// rows are left untouched.
+//
+// The inserts use "where not exists" rather than "on conflict do nothing":
+// the production database is PostgreSQL 9.2, which predates ON CONFLICT (9.5).
+// Casts are explicit because a SELECT-fed insert gives the planner no column
+// to infer each parameter's type from, the way VALUES does.
 //
 // Run:  npm run migrate:pg
 
 const fs = require('fs');
 const path = require('path');
 
+require('../src/lib/no-undici');
 require('../src/lib/load-env');
 
 if (!process.env.DATABASE_URL) {
@@ -43,8 +49,8 @@ async function migrateUsers() {
   for (const u of users) {
     const { rowCount } = await db.query(
       `insert into users (id, phone, email, password_hash, name, role, created_at)
-       values ($1, $2, $3, $4, $5, $6, $7)
-       on conflict (id) do nothing`,
+       select $1::uuid, $2, $3, $4, $5, $6, $7::timestamptz
+       where not exists (select 1 from users where id = $1::uuid)`,
       [u.id, u.phone, u.email, u.passwordHash, u.name, u.role || 'customer', u.createdAt]
     );
     inserted += rowCount;
@@ -52,14 +58,19 @@ async function migrateUsers() {
     for (const a of u.addresses || []) {
       await db.query(
         `insert into addresses (id, user_id, address, city, created_at)
-         values ($1, $2, $3, $4, $5) on conflict (id) do nothing`,
+         select $1, $2::uuid, $3, $4, $5::timestamptz
+         where not exists (select 1 from addresses where id = $1)`,
         [a.id, u.id, a.address, a.city, a.createdAt]
       );
     }
     for (const w of u.wishlist || []) {
       await db.query(
         `insert into wishlist_items (user_id, product_id, added_at)
-         values ($1, $2, $3) on conflict (user_id, product_id) do nothing`,
+         select $1::uuid, $2::integer, $3::timestamptz
+         where not exists (
+           select 1 from wishlist_items
+           where user_id = $1::uuid and product_id = $2::integer
+         )`,
         [u.id, w.productId, w.addedAt]
       );
     }
@@ -89,8 +100,9 @@ async function migrateOrders() {
       `insert into orders
          (order_name, invoice_name, user_id, source, customer, items, note, total,
           invoice_status, payment_status, odoo_order_id, odoo_invoice_id, placed_at, paid_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-       on conflict (order_name) do nothing`,
+       select $1, $2, $3::uuid, $4, $5::json, $6::json, $7, $8::numeric,
+              $9, $10, $11::integer, $12::integer, $13::timestamptz, $14::timestamptz
+       where not exists (select 1 from orders where order_name = $1)`,
       [
         o.orderName,
         o.invoiceName || null,

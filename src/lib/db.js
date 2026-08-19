@@ -30,6 +30,11 @@ function query(text, params) {
   return getPool().query(text, params);
 }
 
+// Written for PostgreSQL 9.2, which is what the production host runs: no
+// jsonb (9.4), no "create index if not exists" or "on conflict" (9.5), no
+// "add column if not exists" (9.6). DO blocks are the 9.0-era way to make
+// those steps idempotent, and `json` holds the same values `jsonb` did —
+// nothing in this project uses a jsonb-only operator.
 const SCHEMA = `
 create table if not exists users (
   id uuid primary key,
@@ -48,7 +53,11 @@ create table if not exists sessions (
   created_at timestamptz not null default now(),
   expires_at timestamptz not null
 );
-create index if not exists sessions_user_id_idx on sessions(user_id);
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'sessions_user_id_idx' and relkind = 'i') then
+    create index sessions_user_id_idx on sessions(user_id);
+  end if;
+end $$;
 
 create table if not exists addresses (
   id text primary key,
@@ -57,7 +66,11 @@ create table if not exists addresses (
   city text not null,
   created_at timestamptz not null default now()
 );
-create index if not exists addresses_user_id_idx on addresses(user_id);
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'addresses_user_id_idx' and relkind = 'i') then
+    create index addresses_user_id_idx on addresses(user_id);
+  end if;
+end $$;
 
 create table if not exists wishlist_items (
   user_id uuid not null references users(id) on delete cascade,
@@ -71,8 +84,8 @@ create table if not exists orders (
   invoice_name text,
   user_id uuid references users(id) on delete set null,
   source text not null,
-  customer jsonb not null,
-  items jsonb not null,
+  customer json not null,
+  items json not null,
   note text,
   total numeric not null default 0,
   invoice_status text not null default 'draft',
@@ -83,8 +96,16 @@ create table if not exists orders (
   paid_at timestamptz,
   updated_at timestamptz
 );
-create index if not exists orders_user_id_idx on orders(user_id);
-create index if not exists orders_placed_at_idx on orders(placed_at desc);
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'orders_user_id_idx' and relkind = 'i') then
+    create index orders_user_id_idx on orders(user_id);
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'orders_placed_at_idx' and relkind = 'i') then
+    create index orders_placed_at_idx on orders(placed_at desc);
+  end if;
+end $$;
 
 -- Admin overrides, keyed by product id. Independent of where the product
 -- itself lives (demo catalogue or Odoo) — Odoo owns name/price/stock and
@@ -92,13 +113,20 @@ create index if not exists orders_placed_at_idx on orders(placed_at desc);
 -- admin's icon/description/enabled choices for a product survive re-syncing it.
 create table if not exists product_overrides (
   product_id integer primary key,
-  icon_keys jsonb not null default '[]',
+  icon_keys json not null default '[]'::json,
   description text,
   enabled boolean not null default true,
   image_url text,
   updated_at timestamptz not null default now()
 );
-alter table if exists product_overrides add column if not exists image_url text;
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'product_overrides' and column_name = 'image_url'
+  ) then
+    alter table product_overrides add column image_url text;
+  end if;
+end $$;
 drop table if exists product_icon_features;
 `;
 

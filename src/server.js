@@ -9,6 +9,7 @@
 //                     files — see docs/POSTGRES_SETUP.md).
 // Configure WhatsApp: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
 
+require('./lib/no-undici');
 require('./lib/load-env');
 const http = require('http');
 const fs = require('fs');
