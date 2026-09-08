@@ -16,6 +16,7 @@ src/public/uploads/
 src/data/orders.local.jsonl
 src/data/users.jsonl
 src/data/sessions.jsonl
+src/data/otp.jsonl
 src/data/product-overrides.local.json
 
 # Dashboard settings — holds the Odoo API key.

@@ -107,6 +107,24 @@ do $$ begin
   end if;
 end $$;
 
+-- One-time password codes for account recovery. Keyed by phone: a customer has
+-- at most one live challenge, and requesting a new code replaces it. Rows live
+-- for minutes and are deleted once spent, so the only extra index is on
+-- reset_token — looked up directly when the new password arrives.
+create table if not exists otp_challenges (
+  phone text primary key,
+  code_hash text not null,
+  reset_token text,
+  attempts integer not null default 0,
+  sent_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'otp_reset_token_idx' and relkind = 'i') then
+    create index otp_reset_token_idx on otp_challenges(reset_token);
+  end if;
+end $$;
+
 -- Admin overrides, keyed by product id. Independent of where the product
 -- itself lives (demo catalogue or Odoo) — Odoo owns name/price/stock and
 -- overwrites those on every sync, but never touches this table, so an
