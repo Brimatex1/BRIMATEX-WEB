@@ -45,10 +45,16 @@ say "node $(node --version)"
 LOCK_BEFORE="$(md5sum "$DEPLOYPATH/package-lock.json" 2>/dev/null | cut -d' ' -f1 || echo none)"
 
 say "نسخ الملفات"
+# ‎./data‎ (المجلد القديم) و‎*.jsonl‎ مستثناة عمداً: المستودع يتتبّع نسخة
+# قديمة من ‎data/users.jsonl‎ فيها حسابات حقيقية، ونسخُها فوق الخادم يطمس
+# بيانات العملاء. النشر يحمل الشيفرة لا البيانات — أبداً.
 tar -C "$SRC" \
     --exclude=.git \
     --exclude=node_modules \
     --exclude=web/node_modules \
+    --exclude=./data \
+    --exclude='*.jsonl' \
+    --exclude='*.local.json' \
     --exclude=src/public/uploads \
     -cf - . | tar -C "$DEPLOYPATH" -xf -
 
