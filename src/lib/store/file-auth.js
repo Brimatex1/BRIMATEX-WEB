@@ -238,6 +238,23 @@ async function deleteSession(token) {
   return true;
 }
 
+/**
+ * Deletes the account and everything stored on it. Addresses and wishlist live
+ * inside the user record here, so removing the record removes them too; the
+ * sessions file is separate and is pruned by hand.
+ *
+ * Orders are NOT touched — src/lib/orders.js unlinks them first so the factory
+ * keeps its warranty record without naming a deleted customer.
+ */
+async function deleteUser(userId) {
+  const users = readUsers();
+  const remaining = users.filter((u) => u.id !== userId);
+  if (remaining.length === users.length) return false;
+  writeUsers(remaining);
+  writeSessions(readSessions().filter((s) => s.userId !== userId));
+  return true;
+}
+
 module.exports = {
   createUser,
   authenticate,
@@ -253,4 +270,5 @@ module.exports = {
   createSession,
   verifySession,
   deleteSession,
+  deleteUser,
 };

@@ -194,6 +194,16 @@ async function deleteSession(token) {
   return rowCount > 0;
 }
 
+/**
+ * Deletes the account. sessions/addresses/wishlist_items cascade on the foreign
+ * key, and orders.user_id is `on delete set null` — the order survives without
+ * naming a deleted customer.
+ */
+async function deleteUser(userId) {
+  const { rowCount } = await db.query('delete from users where id = $1', [userId]);
+  return rowCount > 0;
+}
+
 module.exports = {
   createUser,
   authenticate,
@@ -209,4 +219,5 @@ module.exports = {
   createSession,
   verifySession,
   deleteSession,
+  deleteUser,
 };

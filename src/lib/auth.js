@@ -63,6 +63,7 @@ module.exports = {
   createSession: backend.createSession,
   verifySession: backend.verifySession,
   deleteSession: backend.deleteSession,
+  deleteUser: backend.deleteUser,
   roleOf,
   isAdmin,
   isBootstrapAdmin,

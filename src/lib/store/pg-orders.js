@@ -124,6 +124,19 @@ async function updateOrder(orderName, updates) {
   return toOrder(rows[0]);
 }
 
+/**
+ * Drops the account link from a customer's orders. The foreign key would do
+ * this on its own (`on delete set null`), but doing it explicitly keeps the
+ * two backends identical and lets the caller unlink without deleting.
+ */
+async function unlinkUser(userId) {
+  const { rowCount } = await db.query(
+    'update orders set user_id = null where user_id = $1',
+    [userId]
+  );
+  return rowCount;
+}
+
 module.exports = {
   createOrder,
   listOrders,
@@ -131,4 +144,5 @@ module.exports = {
   getOrderByName,
   getOrderByInvoiceName,
   updateOrder,
+  unlinkUser,
 };

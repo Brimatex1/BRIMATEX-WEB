@@ -85,6 +85,24 @@ async function updateOrder(orderName, updates) {
   return orders[idx];
 }
 
+/**
+ * Drops the account link from a customer's orders without deleting the orders.
+ * The factory needs the record for warranty and accounting; it does not need to
+ * keep naming an account the customer asked us to erase.
+ */
+async function unlinkUser(userId) {
+  const orders = readAll();
+  let touched = 0;
+  const next = orders.map((o) => {
+    if (o.userId !== userId) return o;
+    touched += 1;
+    const { userId: _drop, ...rest } = o;
+    return rest;
+  });
+  if (touched) writeAll(next);
+  return touched;
+}
+
 module.exports = {
   createOrder,
   listOrders,
@@ -92,4 +110,5 @@ module.exports = {
   getOrderByName,
   getOrderByInvoiceName,
   updateOrder,
+  unlinkUser,
 };

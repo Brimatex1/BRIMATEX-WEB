@@ -539,6 +539,27 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { message: 'تم الخروج بنجاح' });
   }
 
+  /**
+   * Account deletion, required by App Store review guideline 5.1.1(v) for any
+   * app that offers account creation. Deletes the account and everything on it,
+   * but unlinks orders first instead of deleting them: the factory needs the
+   * record for warranty and accounting, and it keeps it without naming anyone.
+   */
+  if (req.method === 'DELETE' && url.pathname === '/api/auth/me') {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
+    const session = await auth.verifySession(token);
+    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
+
+    // Unlink before delete so the orders survive on both backends, not only
+    // where the foreign key happens to be `on delete set null`.
+    await orders.unlinkUser(session.userId);
+    const deleted = await auth.deleteUser(session.userId);
+    if (!deleted) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
+
+    return sendJson(res, 200, { message: 'تم حذف الحساب نهائياً' });
+  }
+
   // --- User Profile ---
   if (req.method === 'POST' && url.pathname === '/api/user/addresses') {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1089,8 +1110,14 @@ function serveStatic(res, urlPath) {
     });
     return res.end();
   }
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+  if (!fs.existsSync(filePath)) {
     filePath = path.join(PUBLIC_DIR, 'index.html');
+  } else if (fs.statSync(filePath).isDirectory()) {
+    // A directory carrying its own index.html is a self-contained sub-site —
+    // the mobile app preview at /app is one. Serve that instead of the store's
+    // shell, which would otherwise swallow anything mounted under public/.
+    const nested = path.join(filePath, 'index.html');
+    filePath = fs.existsSync(nested) ? nested : path.join(PUBLIC_DIR, 'index.html');
   }
   const ext = path.extname(filePath).toLowerCase();
   const headers = {
