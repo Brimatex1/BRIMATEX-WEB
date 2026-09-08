@@ -1,0 +1,12 @@
+---
+# نشر بلا طرفية.
+#
+# cPanel ← Git™ Version Control ← Manage ← Update from Remote ثم Deploy HEAD
+# Commit — فيُنفَّذ ما تحته من مجلد المستودع على المضيف.
+#
+# لا نسخ ملفات هنا: تطبيق Node يعمل من المستودع نفسه، فالنشر بناءٌ وإعادة
+# تشغيل لا نقلٌ إلى مجلد آخر. والسحب أجراه cPanel قبل هذه المرحلة، لذا
+# ‎--no-pull‎.
+deployment:
+  tasks:
+    - /bin/bash scripts/deploy.sh --no-pull

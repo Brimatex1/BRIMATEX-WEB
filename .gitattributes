@@ -1,0 +1,5 @@
+# سكربتات الصدفة و‎.cpanel.yml‎ تُنفَّذ على مضيف لينكس. لو خرجت من السحب
+# بنهايات أسطر ويندوز لفشلت بـ‎bad interpreter: /bin/bash^M‎ — وهو خطأ يقرأه
+# المرء عشر مرات قبل أن يراه. نثبّت LF مهما كان إعداد core.autocrlf.
+*.sh text eol=lf
+.cpanel.yml text eol=lf
