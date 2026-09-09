@@ -1,13 +1,26 @@
 ---
-# نشر بلا طرفية.
+# نشر الخادم بلا طرفية.
 #
 # cPanel ← Git™ Version Control ← Manage ← Update from Remote، ثم
 # Deploy HEAD Commit — فيُنفَّذ ما تحته من مجلد المستودع على المضيف.
 #
 # نسخة git وتطبيق Node مجلدان منفصلان على هذا المضيف
 # (‎~/brimatex-git‎ و‎~/app‎)، فالنشر نسخٌ بينهما لا بناءٌ في مكانه.
-# التفاصيل والحرص في scripts/deploy.sh.
+#
+# ⚠️ هذا المسار ينشر **الخادم وحده**. ‎SKIP_BUILD=1‎ ليس تحسيناً بل ضرورة:
+# ‎vite build‎ لا يعمل على هذا المضيف إطلاقاً — Rollup 4 يحمل مكوّناً أصلياً
+# يتطلّب GLIBC 2.29 والمضيف أقدم:
+#
+#     /lib64/libm.so.6: version `GLIBC_2.29' not found
+#     (required by @rollup/rollup-linux-x64-gnu)
+#
+# فبدون التخطّي يفشل كل نشر من هنا. وواجهة الموقع تُبنى على رَنَر GitHub
+# وتصل ضمن الحمولة — انظر .github/workflows/deploy.yml.
+#
+# والحارس في scripts/deploy.sh يبقى فعّالاً: إن غاب ‎src/public/index.html‎
+# يتوقّف النشر قبل إعادة التشغيل، فيظل الموقع على نسخته العاملة.
 deployment:
   tasks:
     - export DEPLOYPATH=$HOME/app
+    - export SKIP_BUILD=1
     - /bin/bash scripts/deploy.sh

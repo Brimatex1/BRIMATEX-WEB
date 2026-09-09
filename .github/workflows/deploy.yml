@@ -1,0 +1,110 @@
+# نشر تلقائي إلى brimatex.ly عبر SSH.
+#
+# لماذا لا نبني على المضيف: المضيف (Libyan Spider cPanel، CloudLinux LVE)
+# بيئةٌ ضيّقة و‎npm install‎ لـ‎web/‎ يتعثّر فيها. فنبني الواجهة هنا على الرَنَر،
+# ونرسل الحمولة جاهزة، ونناديه بـ‎SKIP_BUILD=1‎ فيكتفي بالنسخ وإعادة التشغيل.
+#
+# لماذا مجلد مرحلي: نسخة git على المضيف (‎~/brimatex-git‎) وتطبيق Node
+# (‎~/app‎) مجلدان منفصلان — النشر نسخٌ بينهما. نفكّ الحمولة في ‎~/deploy-staging‎
+# ثم ندع ‎scripts/deploy.sh‎ ينسخ منه إلى ‎~/app‎ بحُرّاسه: استثناء بيانات
+# العملاء، والتحقّق من ‎src/public/index.html‎ قبل لمس ‎tmp/restart.txt‎.
+#
+# الأسرار المطلوبة في إعدادات المستودع:
+#   SSH_PRIVATE_KEY  المفتاح الخاص كاملاً (ed25519)، ونظيره العام مفوَّض في لوحة العميل
+#   SSH_HOST         مضيف cPanel، مثال: ls40.server.ly
+#   SSH_USER         اسم حساب cPanel، مثال: brimatex
+#   SSH_PORT         اختياري، الافتراضي 22
+name: نشر إلى brimatex.ly
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# نشرٌ واحد في وقت واحد، وبلا إلغاء: قطع النشر في منتصف النسخ يترك ‎app/‎ مختلطاً.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: بناء ونشر
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: تثبيت الاعتماديات
+        run: npm ci
+
+      - name: بناء الواجهة
+        run: npm run build
+
+      - name: التحقّق من ناتج البناء
+        run: |
+          [ -f src/public/index.html ] || {
+            echo "✗ البناء لم يُنتج src/public/index.html — نتوقّف قبل لمس الخادم"
+            exit 1
+          }
+          echo "✅ ناتج البناء حاضر"
+
+      - name: تجهيز الحمولة
+        # الاستثناءات هي نفسها التي في scripts/deploy.sh: ‎./data‎ و‎*.jsonl‎
+        # يتتبّعهما المستودع بنسخة قديمة فيها حسابات عملاء حقيقية — النشر
+        # يحمل الشيفرة لا البيانات، أبداً.
+        run: |
+          tar --exclude=./.git \
+              --exclude=./node_modules \
+              --exclude=./web/node_modules \
+              --exclude=./data \
+              --exclude='*.jsonl' \
+              --exclude='*.local.json' \
+              --exclude=./src/public/uploads \
+              -czf /tmp/brimatex-payload.tgz .
+          ls -lh /tmp/brimatex-payload.tgz
+
+      - name: تهيئة مفتاح SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '6934' }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: رفع الحمولة وتشغيل النشر
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '6934' }}
+        run: |
+          set -euo pipefail
+          TARGET="$SSH_USER@$SSH_HOST"
+
+          ssh -p "$SSH_PORT" "$TARGET" 'rm -rf ~/deploy-staging && mkdir -p ~/deploy-staging'
+          scp -P "$SSH_PORT" /tmp/brimatex-payload.tgz "$TARGET:deploy-staging/payload.tgz"
+          ssh -p "$SSH_PORT" "$TARGET" 'set -e
+            cd ~/deploy-staging
+            tar -xzf payload.tgz && rm -f payload.tgz
+            SKIP_BUILD=1 DEPLOYPATH=$HOME/app bash scripts/deploy.sh'
+
+      - name: فحص الصحة
+        # إعادة التشغيل كسولة: Passenger يقلع عند أول طلب، فالمحاولة الأولى قد
+        # تتأخّر أو تفشل بينما التطبيق يقوم. نحاول خمساً قبل أن نحكم بالفشل.
+        run: |
+          for i in 1 2 3 4 5; do
+            CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://brimatex.ly/api/health || echo 000)"
+            echo "محاولة $i: HTTP $CODE"
+            [ "$CODE" = "200" ] && { echo "✅ الموقع يعمل بعد النشر"; exit 0; }
+            sleep 10
+          done
+          echo "✗ ‎/api/health‎ لم يُرجع 200 بعد النشر — راجع Setup Node.js App في cPanel"
+          exit 1
