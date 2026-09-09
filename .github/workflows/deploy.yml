@@ -1,34 +1,47 @@
-# نشر تلقائي إلى brimatex.ly عبر SSH.
+# بناء واجهة الموقع وإيداع ناتجها في المستودع.
 #
-# لماذا لا نبني على المضيف: المضيف (Libyan Spider cPanel، CloudLinux LVE)
-# بيئةٌ ضيّقة و‎npm install‎ لـ‎web/‎ يتعثّر فيها. فنبني الواجهة هنا على الرَنَر،
-# ونرسل الحمولة جاهزة، ونناديه بـ‎SKIP_BUILD=1‎ فيكتفي بالنسخ وإعادة التشغيل.
+# لماذا نودع ناتج بناء في git — وهو ما لا يُفعل عادةً:
 #
-# لماذا مجلد مرحلي: نسخة git على المضيف (‎~/brimatex-git‎) وتطبيق Node
-# (‎~/app‎) مجلدان منفصلان — النشر نسخٌ بينهما. نفكّ الحمولة في ‎~/deploy-staging‎
-# ثم ندع ‎scripts/deploy.sh‎ ينسخ منه إلى ‎~/app‎ بحُرّاسه: استثناء بيانات
-# العملاء، والتحقّق من ‎src/public/index.html‎ قبل لمس ‎tmp/restart.txt‎.
+# المضيف (Libyan Spider cPanel، CloudLinux) لا يستطيع بناء الواجهة إطلاقاً.
+# Rollup 4 يحمل مكوّناً أصلياً يتطلّب GLIBC 2.29، والمضيف أقدم:
 #
-# الأسرار المطلوبة في إعدادات المستودع:
-#   SSH_PRIVATE_KEY  المفتاح الخاص كاملاً (ed25519)، ونظيره العام مفوَّض في لوحة العميل
-#   SSH_HOST         مضيف cPanel، مثال: ls40.server.ly
-#   SSH_USER         اسم حساب cPanel، مثال: brimatex
-#   SSH_PORT         اختياري، الافتراضي 22
-name: نشر إلى brimatex.ly
+#     /lib64/libm.so.6: version `GLIBC_2.29' not found
+#     (required by @rollup/rollup-linux-x64-gnu)
+#
+# فالملفات المبنيّة لا سبيل لها إلى المضيف إلا محمولةً. والبديل — إرسالها عبر
+# SSH من هنا — يعني مفتاحاً خاصاً في أسرار المستودع: سرٌّ دائم يُدار ويُحرس،
+# مقابل توفير ضغطتين. اخترنا الضغطتين.
+#
+# فالمسار كله بلا سرّ واحد: هذا الوركفلو يستعمل GITHUB_TOKEN المدمج، والنشر
+# إلى المضيف يتمّ من لوحة cPanel كما رأيته يعمل:
+#
+#     Git™ Version Control ← Manage ← Update from Remote ← Deploy HEAD Commit
+#
+# و.cpanel.yml ينادي scripts/deploy.sh بـSKIP_BUILD=1، فيكتفي المضيف بالنسخ
+# وإعادة التشغيل — لا يحاول بناءً يعرف أنه سيفشل.
+name: بناء واجهة الموقع
 
 on:
   push:
     branches: [ main ]
+    # بلا هذا يودع الوركفلو ناتجاً فيُشغّل نفسه فيودع ثانيةً — حلقة لا تنتهي.
+    # ورسالة الإيداع تحمل [skip ci] أيضاً، حزاماً ثانياً.
+    paths-ignore:
+      - 'src/public/**'
+      - '**.md'
   workflow_dispatch:
 
-# نشرٌ واحد في وقت واحد، وبلا إلغاء: قطع النشر في منتصف النسخ يترك ‎app/‎ مختلطاً.
+permissions:
+  contents: write
+
+# بناءان متوازيان يودعان في الفرع نفسه = تضارب دفع. واحدٌ في وقت واحد.
 concurrency:
-  group: deploy-production
+  group: build-frontend
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: بناء ونشر
+  build:
+    name: بناء وإيداع
     runs-on: ubuntu-latest
 
     steps:
@@ -46,65 +59,25 @@ jobs:
         run: npm run build
 
       - name: التحقّق من ناتج البناء
+        # الخادم يسقط بـENOENT بلا هذا الملف، فلا نودع بناءً ناقصاً.
         run: |
-          [ -f src/public/index.html ] || {
-            echo "✗ البناء لم يُنتج src/public/index.html — نتوقّف قبل لمس الخادم"
-            exit 1
-          }
+          [ -f src/public/index.html ] || { echo "✗ لا ناتج بناء"; exit 1; }
           echo "✅ ناتج البناء حاضر"
+          du -sh src/public
 
-      - name: تجهيز الحمولة
-        # الاستثناءات هي نفسها التي في scripts/deploy.sh: ‎./data‎ و‎*.jsonl‎
-        # يتتبّعهما المستودع بنسخة قديمة فيها حسابات عملاء حقيقية — النشر
-        # يحمل الشيفرة لا البيانات، أبداً.
-        run: |
-          tar --exclude=./.git \
-              --exclude=./node_modules \
-              --exclude=./web/node_modules \
-              --exclude=./data \
-              --exclude='*.jsonl' \
-              --exclude='*.local.json' \
-              --exclude=./src/public/uploads \
-              -czf /tmp/brimatex-payload.tgz .
-          ls -lh /tmp/brimatex-payload.tgz
-
-      - name: تهيئة مفتاح SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '6934' }}
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: رفع الحمولة وتشغيل النشر
-        env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PORT: ${{ secrets.SSH_PORT || '6934' }}
+      - name: إيداع الناتج
         run: |
           set -euo pipefail
-          TARGET="$SSH_USER@$SSH_HOST"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          ssh -p "$SSH_PORT" "$TARGET" 'rm -rf ~/deploy-staging && mkdir -p ~/deploy-staging'
-          scp -P "$SSH_PORT" /tmp/brimatex-payload.tgz "$TARGET:deploy-staging/payload.tgz"
-          ssh -p "$SSH_PORT" "$TARGET" 'set -e
-            cd ~/deploy-staging
-            tar -xzf payload.tgz && rm -f payload.tgz
-            SKIP_BUILD=1 DEPLOYPATH=$HOME/app bash scripts/deploy.sh'
+          # ‎uploads/‎ صور يرفعها المدير على المضيف — ليست ناتج بناء ولا تُودع.
+          git add src/public
+          if git diff --cached --quiet; then
+            echo "الناتج لم يتغيّر — لا إيداع"
+            exit 0
+          fi
 
-      - name: فحص الصحة
-        # إعادة التشغيل كسولة: Passenger يقلع عند أول طلب، فالمحاولة الأولى قد
-        # تتأخّر أو تفشل بينما التطبيق يقوم. نحاول خمساً قبل أن نحكم بالفشل.
-        run: |
-          for i in 1 2 3 4 5; do
-            CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://brimatex.ly/api/health || echo 000)"
-            echo "محاولة $i: HTTP $CODE"
-            [ "$CODE" = "200" ] && { echo "✅ الموقع يعمل بعد النشر"; exit 0; }
-            sleep 10
-          done
-          echo "✗ ‎/api/health‎ لم يُرجع 200 بعد النشر — راجع Setup Node.js App في cPanel"
-          exit 1
+          git commit -m "build(web): ناتج بناء الواجهة من ${GITHUB_SHA::7} [skip ci]"
+          git push
+          echo "✅ أُودع الناتج — انشره من cPanel: Update from Remote ثم Deploy HEAD Commit"
