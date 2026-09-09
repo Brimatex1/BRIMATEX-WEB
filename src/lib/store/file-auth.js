@@ -103,6 +103,12 @@ async function getUser(userId) {
   return stripHash(user) || null;
 }
 
+/** Lookup by the identifier customers actually know: their phone number. */
+async function findByPhone(phone) {
+  const user = readUsers().find((u) => u.phone === phone);
+  return stripHash(user) || null;
+}
+
 async function updateUser(userId, updates) {
   const users = readUsers();
   const idx = users.findIndex((u) => u.id === userId);
@@ -238,6 +244,11 @@ async function deleteSession(token) {
   return true;
 }
 
+/** Drops every session a user holds — used after a password reset. */
+async function deleteSessionsForUser(userId) {
+  writeSessions(readSessions().filter((s) => s.userId !== userId));
+}
+
 /**
  * Deletes the account and everything stored on it. Addresses and wishlist live
  * inside the user record here, so removing the record removes them too; the
@@ -259,6 +270,7 @@ module.exports = {
   createUser,
   authenticate,
   getUser,
+  findByPhone,
   updateUser,
   listUsers,
   listAddresses,
@@ -270,5 +282,6 @@ module.exports = {
   createSession,
   verifySession,
   deleteSession,
+  deleteSessionsForUser,
   deleteUser,
 };

@@ -62,6 +62,12 @@ async function getUser(userId) {
   return toUser(rows[0]);
 }
 
+/** Lookup by the identifier customers actually know: their phone number. */
+async function findByPhone(phone) {
+  const { rows } = await db.query('select * from users where phone = $1', [phone]);
+  return toUser(rows[0]);
+}
+
 const UPDATABLE_COLUMNS = { role: 'role', passwordHash: 'password_hash', odooPartnerId: 'odoo_partner_id' };
 
 async function updateUser(userId, updates) {
@@ -194,6 +200,11 @@ async function deleteSession(token) {
   return rowCount > 0;
 }
 
+/** Drops every session a user holds — used after a password reset. */
+async function deleteSessionsForUser(userId) {
+  await db.query('delete from sessions where user_id = $1', [userId]);
+}
+
 /**
  * Deletes the account. sessions/addresses/wishlist_items cascade on the foreign
  * key, and orders.user_id is `on delete set null` — the order survives without
@@ -208,6 +219,7 @@ module.exports = {
   createUser,
   authenticate,
   getUser,
+  findByPhone,
   updateUser,
   listUsers,
   listAddresses,
@@ -219,5 +231,6 @@ module.exports = {
   createSession,
   verifySession,
   deleteSession,
+  deleteSessionsForUser,
   deleteUser,
 };

@@ -5,7 +5,21 @@
 // at boot. See src/lib/db.js for the Postgres schema.
 
 const db = require('./db');
+const { hashPassword } = require('./store/password');
 const backend = db.isConfigured() ? require('./store/pg-auth') : require('./store/file-auth');
+
+/**
+ * Replaces a password and drops every session the user holds.
+ *
+ * The sessions matter: recovery exists for someone who lost control of the
+ * account, and leaving a 30-day token alive would let whoever took it keep
+ * using it after the owner believes they have fixed things.
+ */
+async function setPassword(userId, password) {
+  const user = await backend.updateUser(userId, { passwordHash: await hashPassword(password) });
+  await backend.deleteSessionsForUser(userId);
+  return user;
+}
 
 /**
  * Bootstrap admins. There is no way to appoint the first one from inside the
@@ -52,6 +66,7 @@ module.exports = {
   createUser: backend.createUser,
   authenticate: backend.authenticate,
   getUser: backend.getUser,
+  findByPhone: backend.findByPhone,
   updateUser: backend.updateUser,
   listUsers,
   listAddresses: backend.listAddresses,
@@ -60,6 +75,7 @@ module.exports = {
   listWishlist: backend.listWishlist,
   addWishlistItem: backend.addWishlistItem,
   removeWishlistItem: backend.removeWishlistItem,
+  setPassword,
   createSession: backend.createSession,
   verifySession: backend.verifySession,
   deleteSession: backend.deleteSession,
