@@ -31,8 +31,14 @@ if ! command -v node >/dev/null 2>&1; then
   ACTIVATE="$(ls -1 "$HOME"/nodevenv/*/*/bin/activate 2>/dev/null | head -n 1 || true)"
   if [ -n "$ACTIVATE" ]; then
     say "تفعيل بيئة Node: $ACTIVATE"
+    # ‎set -u‎ يُطفأ حول التفعيل وحده: سكربت CloudLinux يقرأ ‎CL_VIRTUAL_ENV‎
+    # قبل تعريفه، فيسقط النشر كله بـ«unbound variable» عند السطر 78 — وهو
+    # ما أوقف أول محاولة نشر فعلية. الملفّ ليس لنا فلا نملك إصلاحه، ونستعيد
+    # الصرامة فور انتهائه.
+    set +u
     # shellcheck disable=SC1090
     source "$ACTIVATE"
+    set -u
   fi
 fi
 command -v node >/dev/null 2>&1 || { echo "✗ node غير متاح"; exit 1; }
@@ -65,9 +71,17 @@ cd "$DEPLOYPATH"
 # ── 3. الاعتماديات ──
 # ‎npm install‎ لا ‎npm ci‎: الثاني يمسح node_modules أولاً، وانقطاعه في المنتصف
 # يترك الموقع بلا اعتماديات. ولا يُشغَّل إلا حين يتغيّر القفل فعلاً.
+#
+# ‎SKIP_BUILD=1‎ (نشر GitHub Actions): البناء تمّ على الرَنَر، فلا حاجة لاعتماديات
+# ‎web/‎ على المضيف. ‎--ignore-scripts‎ يمنع ‎postinstall‎ من جرّ ‎npm --prefix web
+# install‎ — وهي أثقل خطوة وأكثرها تعثّراً هنا. يبقى ‎pg‎ وحده اعتماديةَ الخادم.
 if [ ! -d node_modules ] || [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
   say "تثبيت الاعتماديات (تغيّر package-lock.json)"
-  npm install --no-audit --no-fund
+  if [ "${SKIP_BUILD:-0}" = "1" ]; then
+    npm install --no-audit --no-fund --ignore-scripts
+  else
+    npm install --no-audit --no-fund
+  fi
 else
   say "الاعتماديات كما هي — تخطّي التثبيت"
 fi
@@ -75,8 +89,16 @@ fi
 # ── 4. البناء ──
 # ‎src/public/‎ ناتج Vite ومستثنى من git، فبناؤه ليس اختيارياً: الخادم يسقط
 # بـENOENT إن غاب ‎src/public/index.html‎.
-say "بناء الواجهة"
-npm run build
+#
+# إلّا حين يأتي النشر من GitHub Actions: هناك بُنِيَت الواجهة على الرَنَر ووصلت
+# ضمن الحمولة، فإعادة بنائها على المضيف تكرارٌ بلا فائدة وعلى بيئة أهشّ.
+# الفحص تحت هذه الكتلة يبقى كما هو — هو ما يحمي الموقع، لا خطوة البناء.
+if [ "${SKIP_BUILD:-0}" = "1" ]; then
+  say "البناء جاهز من CI — تخطّي البناء على المضيف"
+else
+  say "بناء الواجهة"
+  npm run build
+fi
 
 [ -f src/public/index.html ] || {
   echo "✗ البناء لم يُنتج src/public/index.html — نتوقّف قبل إعادة التشغيل كي يبقى الموقع على نسخته العاملة"
