@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 web/node_modules/
 
@@ -11,15 +11,16 @@ src/public/icons/
 # Product images uploaded from the admin dashboard.
 src/public/uploads/
 
-# Local runtime data — the store writes these at runtime.
+# Local runtime data â€” the store writes these at runtime.
 # demo-products.json is source data and stays tracked.
 src/data/orders.local.jsonl
 src/data/users.jsonl
 src/data/sessions.jsonl
 src/data/otp.jsonl
+src/data/devices.jsonl
 src/data/product-overrides.local.json
 
-# Dashboard settings — holds the Odoo API key.
+# Dashboard settings â€” holds the Odoo API key.
 src/data/settings.local.json
 
 # Environment

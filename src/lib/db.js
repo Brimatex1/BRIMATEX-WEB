@@ -107,6 +107,27 @@ do $$ begin
   end if;
 end $$;
 
+-- Push-notification devices. One row per Expo token; re-registering replaces
+-- it. last_order lets a guest who ordered without an account still be told
+-- when that one order moves.
+create table if not exists devices (
+  token text primary key,
+  platform text not null,
+  user_id uuid references users(id) on delete cascade,
+  last_order text,
+  registered_at timestamptz not null default now()
+);
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'devices_user_id_idx' and relkind = 'i') then
+    create index devices_user_id_idx on devices(user_id);
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'devices_last_order_idx' and relkind = 'i') then
+    create index devices_last_order_idx on devices(last_order);
+  end if;
+end $$;
+
 -- One-time password codes for account recovery. Keyed by phone: a customer has
 -- at most one live challenge, and requesting a new code replaces it. Rows live
 -- for minutes and are deleted once spent, so the only extra index is on

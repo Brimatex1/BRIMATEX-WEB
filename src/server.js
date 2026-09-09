@@ -18,6 +18,8 @@ const odoo = require('./lib/odoo');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
 const otp = require('./lib/otp');
+const devices = require('./lib/devices');
+const push = require('./lib/push');
 const orders = require('./lib/orders');
 const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
@@ -426,7 +428,8 @@ async function handleApi(req, res, url) {
       const found = await orders.getOrderByInvoiceName(invoiceId);
       if (!found) return sendJson(res, 404, { error: 'الفاتورة غير موجودة' });
       const paidAt = new Date().toISOString();
-      await orders.updateOrder(found.orderName, { paymentStatus: 'paid', paidAt });
+      const paid = await orders.updateOrder(found.orderName, { paymentStatus: 'paid', paidAt });
+      void push.notifyOrderStage(found, paid || { ...found, paymentStatus: 'paid' });
       return sendJson(res, 200, { invoiceId, status: 'paid', paidAt });
     }
 
@@ -436,10 +439,11 @@ async function handleApi(req, res, url) {
     // sync with the payment Odoo just recorded.
     const found = await orders.getOrderByInvoiceName(invoiceId);
     if (found) {
-      await orders.updateOrder(found.orderName, {
+      const paid = await orders.updateOrder(found.orderName, {
         paymentStatus: 'paid',
         paidAt: result.recordedAt,
       });
+      void push.notifyOrderStage(found, paid || { ...found, paymentStatus: 'paid' });
     }
 
     return sendJson(res, 200, { invoiceId, status: 'paid', recordedAt: result.recordedAt });
@@ -499,6 +503,38 @@ async function handleApi(req, res, url) {
       token,
       user: { id: user.id, phone: user.phone, name: user.name },
     });
+  }
+
+  /* --- Push devices ---
+     The app registers its Expo token after an order. Anonymous orders are
+     allowed, so a session is optional: the token is tied to the account when
+     there is one, and to the order name otherwise — either is enough to reach
+     the right phone when that order's stage changes. See src/lib/push.js. */
+  if (req.method === 'POST' && url.pathname === '/api/devices') {
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+
+    const token = String(payload.token || '').trim();
+    if (!devices.isValidToken(token)) {
+      return sendJson(res, 400, { error: 'رمز الجهاز غير صالح' });
+    }
+
+    const deviceToken = req.headers.authorization?.split(' ')[1];
+    const session = deviceToken ? await auth.verifySession(deviceToken) : null;
+
+    await devices.register({
+      token,
+      platform: payload.platform === 'android' ? 'android' : 'ios',
+      userId: session?.userId,
+      orderName: typeof payload.orderName === 'string' ? payload.orderName.trim() : null,
+    });
+
+    return sendJson(res, 200, { message: 'تم تسجيل الجهاز' });
   }
 
   /* --- Password recovery by one-time code over WhatsApp ---
@@ -858,8 +894,13 @@ async function handleApi(req, res, url) {
     }
     if (payload.invoiceStatus) updates.invoiceStatus = payload.invoiceStatus;
 
+    const before = await orders.getOrderByName(orderName);
     const updated = await orders.updateOrder(orderName, updates);
     if (!updated) return sendJson(res, 404, { error: 'الطلب غير موجود' });
+
+    // Fire-and-forget: a push failure must not fail the status change that
+    // already succeeded. notifyOrderStage never throws — see src/lib/push.js.
+    void push.notifyOrderStage(before || {}, updated);
 
     return sendJson(res, 200, { order: updated });
   }
