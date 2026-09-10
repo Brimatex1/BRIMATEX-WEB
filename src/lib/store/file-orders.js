@@ -75,6 +75,16 @@ async function getOrderByInvoiceName(invoiceName) {
   return readAll().find((o) => o.invoiceName === invoiceName) || null;
 }
 
+/**
+ * The order placed by a given checkout attempt, or null if it never landed.
+ * Backs the idempotency check in POST /api/orders — see the Postgres twin for
+ * the unique index that makes the same guarantee under concurrency.
+ */
+async function getOrderByRequestId(requestId) {
+  if (!requestId) return null;
+  return readAll().find((o) => o.requestId === requestId) || null;
+}
+
 async function updateOrder(orderName, updates) {
   const orders = readAll();
   const idx = orders.findIndex((o) => o.orderName === orderName);
@@ -109,6 +119,7 @@ module.exports = {
   listOrdersForUser,
   getOrderByName,
   getOrderByInvoiceName,
+  getOrderByRequestId,
   updateOrder,
   unlinkUser,
 };

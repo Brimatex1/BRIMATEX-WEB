@@ -107,6 +107,26 @@ do $$ begin
   end if;
 end $$;
 
+-- Idempotency key for order creation. The app sends one id per checkout
+-- attempt and repeats it on every retry, so a request that reached us but
+-- whose response never made it back replays the first order instead of
+-- placing a second one. Nullable: orders written before this column, and any
+-- caller that omits it, stay valid. A unique index permits many NULLs but at
+-- most one row per key, which also settles a race between two retries.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'orders' and column_name = 'request_id'
+  ) then
+    alter table orders add column request_id text;
+  end if;
+end $$;
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'orders_request_id_idx' and relkind = 'i') then
+    create unique index orders_request_id_idx on orders(request_id);
+  end if;
+end $$;
+
 -- Push-notification devices. One row per Expo token; re-registering replaces
 -- it. last_order lets a guest who ordered without an account still be told
 -- when that one order moves.

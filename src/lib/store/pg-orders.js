@@ -21,32 +21,54 @@ function toOrder(row) {
     receivedAt: row.placed_at,
     placedAt: row.placed_at,
     paidAt: row.paid_at,
+    requestId: row.request_id,
   };
 }
 
 async function createOrder(record) {
-  const { rows } = await db.query(
-    `insert into orders
-       (order_name, invoice_name, user_id, source, customer, items, note, total,
-        invoice_status, payment_status, odoo_order_id, odoo_invoice_id, placed_at)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-     returning *`,
-    [
-      record.orderName,
-      record.invoiceName || null,
-      record.userId || null,
-      record.source,
-      JSON.stringify(record.customer || {}),
-      JSON.stringify(record.items || []),
-      record.note || null,
-      record.total || 0,
-      record.invoiceStatus || 'draft',
-      record.paymentStatus || 'unpaid',
-      record.odooOrderId || null,
-      record.odooInvoiceId || null,
-      record.placedAt || record.receivedAt || new Date().toISOString(),
-    ]
-  );
+  const params = [
+    record.orderName,
+    record.invoiceName || null,
+    record.userId || null,
+    record.source,
+    JSON.stringify(record.customer || {}),
+    JSON.stringify(record.items || []),
+    record.note || null,
+    record.total || 0,
+    record.invoiceStatus || 'draft',
+    record.paymentStatus || 'unpaid',
+    record.odooOrderId || null,
+    record.odooInvoiceId || null,
+    record.placedAt || record.receivedAt || new Date().toISOString(),
+    record.requestId || null,
+  ];
+  try {
+    const { rows } = await db.query(
+      `insert into orders
+         (order_name, invoice_name, user_id, source, customer, items, note, total,
+          invoice_status, payment_status, odoo_order_id, odoo_invoice_id, placed_at,
+          request_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       returning *`,
+      params
+    );
+    return toOrder(rows[0]);
+  } catch (err) {
+    // 23505 = unique_violation. Two retries of the same checkout can reach the
+    // insert together, and the second one losing the race is the index doing
+    // its job — hand back the row that won instead of failing the customer.
+    if (err.code === '23505' && record.requestId) {
+      const won = await getOrderByRequestId(record.requestId);
+      if (won) return won;
+    }
+    throw err;
+  }
+}
+
+/** The order placed by a given checkout attempt, or null if it never landed. */
+async function getOrderByRequestId(requestId) {
+  if (!requestId) return null;
+  const { rows } = await db.query('select * from orders where request_id = $1', [requestId]);
   return toOrder(rows[0]);
 }
 
@@ -143,6 +165,7 @@ module.exports = {
   listOrdersForUser,
   getOrderByName,
   getOrderByInvoiceName,
+  getOrderByRequestId,
   updateOrder,
   unlinkUser,
 };
