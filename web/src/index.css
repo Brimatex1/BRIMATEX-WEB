@@ -3,21 +3,32 @@
 @tailwind utilities;
 
 /**
- * خط Iwanzaza — العلامة التجارية. يغطي الحروف العربية بالكامل؛ لا يغطي
- * اللاتينية، فتتراجع تلقائياً للخط التالي في font-heading (Cormorant).
+ * خط IBM Plex Sans Arabic — خط العلامة، هو نفسه في التطبيق
+ * (brimatex-ios/src/features/typography.ts).
+ *
+ * الترخيص: SIL Open Font License 1.1 — استخدام تجاري وتضمين واستضافة
+ * مسموحة. نصّه في /fonts/LICENSE-IBMPlexSansArabic.txt ويجب أن يبقى
+ * موزّعاً مع الخط.
+ *
+ * وزنان فقط عمداً: العناوين تستعمل font-semibold (600) في ٣٤ موضعاً، ولا
+ * وجه 600 هنا، فيختار المتصفّح 700 — وهو ما كان يحدث مع الخط السابق
+ * حرفياً. إضافة ملف 600 تغيّر ثقل كل عنوان في الموقع، فلا تُضَف عرضاً.
+ *
+ * وخلافاً للخط السابق، هذا يغطّي اللاتينية والأرقام أيضاً، فلم تعد
+ * العناوين اللاتينية تتراجع إلى Cormorant. لإعادتها: أضف
+ * unicode-range للنطاقات العربية فقط (U+0600-06FF, U+0750-077F,
+ * U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF).
  */
 @font-face {
-  font-family: 'Iwanzaza';
-  src:
-    url('/fonts/iwanzaza-regular.otf') format('opentype'),
-    url('/fonts/iwanzaza-regular.ttf') format('truetype');
+  font-family: 'IBM Plex Sans Arabic';
+  src: url('/fonts/ibm-plex-sans-arabic-regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: 'Iwanzaza';
-  src: url('/fonts/iwanzaza-bold.otf') format('opentype');
+  font-family: 'IBM Plex Sans Arabic';
+  src: url('/fonts/ibm-plex-sans-arabic-bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;

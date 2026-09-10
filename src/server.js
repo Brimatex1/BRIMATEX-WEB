@@ -44,6 +44,8 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
   '.map': 'application/json; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
 };
@@ -292,6 +294,32 @@ async function handleApi(req, res, url) {
     const validationError = validateOrder(order, result.products);
     if (validationError) return sendJson(res, 400, { error: validationError });
 
+    // Idempotency. The network in Libya drops between us accepting an order
+    // and the reply reaching the phone; the app then shows "try again" and the
+    // customer ends up with two mattresses on one delivery. The app sends one
+    // requestId per checkout attempt and repeats it on every retry, so a
+    // second arrival replays the first order instead of placing another. This
+    // sits above the Odoo call on purpose — creating the sale order there is
+    // the side effect we must not repeat.
+    const requestId =
+      typeof order.requestId === 'string' && order.requestId.trim()
+        ? order.requestId.trim().slice(0, 100)
+        : null;
+    if (requestId) {
+      const alreadyPlaced = await orders.getOrderByRequestId(requestId);
+      if (alreadyPlaced) {
+        return sendJson(res, 200, {
+          replayed: true,
+          source: alreadyPlaced.source,
+          orderName: alreadyPlaced.orderName,
+          invoiceName: alreadyPlaced.invoiceName,
+          invoiceStatus: alreadyPlaced.invoiceStatus,
+          total: alreadyPlaced.total,
+          message: `طلبك ${alreadyPlaced.orderName} مسجّل لدينا بالفعل`,
+        });
+      }
+    }
+
     // Orders are accepted without an account, but stamp the owner when the
     // request carries a valid session so "my orders" can find them later.
     const orderToken = req.headers.authorization?.split(' ')[1];
@@ -306,6 +334,7 @@ async function handleApi(req, res, url) {
         orderName: odooResult.name,
         invoiceName: odooResult.invoiceName,
         userId: orderSession?.userId,
+        requestId,
         source: 'odoo',
         customer: order.customer,
         items: order.items,
@@ -355,6 +384,7 @@ async function handleApi(req, res, url) {
       orderName,
       invoiceName,
       userId: orderSession?.userId,
+      requestId,
       source: 'demo',
       customer: order.customer,
       items: order.items,
