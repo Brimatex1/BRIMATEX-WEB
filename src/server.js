@@ -27,6 +27,21 @@ const db = require('./lib/db');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
+// Which commit is actually serving. scripts/deploy.sh writes deployed.json
+// beside the app after it has verified the copy; a deploy that silently
+// copied nothing therefore cannot claim a new version. Read once at boot:
+// Passenger restarts on every deploy, so a stale value is not reachable.
+// The repository is public, so the sha discloses nothing.
+const DEPLOYED = (() => {
+  try {
+    const raw = fs.readFileSync(path.join(__dirname, '..', 'deployed.json'), 'utf8');
+    const { commit, at } = JSON.parse(raw);
+    return { commit: String(commit).slice(0, 40), at: String(at) };
+  } catch {
+    // Running from a checkout, or deployed before this file existed.
+    return null;
+  }
+})();
 const DEMO_PRODUCTS = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'data', 'demo-products.json'), 'utf8')
 );
@@ -1263,7 +1278,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'GET' && url.pathname === '/api/health') {
-    return sendJson(res, 200, { ok: true, odooConfigured: odoo.isConfigured() });
+    return sendJson(res, 200, {
+      ok: true,
+      odooConfigured: odoo.isConfigured(),
+      ...(DEPLOYED ? { version: DEPLOYED.commit, deployedAt: DEPLOYED.at } : {}),
+    });
   }
 
   sendJson(res, 404, { error: 'Not found' });

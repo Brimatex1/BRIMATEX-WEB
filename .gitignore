@@ -46,3 +46,7 @@ npm-debug.log*
 
 # TypeScript build info
 *.tsbuildinfo
+
+# بصمة النشر — يكتبها scripts/deploy.sh في مجلد التطبيق على المضيف،
+# وتظهر هنا فقط إن شُغّل النشر في مكانه.
+deployed.json

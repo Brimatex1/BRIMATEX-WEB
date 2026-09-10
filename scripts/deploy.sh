@@ -20,7 +20,13 @@ DEPLOYPATH="${DEPLOYPATH:-$HOME/app}"
 
 say() { echo "▸ $*"; }
 
+# التزام المصدر. يُطبع في سجلّ cPanel ويُكتب مع التطبيق، فيصير جواب
+# ‎/api/health‎ قادراً على قول ما يخدم الموقع فعلاً — وهو ما لم نكن نعرفه:
+# سحبٌ لم يتقدّم ونشرٌ ينسخ الشيفرة القديمة يبدوان ناجحين تماماً.
+COMMIT="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
 say "المصدر : $SRC"
+say "الالتزام: $COMMIT"
 say "الهدف  : $DEPLOYPATH"
 [ -d "$DEPLOYPATH" ] || { echo "✗ مجلد التطبيق غير موجود: $DEPLOYPATH"; exit 1; }
 
@@ -105,15 +111,36 @@ fi
   echo "✗ البناء لم يُنتج src/public/index.html — نتوقّف قبل إعادة التشغيل كي يبقى الموقع على نسخته العاملة"
   exit 1
 }
-say "البناء سليم"
+
+# الوجود وحده لا يعني الوصول. النسخ فوق الموجود بلا حذف، فملفٌّ قديم يبقى
+# قديماً إن لم يُنسخ شيء — والحارس السابق كان يمرّ عليه ويطبع «نُشر» بينما
+# الموقع على نسخته السابقة حرفياً. هذا ما حدث فعلاً: نشرٌ أخضر وموقع لم
+# يتبدّل. فنقارن الهدف بالمصدر بايتاً ببايت.
+[ -f "$SRC/src/public/index.html" ] || {
+  echo "✗ المصدر نفسه بلا src/public/index.html — لا شيء لننشره"
+  exit 1
+}
+SRC_SUM="$(md5sum "$SRC/src/public/index.html" | cut -d' ' -f1)"
+DST_SUM="$(md5sum src/public/index.html | cut -d' ' -f1)"
+if [ "$SRC_SUM" != "$DST_SUM" ]; then
+  echo "✗ النسخ لم يصل: src/public/index.html في الهدف يخالف المصدر"
+  echo "   المصدر $SRC_SUM ← الهدف $DST_SUM"
+  echo "   الموقع باقٍ على نسخته العاملة. راجع استثناءات tar أعلاه."
+  exit 1
+fi
+say "البناء سليم ومطابق للمصدر"
 
 # ── 5. إعادة التشغيل ──
 # Passenger يقرأ الشيفرة عند الإقلاع فقط؛ لمس هذا الملف يجعله يعيد الإقلاع عند
 # أول طلب قادم، بلا انقطاع يراه الزائر.
+# البصمة تُكتب بعد التحقّق لا قبله: بصمةٌ تسبق التأكّد تكذب كما كذب
+# «نُشر» من قبل. وهي خارج المستودع فلا يمسّها النسخ.
+printf '{"commit":"%s","at":"%s"}\n' "$COMMIT" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > deployed.json
+
 mkdir -p tmp
 touch tmp/restart.txt
 say "طُلبت إعادة التشغيل"
 
 echo
-echo "✅ نُشر إلى $DEPLOYPATH"
-echo "   تحقّق: curl -s -o /dev/null -w '%{http_code}\\n' https://brimatex.ly/api/health"
+echo "✅ نُشر الالتزام $COMMIT إلى $DEPLOYPATH"
+echo "   تحقّق: curl -s https://brimatex.ly/api/health   ← يجب أن يقول version=$COMMIT"
