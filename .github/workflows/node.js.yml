@@ -69,3 +69,29 @@ jobs:
         curl -f http://localhost:3000/api/health || exit 1
         kill $SERVER_PID || true
         echo "✅ Health endpoint works"
+
+  suite:
+    name: مجموعة الاختبارات
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+
+    - name: Install dependencies
+      run: npm ci
+
+    # smoke.test.js يفحص ربط DOM في src/public/index.html، وهو ناتج بناء لا
+    # يُلتزم إلا على main (يودعه وركفلو «بناء واجهة الموقع»). فروع الطلبات لا
+    # تحمله، وبلا الملف يسقط الخادم فتفشل المجموعة بـECONNRESET — فيُبنى هنا.
+    - name: Build frontend
+      run: npm run build
+
+    # بلا .env ولا src/data/settings.local.json في العامل: المخزن ملفّي وأودو
+    # غير مُعدّ، فيُنفَّذ اختبار التفرّد فعلاً بدل أن يتخطّى نفسه — تخطّيه
+    # حمايةٌ لمبيعات أودو الحقيقية، لا عيبٌ فيه.
+    - name: Run test suite
+      run: npm test
