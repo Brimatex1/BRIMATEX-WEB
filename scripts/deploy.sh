@@ -23,7 +23,40 @@ say() { echo "▸ $*"; }
 # التزام المصدر. يُطبع في سجلّ cPanel ويُكتب مع التطبيق، فيصير جواب
 # ‎/api/health‎ قادراً على قول ما يخدم الموقع فعلاً — وهو ما لم نكن نعرفه:
 # سحبٌ لم يتقدّم ونشرٌ ينسخ الشيفرة القديمة يبدوان ناجحين تماماً.
-COMMIT="$(git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+#
+# ‎git‎ ليس في مسار مهامّ النشر على هذا المضيف — للسبب نفسه الذي يُغيّب
+# ‎node‎ عنه: المهامّ تعمل بـPATH نظيف. أوّل نشرٍ بهذه البصمة أعطى
+# ‎version: "unknown"‎ فعلاً. فنجرّب المصادر بالترتيب، وآخرها قراءة ‎.git‎
+# نصّاً — لا تحتاج برنامجاً أصلاً.
+read_commit() {
+  local head ref
+  if command -v git >/dev/null 2>&1; then
+    git -C "$SRC" rev-parse --short HEAD 2>/dev/null && return 0
+  fi
+  for g in /usr/local/cpanel/3rdparty/bin/git /usr/bin/git /usr/local/bin/git; do
+    [ -x "$g" ] && "$g" -C "$SRC" rev-parse --short HEAD 2>/dev/null && return 0
+  done
+  # بلا git: ‎.git/HEAD‎ يحمل إمّا مرجعاً وإمّا بصمةً مباشرة.
+  [ -f "$SRC/.git/HEAD" ] || { echo unknown; return 0; }
+  head="$(cat "$SRC/.git/HEAD")"
+  case "$head" in
+    ref:*)
+      ref="${head#ref: }"
+      if [ -f "$SRC/.git/$ref" ]; then
+        cut -c1-7 < "$SRC/.git/$ref"
+      elif [ -f "$SRC/.git/packed-refs" ]; then
+        # الفرع المحزوم: السطر «<sha> <ref>»
+        awk -v r="$ref" '$2 == r { print substr($1, 1, 7); found = 1; exit } END { if (!found) print "unknown" }' \
+          "$SRC/.git/packed-refs"
+      else
+        echo unknown
+      fi
+      ;;
+    *) printf '%.7s\n' "$head" ;;
+  esac
+}
+COMMIT="$(read_commit | tr -d '[:space:]')"
+[ -n "$COMMIT" ] || COMMIT=unknown
 
 say "المصدر : $SRC"
 say "الالتزام: $COMMIT"
