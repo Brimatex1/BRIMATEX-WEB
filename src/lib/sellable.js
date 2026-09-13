@@ -32,4 +32,31 @@ function isSellable(product) {
   return Number.isFinite(price) && price > UNPRICED;
 }
 
-module.exports = { isSellable, UNPRICED };
+// ── قرار تجاري، لا نظافة بيانات ──
+//
+// قوالب الإسفنج لا تُباع عبر الإنترنت: تُباع في المصنع، ويبقى المتجر —
+// الموقع والتطبيق كلاهما — للمراتب والفرشات. القاعدة كانت في التطبيق وحده
+// (‎src/api.ts:isSoldInApp‎) والموقع يعرضها، فصارت هنا: الخادم مصدرٌ واحد
+// يوافق عليه القناتان، ولا تحتاج القاعدة إلى تحديث نسخة تطبيق كي تسري.
+//
+// التمييز بالاسم لأن أودو لا يعطينا تصنيفات متجر — كل منتج يعود
+// ‎category: 'mattress'‎ مهما كان. وكل القوالب العشرة في الكتالوج تبدأ
+// بـ«قالب اسفنج» (تحقّقنا: لا اسمٌ آخر في الكتالوج يحمل الكلمة، والفرشات
+// تبقى لأن أسماءها «فرشة …»). فإن سُمّي منتجٌ يوماً «مرتبة بإسفنج ميموري»
+// فسيُحجب خطأً — ولذلك القاعدة بالاسم مؤقّتة حتى يحمل أودو تصنيفاً حقيقياً.
+const NOT_SOLD_ONLINE = /إسفنج|اسفنج|foam/i;
+
+/** ما يُباع عبر الإنترنت. القوالب تُستثنى بقرار المالك. */
+function isSoldOnline(product) {
+  return !NOT_SOLD_ONLINE.test(String(product?.name ?? ''));
+}
+
+/**
+ * ما يُعرض ويُطلب فعلاً: سجلٌّ مُسعَّر **و** مسموحٌ بيعه هنا. تُستدعى من
+ * ‎visibleOnly‎ ومن ‎validateOrder‎ كلتيهما — الإخفاء وحده لا يمنع الطلب.
+ */
+function isOfferable(product) {
+  return isSellable(product) && isSoldOnline(product);
+}
+
+module.exports = { isSellable, isSoldOnline, isOfferable, UNPRICED, NOT_SOLD_ONLINE };

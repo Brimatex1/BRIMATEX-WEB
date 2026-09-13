@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Mattress & foam e-commerce storefront with Odoo integration.
+// Mattress e-commerce storefront with Odoo integration. Foam blocks are
+// factory-only and never listed online — see src/lib/sellable.js.
 // Node 18+.
 //
 // Run:                node server.js
@@ -23,7 +24,7 @@ const push = require('./lib/push');
 const orders = require('./lib/orders');
 const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
-const { isSellable } = require('./lib/sellable');
+const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
 
 const PORT = process.env.PORT || 3000;
@@ -144,7 +145,7 @@ async function getProducts() {
  * a cached app or a hand-made request.
  */
 function visibleOnly(products) {
-  return products.filter((p) => p.enabled !== false && isSellable(p));
+  return products.filter((p) => p.enabled !== false && isOfferable(p));
 }
 
 /**
@@ -251,7 +252,7 @@ function validateOrder(order, allProducts) {
     if (!product || product.enabled === false) return 'منتج غير موجود';
     // بلا هذا السطر يبقى المنتج غير المسعَّر قابلاً للطلب وإن غاب عن القائمة:
     // معرّفه محفوظ في كاش التطبيق، ويكفي طلبٌ واحد ليُشترى بدينار.
-    if (!isSellable(product)) return 'هذا المنتج غير متاح للطلب';
+    if (!isOfferable(product)) return 'هذا المنتج غير متاح للطلب';
     if (COMING_SOON_CATEGORIES.has(product.category)) return 'هذا المنتج غير متاح للطلب بعد';
     if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) {
       return 'كمية غير صالحة';
