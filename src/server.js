@@ -23,6 +23,7 @@ const push = require('./lib/push');
 const orders = require('./lib/orders');
 const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
+const { isSellable } = require('./lib/sellable');
 const db = require('./lib/db');
 
 const PORT = process.env.PORT || 3000;
@@ -135,9 +136,15 @@ async function getProducts() {
   }
 }
 
-/** The public catalogue never lists a product an admin has switched off. */
+/**
+ * The public catalogue never lists a product an admin has switched off, nor
+ * one Odoo never priced — see src/lib/sellable.js. Hiding is only half of
+ * it: validateOrder checks the same predicate against the *unfiltered*
+ * catalogue, because an id that has left this list is still orderable from
+ * a cached app or a hand-made request.
+ */
 function visibleOnly(products) {
-  return products.filter((p) => p.enabled !== false);
+  return products.filter((p) => p.enabled !== false && isSellable(p));
 }
 
 /**
@@ -242,6 +249,9 @@ function validateOrder(order, allProducts) {
   for (const item of items) {
     const product = Number.isInteger(item.productId) ? productById.get(item.productId) : null;
     if (!product || product.enabled === false) return 'منتج غير موجود';
+    // بلا هذا السطر يبقى المنتج غير المسعَّر قابلاً للطلب وإن غاب عن القائمة:
+    // معرّفه محفوظ في كاش التطبيق، ويكفي طلبٌ واحد ليُشترى بدينار.
+    if (!isSellable(product)) return 'هذا المنتج غير متاح للطلب';
     if (COMING_SOON_CATEGORIES.has(product.category)) return 'هذا المنتج غير متاح للطلب بعد';
     if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) {
       return 'كمية غير صالحة';
