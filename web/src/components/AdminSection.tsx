@@ -335,7 +335,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
               <Input
                 value={orderQuery}
                 onChange={(e) => setOrderQuery(e.target.value)}
-                placeholder="ابحث برقم الطلب أو اسم العميل أو الجوال"
+                placeholder="ابحث برقم الطلب أو اسم العميل أو الهاتف"
                 className="ps-9"
                 aria-label="بحث في الطلبات"
               />
@@ -576,7 +576,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
             <thead>
               <tr className="border-b bg-muted/50 text-muted-foreground">
                 <th scope="col" className="p-3 text-start font-medium">الاسم</th>
-                <th scope="col" className="p-3 text-start font-medium">الجوال</th>
+                <th scope="col" className="p-3 text-start font-medium">الهاتف</th>
                 <th scope="col" className="p-3 text-start font-medium">الطلبات</th>
                 <th scope="col" className="p-3 text-start font-medium">أنفق</th>
                 <th scope="col" className="p-3 text-start font-medium">آخر طلب</th>

@@ -48,8 +48,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
   function validate(): boolean {
     const next: Partial<Record<FieldKey, string>> = {};
     if (!form.name.trim()) next.name = 'الاسم مطلوب';
-    if (!form.phone.trim()) next.phone = 'رقم الجوال مطلوب';
-    else if (!phoneIsValid(form.phone.trim())) next.phone = 'رقم الجوال غير صالح';
+    if (!form.phone.trim()) next.phone = 'رقم الهاتف مطلوب';
+    else if (!phoneIsValid(form.phone.trim())) next.phone = 'رقم الهاتف غير صالح';
     if (!form.city.trim()) next.city = 'المدينة مطلوبة';
     if (!form.address.trim()) next.address = 'العنوان مطلوب';
 
@@ -152,7 +152,7 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
 
             <div className="space-y-1.5">
               <Label htmlFor="co-phone">
-                رقم الجوال <span className="text-destructive">*</span>
+                رقم الهاتف <span className="text-destructive">*</span>
               </Label>
               <Input
                 {...fieldProps('phone')}

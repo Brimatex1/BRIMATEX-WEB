@@ -343,7 +343,7 @@ function testLogic() {
   check('لا تسرّب حالة بعد إلغاء التركيب', /cancelled/.test(auth));
 
   check('نموذج الطلب يتحقق من الحقول المطلوبة', /الاسم مطلوب/.test(checkout));
-  check('نموذج الطلب يتحقق من صيغة الجوال', /PHONE_RE/.test(checkout));
+  check('نموذج الطلب يتحقق من صيغة الهاتف', /phoneIsValid/.test(checkout));
   check('نموذج الطلب ينقل التركيز لأول خطأ', /\.focus\(\)/.test(checkout));
   check('نموذج الطلب يعطّل الزر أثناء الإرسال', /loading=\{submitting\}/.test(checkout));
   check('نموذج الطلب يرسل إلى واجهة الطلبات', /createOrder/.test(checkout));

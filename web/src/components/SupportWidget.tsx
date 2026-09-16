@@ -64,7 +64,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
 
   const errors = {
     name: fields.name.trim() ? null : 'الاسم مطلوب',
-    phone: !fields.phone.trim() ? 'رقم الجوال مطلوب' : phoneIsValid(fields.phone.trim()) ? null : 'رقم الجوال غير صالح',
+    phone: !fields.phone.trim() ? 'رقم الهاتف مطلوب' : phoneIsValid(fields.phone.trim()) ? null : 'رقم الهاتف غير صالح',
     topic: fields.topic ? null : 'اختر موضوع الرسالة',
     message: fields.message.trim().length >= 10 ? null : 'اكتب رسالتك في 10 أحرف على الأقل',
   };
@@ -128,7 +128,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
                 <p id={fieldId('title')} className="text-sm font-semibold">
                   خدمة عملاء بريماتكس
                 </p>
-                <p className="text-xs text-primary-foreground/75">نردّ عليك هاتفياً خلال ساعات العمل</p>
+                <p className="text-xs text-primary-foreground/75">نومك يهمّنا، ونتصل بك في أقرب وقت</p>
               </div>
             </div>
             <button
@@ -181,7 +181,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor={fieldId('phone')} className="text-xs">
-                    رقم الجوال
+                    رقم الهاتف
                   </Label>
                   <Input
                     id={fieldId('phone')}

@@ -193,7 +193,7 @@ async function testOrders() {
   // Validation
   const cases = [
     ['الاسم مفقود', { ...valid, customer: { ...valid.customer, name: '' } }],
-    ['الجوال مفقود', { ...valid, customer: { ...valid.customer, phone: '' } }],
+    ['الهاتف مفقود', { ...valid, customer: { ...valid.customer, phone: '' } }],
     ['المدينة مفقودة', { ...valid, customer: { ...valid.customer, city: '' } }],
     ['العنوان مفقود', { ...valid, customer: { ...valid.customer, address: '' } }],
     ['السلة فارغة', { ...valid, items: [] }],
@@ -293,7 +293,7 @@ async function testSupport() {
   const good = { name: 'اختبار', phone: '0912345678', topic: 'product', message: 'رسالة اختبار كافية الطول' };
   const cases = [
     ['بلا اسم', { ...good, name: '' }, 'الاسم مطلوب'],
-    ['رقم غير صالح', { ...good, phone: '----------' }, 'رقم الجوال غير صالح'],
+    ['رقم غير صالح', { ...good, phone: '----------' }, 'رقم الهاتف غير صالح'],
     ['بريد غير صالح', { ...good, email: 'not-an-email' }, 'البريد الإلكتروني غير صالح'],
     ['موضوع خارج القائمة', { ...good, topic: 'refund-now' }, 'اختر موضوع الرسالة'],
     ['رسالة قصيرة', { ...good, message: 'قصيرة' }, 'اكتب رسالتك في 10 أحرف على الأقل'],

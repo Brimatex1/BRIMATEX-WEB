@@ -119,8 +119,8 @@ function validateSupportTicket(body) {
   const orderName = String(body.orderName ?? '').trim();
   if (!name) return 'الاسم مطلوب';
   if (name.length > 100) return 'الاسم طويل جداً';
-  if (!phone) return 'رقم الجوال مطلوب';
-  if (!isValidPhone(phone)) return 'رقم الجوال غير صالح';
+  if (!phone) return 'رقم الهاتف مطلوب';
+  if (!isValidPhone(phone)) return 'رقم الهاتف غير صالح';
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'البريد الإلكتروني غير صالح';
   if (!Object.prototype.hasOwnProperty.call(SUPPORT_TOPICS, body.topic)) return 'اختر موضوع الرسالة';
   if (message.length < 10) return 'اكتب رسالتك في 10 أحرف على الأقل';
@@ -290,8 +290,8 @@ function validateOrder(order, allProducts) {
   if (!order || typeof order !== 'object') return 'بيانات الطلب غير صالحة';
   const { customer, items } = order;
   if (!customer?.name?.trim()) return 'الاسم مطلوب';
-  if (!customer?.phone?.trim()) return 'رقم الجوال مطلوب';
-  if (!isValidPhone(customer.phone)) return 'رقم الجوال غير صالح';
+  if (!customer?.phone?.trim()) return 'رقم الهاتف مطلوب';
+  if (!isValidPhone(customer.phone)) return 'رقم الهاتف غير صالح';
   if (!customer?.city?.trim()) return 'المدينة مطلوبة';
   if (!customer?.address?.trim()) return 'العنوان مطلوب';
   if (!Array.isArray(items) || items.length === 0) return 'السلة فارغة';
