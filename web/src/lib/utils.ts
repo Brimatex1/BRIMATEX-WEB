@@ -35,3 +35,15 @@ const PRICE_FORMAT = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }
 export function formatPrice(value: number | string): string {
   return PRICE_FORMAT.format(Number(value) || 0);
 }
+
+/**
+ * Same rule the server enforces (isValidPhone in src/server.js): 9–15 digits,
+ * separators allowed, and a string of separators alone must not pass.
+ */
+const PHONE_RE = /^\+?[\d\s-]{9,17}$/;
+
+export function phoneIsValid(phone: string): boolean {
+  if (!PHONE_RE.test(phone)) return false;
+  const digits = phone.replace(/\D/g, '').length;
+  return digits >= 9 && digits <= 15;
+}

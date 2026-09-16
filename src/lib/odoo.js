@@ -298,6 +298,87 @@ async function recordPayment(invoiceId, amount) {
   return { recordedAt: new Date().toISOString() };
 }
 
+/* ---------------------------------------------------------------- helpdesk */
+
+// Keyed by url+db so switching databases from the dashboard doesn't reuse a
+// team id that belongs to the old one.
+let supportTeamCache = null;
+
+/**
+ * The Helpdesk team customer-care tickets go to: the one named Customer Care,
+ * else the first active team. Odoo's own public ticket form would need the
+ * Website and Website Helpdesk apps, which this database does not have — so the
+ * store's form creates tickets here directly instead.
+ */
+async function findSupportTeam() {
+  const c = config();
+  const key = `${c.url}|${c.db}`;
+  if (supportTeamCache?.key === key) return supportTeamCache.id;
+
+  const teams = await call('helpdesk.team', 'search_read', [[['active', '=', true]]], {
+    fields: ['id', 'name'],
+    order: 'id asc',
+  });
+  const team = teams.find((t) => /customer\s*care|خدمة\s*العملاء/i.test(t.name)) || teams[0];
+  if (!team) throw new Error('لا يوجد فريق دعم نشط في أودو');
+
+  supportTeamCache = { key, id: team.id };
+  return team.id;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Opens a Helpdesk ticket for a website visitor. The customer is matched by
+ * phone the same way orders are, so their tickets and orders sit on one partner.
+ * `description` is an HTML field — everything the visitor typed is escaped.
+ *
+ * Returns the ticket's reference as shown in Odoo (ticket_ref), falling back to
+ * the id when the reference can't be read back.
+ */
+async function createHelpdeskTicket({ name, phone, email, subject, message, orderName }) {
+  const [partnerId, teamId] = await Promise.all([
+    findOrCreatePartner({ name, phone, email }),
+    findSupportTeam(),
+  ]);
+
+  const paragraphs = [
+    message,
+    orderName ? `رقم الطلب: ${orderName}` : null,
+    'المصدر: نموذج خدمة العملاء في الموقع',
+  ].filter(Boolean);
+  const description = paragraphs
+    .map((p) => `<p>${escapeHtml(p).replace(/\r?\n/g, '<br>')}</p>`)
+    .join('');
+
+  const id = await call('helpdesk.ticket', 'create', [
+    {
+      name: subject,
+      description,
+      team_id: teamId,
+      partner_id: partnerId,
+      partner_name: name,
+      partner_phone: phone,
+      partner_email: email || false,
+    },
+  ]);
+
+  let ref = null;
+  try {
+    const [row] = await call('helpdesk.ticket', 'read', [[id]], { fields: ['ticket_ref'] });
+    ref = row?.ticket_ref || null;
+  } catch {
+    // The ticket exists; a missing reference only costs the customer a nicer number.
+  }
+  return { id, ref: ref || String(id) };
+}
+
 module.exports = {
   isConfigured,
   testConnection,
@@ -306,4 +387,5 @@ module.exports = {
   createSaleOrder,
   getInvoiceStatus,
   recordPayment,
+  createHelpdeskTicket,
 };

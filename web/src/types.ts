@@ -108,6 +108,18 @@ export interface OrderSummary {
 
 export type Role = 'customer' | 'admin';
 
+/** Mirrors SUPPORT_TOPICS in src/server.js — the server rejects anything else. */
+export type SupportTopic = 'product' | 'order' | 'warranty' | 'complaint' | 'other';
+
+export interface SupportTicketInput {
+  name: string;
+  phone: string;
+  email?: string;
+  topic: SupportTopic;
+  orderName?: string;
+  message: string;
+}
+
 export interface User {
   id: string;
   name: string;

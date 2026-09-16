@@ -80,6 +80,55 @@ const RATE_LIMIT_ORDERS_PER_MIN = (() => {
   return Number.isFinite(configured) && configured >= 0 ? configured : 10;
 })();
 
+/**
+ * Support tickets per IP per minute. Lower than orders: a person writing to
+ * customer care sends one message, not ten, and each one lands in a human's
+ * queue. Old minute buckets are pruned on every check so the map stays small.
+ */
+const supportAttempts = new Map();
+const SUPPORT_TICKETS_PER_MIN = 5;
+
+function checkSupportRateLimit(ip) {
+  const minute = Math.floor(Date.now() / 60_000);
+  for (const key of supportAttempts.keys()) {
+    if (Number(key.slice(key.lastIndexOf(':') + 1)) < minute) supportAttempts.delete(key);
+  }
+  const key = `${ip}:${minute}`;
+  const count = (supportAttempts.get(key) || 0) + 1;
+  supportAttempts.set(key, count);
+  return count > SUPPORT_TICKETS_PER_MIN;
+}
+
+/** What a visitor can write to customer care about — the label becomes the ticket subject prefix. */
+const SUPPORT_TOPICS = {
+  product: 'استفسار عن منتج',
+  order: 'متابعة طلب',
+  warranty: 'ضمان',
+  complaint: 'شكوى',
+  other: 'استفسار عام',
+};
+
+const SUPPORT_LOG = path.join(__dirname, 'data', 'support.local.jsonl');
+
+function validateSupportTicket(body) {
+  if (!body || typeof body !== 'object') return 'بيانات غير صالحة';
+  const name = String(body.name ?? '').trim();
+  const phone = String(body.phone ?? '').trim();
+  const email = String(body.email ?? '').trim();
+  const message = String(body.message ?? '').trim();
+  const orderName = String(body.orderName ?? '').trim();
+  if (!name) return 'الاسم مطلوب';
+  if (name.length > 100) return 'الاسم طويل جداً';
+  if (!phone) return 'رقم الجوال مطلوب';
+  if (!isValidPhone(phone)) return 'رقم الجوال غير صالح';
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'البريد الإلكتروني غير صالح';
+  if (!Object.prototype.hasOwnProperty.call(SUPPORT_TOPICS, body.topic)) return 'اختر موضوع الرسالة';
+  if (message.length < 10) return 'اكتب رسالتك في 10 أحرف على الأقل';
+  if (message.length > 2000) return 'الرسالة طويلة جداً (2000 حرف كحدّ أقصى)';
+  if (orderName.length > 40) return 'رقم الطلب غير صالح';
+  return null;
+}
+
 /** Last Odoo error, surfaced to admins so a bad connection is diagnosable. */
 let lastOdooError = null;
 
@@ -1279,6 +1328,54 @@ async function handleApi(req, res, url) {
     // it to initialize tracking, not just admins.
     const { pixelId } = settings.readPublicFacebookPixel();
     return sendJson(res, 200, { pixelId });
+  }
+
+  /**
+   * Customer care — replaces the WhatsApp hand-off on the website. The ticket
+   * goes straight into Odoo Helpdesk (team Customer Care), where the team
+   * already works. Without Odoo configured it is kept in a local log so a
+   * message is never silently dropped.
+   */
+  if (req.method === 'POST' && url.pathname === '/api/support/tickets') {
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+    if (checkSupportRateLimit(clientIp)) {
+      return sendJson(res, 429, { error: 'أرسلت رسائل كثيرة. انتظر دقيقة ثم حاول مجدداً.' });
+    }
+
+    let body;
+    try {
+      body = JSON.parse(await readBody(req, 20_000));
+    } catch {
+      return sendJson(res, 400, { error: 'بيانات غير صالحة' });
+    }
+    const invalid = validateSupportTicket(body);
+    if (invalid) return sendJson(res, 400, { error: invalid });
+
+    const name = String(body.name).trim();
+    const phone = String(body.phone).trim();
+    const email = String(body.email ?? '').trim();
+    const message = String(body.message).trim();
+    const orderName = String(body.orderName ?? '').trim();
+    const firstLine = message.split(/\r?\n/)[0];
+    const subject = `${SUPPORT_TOPICS[body.topic]}: ${firstLine.length > 60 ? `${firstLine.slice(0, 60)}…` : firstLine}`;
+
+    if (!odoo.isConfigured()) {
+      const ref = `LOCAL-${Date.now().toString().slice(-6)}`;
+      fs.appendFileSync(
+        SUPPORT_LOG,
+        JSON.stringify({ ref, name, phone, email, topic: body.topic, subject, message, orderName, receivedAt: new Date().toISOString() }) + '\n'
+      );
+      return sendJson(res, 201, { ref, message: 'وصلت رسالتك وسنتواصل معك قريباً' });
+    }
+
+    try {
+      const ticket = await odoo.createHelpdeskTicket({ name, phone, email, subject, message, orderName });
+      return sendJson(res, 201, { ref: ticket.ref, message: 'وصلت رسالتك وسنتواصل معك قريباً' });
+    } catch (err) {
+      console.error('[Support] ticket failed:', err.message);
+      lastOdooError = { message: err.message, at: new Date().toISOString() };
+      return sendJson(res, 502, { error: 'تعذّر إرسال رسالتك الآن. حاول بعد قليل.' });
+    }
   }
 
   if (req.method === 'GET' && url.pathname === '/api/whatsapp-config') {

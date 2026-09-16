@@ -13,7 +13,7 @@ import { ProductDetail } from '@/components/ProductDetail';
 import { QuizSection } from '@/components/QuizSection';
 import { ShopSection } from '@/components/ShopSection';
 import { SocialLinks } from '@/components/SocialLinks';
-import { WhatsAppButton } from '@/components/WhatsAppButton';
+import { SupportWidget } from '@/components/SupportWidget';
 import { WishlistSection } from '@/components/WishlistSection';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -31,7 +31,6 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<Category | 'all'>('all');
   const [shopQuery, setShopQuery] = useState('');
   const [cameFromShop, setCameFromShop] = useState(false);
-  const [whatsapp, setWhatsapp] = useState<{ phone: string; message: string } | null>(null);
 
   const catalogue = useProducts();
   const cart = useCart();
@@ -49,12 +48,6 @@ export default function App() {
       })
       .catch(() => {});
 
-    api
-      .getWhatsappConfig()
-      .then(({ phone, message }) => {
-        if (phone) setWhatsapp({ phone, message });
-      })
-      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -290,9 +283,9 @@ export default function App() {
         </div>
       </footer>
 
-      {section === 'home' && whatsapp && (
-        <WhatsAppButton phone={whatsapp.phone} message={whatsapp.message} />
-      )}
+      {/* خدمة العملاء في كل صفحات المتجر — العميل الذي يسأل عن طلبه يكون في «طلباتي»
+          لا في الرئيسية. لوحة الإدارة وحدها بلا نافذة. */}
+      {section !== 'admin' && <SupportWidget user={auth.user} token={auth.token} />}
 
       <Toaster />
     </>

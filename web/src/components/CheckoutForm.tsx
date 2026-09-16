@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { phoneIsValid } from '@/lib/utils';
 import type { CartLine, Customer, OrderResult, User } from '@/types';
 
 type FieldKey = 'name' | 'phone' | 'city' | 'address';
@@ -17,17 +18,6 @@ interface CheckoutFormProps {
   token: string | null;
   onSuccess: (result: OrderResult) => void;
   onCancel: () => void;
-}
-
-/** Requires at least 9 digits — a string of separators alone must not pass. */
-const PHONE_RE = /^\+?[\d\s-]{9,17}$/;
-const MIN_PHONE_DIGITS = 9;
-const MAX_PHONE_DIGITS = 15;
-
-function phoneIsValid(phone: string): boolean {
-  if (!PHONE_RE.test(phone)) return false;
-  const digits = phone.replace(/\D/g, '').length;
-  return digits >= MIN_PHONE_DIGITS && digits <= MAX_PHONE_DIGITS;
 }
 
 export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: CheckoutFormProps) {

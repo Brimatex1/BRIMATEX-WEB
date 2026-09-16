@@ -13,6 +13,7 @@ import type {
   Product,
   ProductOverrides,
   Role,
+  SupportTicketInput,
   User,
   WhatsappSupportSettings,
 } from '@/types';
@@ -72,6 +73,14 @@ export const api = {
     request<{ source: string; products: Product[] }>('/api/products'),
 
   getPixelConfig: () => request<{ pixelId: string | null }>('/api/pixel-config'),
+
+  /**
+   * Customer care. Files a ticket in Odoo Helpdesk (team Customer Care) and
+   * returns its reference. The token is optional — it only attributes the
+   * message; guests can write too.
+   */
+  createSupportTicket: (body: SupportTicketInput, token?: string | null) =>
+    request<{ ref: string; message: string }>('/api/support/tickets', jsonBody(body, token)),
 
   getWhatsappConfig: () =>
     request<{ phone: string | null; message: string }>('/api/whatsapp-config'),

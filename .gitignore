@@ -16,6 +16,7 @@ src/public/uploads/
 # Local runtime data â€” the store writes these at runtime.
 # demo-products.json is source data and stays tracked.
 src/data/orders.local.jsonl
+src/data/support.local.jsonl
 src/data/users.jsonl
 src/data/sessions.jsonl
 src/data/otp.jsonl

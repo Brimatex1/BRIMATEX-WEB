@@ -285,6 +285,28 @@ async function testSecurity() {
   check('لا يوجد innerHTML مباشر', !/\.innerHTML\s*=/.test(allWeb));
 }
 
+async function testSupport() {
+  group('7. خدمة العملاء');
+  // Validation and rate limiting only. A valid payload would file a real ticket
+  // whenever this machine has Odoo credentials in settings.local.json, which
+  // env overrides can't switch off — so the happy path is not exercised here.
+  const good = { name: 'اختبار', phone: '0912345678', topic: 'product', message: 'رسالة اختبار كافية الطول' };
+  const cases = [
+    ['بلا اسم', { ...good, name: '' }, 'الاسم مطلوب'],
+    ['رقم غير صالح', { ...good, phone: '----------' }, 'رقم الجوال غير صالح'],
+    ['بريد غير صالح', { ...good, email: 'not-an-email' }, 'البريد الإلكتروني غير صالح'],
+    ['موضوع خارج القائمة', { ...good, topic: 'refund-now' }, 'اختر موضوع الرسالة'],
+    ['رسالة قصيرة', { ...good, message: 'قصيرة' }, 'اكتب رسالتك في 10 أحرف على الأقل'],
+  ];
+  for (const [label, body, message] of cases) {
+    const r = await request('POST', '/api/support/tickets', body);
+    check(`تذكرة ${label} تُرفض (400)`, r.status === 400 && r.json?.error === message, `status ${r.status} ${r.json?.error}`);
+  }
+  // Five requests above used this IP's budget for the minute; the sixth is refused.
+  const limited = await request('POST', '/api/support/tickets', { ...good, name: '' });
+  check('الرسالة السادسة في الدقيقة تُحجب (429)', limited.status === 429, `status ${limited.status}`);
+}
+
 /* ---------------- runner ---------------- */
 (async function run() {
   console.log('\n\x1b[1m\x1b[36m═══ BRIMATEX — اختبار شامل ═══\x1b[0m');
@@ -313,6 +335,7 @@ async function testSecurity() {
     await testOrders();
     await testAuth();
     await testSecurity();
+    await testSupport();
   } catch (err) {
     fail++;
     failures.push('خطأ غير متوقع: ' + err.message);
