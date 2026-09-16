@@ -128,7 +128,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
                 <p id={fieldId('title')} className="text-sm font-semibold">
                   خدمة عملاء بريماتكس
                 </p>
-                <p className="text-xs text-primary-foreground/75">نومك يهمّنا، ونتصل بك في أقرب وقت</p>
+                <p className="text-xs text-primary-foreground/75">نومك يهمّنا، وسنتصل بك في أقرب وقت</p>
               </div>
             </div>
             <button
