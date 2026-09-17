@@ -80,4 +80,4 @@ jobs:
 
           git commit -m "build(web): ناتج بناء الواجهة من ${GITHUB_SHA::7} [skip ci]"
           git push
-          echo "✅ أُودع الناتج — انشره من cPanel: Update from Remote ثم Deploy HEAD Commit"
+          echo "✅ أُودع الناتج — ينشره المضيف تلقائياً خلال 5 دقائق (scripts/auto-deploy.sh)، أو يدوياً من cPanel"
