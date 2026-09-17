@@ -11,11 +11,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        // IBM Plex Sans Arabic covers Latin and digits as well as Arabic, so
-        // headings no longer fall through to Cormorant per-character the way
-        // they did under Iwanzaza. The rest of the stack is a load failure
-        // fallback now, not part of the design. See index.css for how to
-        // restore the split with unicode-range.
+        // Arabic in IBM Plex Sans Arabic, Latin and digits in Cormorant. The
+        // @font-face rules in index.css carry an Arabic-only unicode-range,
+        // so the browser falls through per character — the split headings
+        // had under Iwanzaza, which only ever had Arabic glyphs.
         heading: ['IBM Plex Sans Arabic', 'Cormorant', 'Georgia', 'serif'],
         sans: ['Montserrat', 'Segoe UI', 'Tahoma', 'sans-serif'],
       },
