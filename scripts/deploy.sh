@@ -87,8 +87,6 @@ say "node $(node --version)"
 # نسخٌ فوق الموجود بلا حذف: بيانات التشغيل في التطبيق (‎src/data/*.jsonl‎،
 # ‎.env‎، ‎src/public/uploads/‎) ليست في المستودع، فلا تُمَسّ. و‎node_modules‎
 # يُستثنى صراحةً كي لا نُبطئ النسخ بعشرات آلاف الملفات.
-LOCK_BEFORE="$(md5sum "$DEPLOYPATH/package-lock.json" 2>/dev/null | cut -d' ' -f1 || echo none)"
-
 say "نسخ الملفات"
 # ‎./data‎ (المجلد القديم) و‎*.jsonl‎ مستثناة عمداً: المستودع يتتبّع نسخة
 # قديمة من ‎data/users.jsonl‎ فيها حسابات حقيقية، ونسخُها فوق الخادم يطمس
@@ -103,24 +101,34 @@ tar -C "$SRC" \
     --exclude=src/public/uploads \
     -cf - . | tar -C "$DEPLOYPATH" -xf -
 
-LOCK_AFTER="$(md5sum "$DEPLOYPATH/package-lock.json" 2>/dev/null | cut -d' ' -f1 || echo none)"
-
 cd "$DEPLOYPATH"
 
 # ── 3. الاعتماديات ──
 # ‎npm install‎ لا ‎npm ci‎: الثاني يمسح node_modules أولاً، وانقطاعه في المنتصف
 # يترك الموقع بلا اعتماديات. ولا يُشغَّل إلا حين يتغيّر القفل فعلاً.
 #
+# «تغيّر القفل» يُقاس على قفل **المستودع** مقابل بصمةٍ نحفظها بعد آخر تثبيت
+# ناجح — لا على القفل في مجلد التطبيق. ‎npm install‎ يعيد كتابة ذلك القفل
+# بصيغته، فكان القفل المنسوخ من المستودع يختلف عنه في كل نشر، ويُعاد التثبيت
+# كل مرّة ولو لم تتغيّر اعتمادية واحدة. مع النشر التلقائي كان هذا يعني تشغيل
+# أهشّ خطوة على المضيف مع كل التزام.
+#
 # ‎SKIP_BUILD=1‎ (نشر GitHub Actions): البناء تمّ على الرَنَر، فلا حاجة لاعتماديات
 # ‎web/‎ على المضيف. ‎--ignore-scripts‎ يمنع ‎postinstall‎ من جرّ ‎npm --prefix web
 # install‎ — وهي أثقل خطوة وأكثرها تعثّراً هنا. يبقى ‎pg‎ وحده اعتماديةَ الخادم.
-if [ ! -d node_modules ] || [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
+LOCK_SRC="$(md5sum "$SRC/package-lock.json" 2>/dev/null | cut -d' ' -f1 || echo none)"
+LOCK_STAMP="$DEPLOYPATH/.installed-lock.md5"
+LOCK_INSTALLED="$(cat "$LOCK_STAMP" 2>/dev/null || echo none)"
+
+if [ ! -d node_modules ] || [ "$LOCK_SRC" != "$LOCK_INSTALLED" ]; then
   say "تثبيت الاعتماديات (تغيّر package-lock.json)"
   if [ "${SKIP_BUILD:-0}" = "1" ]; then
     npm install --no-audit --no-fund --ignore-scripts
   else
     npm install --no-audit --no-fund
   fi
+  # البصمة بعد النجاح فقط: تثبيتٌ فشل يُعاد في النشر التالي.
+  echo "$LOCK_SRC" > "$LOCK_STAMP"
 else
   say "الاعتماديات كما هي — تخطّي التثبيت"
 fi
