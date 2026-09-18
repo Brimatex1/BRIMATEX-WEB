@@ -77,12 +77,22 @@ done
 
 cd "$REPO_DIR" || { log "✗ المستودع غير موجود: $REPO_DIR"; exit 1; }
 
-if ! "$GIT" fetch --quiet "$REMOTE" "$BRANCH" 2>> "$LOG"; then
+# refspec صريح لا ‎fetch origin main‎: نسخة cPanel من المستودع بلا
+# ‎remote.origin.fetch‎ (تُدير مراجعها بنفسها)، وبلا refspec مُهيَّأ لا يُحدّث
+# git مرجعَ التتبّع ‎refs/remotes/origin/main‎ — فيبقى قديماً، ويرى السكربت
+# «لا جديد» أبداً ويخرج صامتاً. حدث هذا فعلاً: المهمّة عملت كل خمس دقائق
+# ولم تنشر التزاماً مدفوعاً، وسجلّها خالٍ.
+if ! "$GIT" fetch --quiet "$REMOTE" "+refs/heads/$BRANCH:refs/remotes/$REMOTE/$BRANCH" 2>> "$LOG"; then
   log "✗ تعذّر السحب من $REMOTE — الشبكة أو GitHub"
   exit 1
 fi
 
-REMOTE_SHA="$("$GIT" rev-parse "$REMOTE/$BRANCH")"
+# حزامٌ ثانٍ: إن تعذّر قراءة مرجع التتبّع لأي سبب نعتمد FETCH_HEAD.
+REMOTE_SHA="$("$GIT" rev-parse "$REMOTE/$BRANCH" 2>/dev/null || "$GIT" rev-parse FETCH_HEAD)"
+if [ -z "$REMOTE_SHA" ]; then
+  log "✗ تعذّر تحديد رأس $REMOTE/$BRANCH"
+  exit 1
+fi
 LOCAL_SHA="$("$GIT" rev-parse HEAD)"
 SHORT="$("$GIT" rev-parse --short "$REMOTE_SHA")"
 
