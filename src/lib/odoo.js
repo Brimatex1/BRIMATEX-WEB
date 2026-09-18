@@ -286,6 +286,40 @@ async function getInvoiceStatus(invoiceId) {
   };
 }
 
+/**
+ * الحالة الخام للفاتورة: تأكيدها ودفعها منفصلان في أودو.
+ *
+ * `state` ∈ draft | posted | cancel، والدفع في `payment_state`
+ * (not_paid | in_payment | partial | paid | reversed). getInvoiceStatus أعلاه
+ * يقرأ `state` وحده ويتوقّع فيه 'paid' — وهي قيمة لا تظهر في أودو الحديث،
+ * فلا يكفي لمعرفة أنّ الطلب سُلّم ودُفع. تُستعمل هذه في مزامنة الحالات
+ * (src/lib/orderSync.js) وترجع القيم كما هي بلا تفسير.
+ *
+ * `payment_state` غير موجود في الإصدارات القديمة، فتُعاد القراءة بلا هذا
+ * الحقل بدل أن تفشل المزامنة كلها.
+ */
+async function readInvoice(invoiceId) {
+  let rows;
+  try {
+    rows = await call('account.move', 'read', [[invoiceId]], {
+      fields: ['id', 'name', 'state', 'payment_state'],
+    });
+  } catch {
+    rows = await call('account.move', 'read', [[invoiceId]], {
+      fields: ['id', 'name', 'state'],
+    });
+  }
+
+  const inv = rows?.[0];
+  if (!inv) return null;
+  return {
+    id: inv.id,
+    invoiceName: inv.name,
+    state: inv.state || '',
+    paymentState: inv.payment_state || '',
+  };
+}
+
 async function recordPayment(invoiceId, amount) {
   await call('account.payment', 'create', [
     {
@@ -386,6 +420,7 @@ module.exports = {
   fetchProductImage,
   createSaleOrder,
   getInvoiceStatus,
+  readInvoice,
   recordPayment,
   createHelpdeskTicket,
 };

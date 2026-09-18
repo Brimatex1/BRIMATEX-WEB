@@ -1389,6 +1389,9 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, {
       ok: true,
       odooConfigured: odoo.isConfigured(),
+      // أي مخزن يخدم فعلاً — تطابقه مهمّة المزامنة في cron
+      // (scripts/cron-order-sync.sh): بيئة cron لا ترث بيئة التطبيق.
+      store: db.isConfigured() ? 'postgres' : 'files',
       ...(DEPLOYED ? { version: DEPLOYED.commit, deployedAt: DEPLOYED.at } : {}),
     });
   }
