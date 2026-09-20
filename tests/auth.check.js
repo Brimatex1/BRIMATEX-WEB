@@ -12,12 +12,13 @@
 //
 // يُشغّل مع بقية الاختبارات: npm test
 
-const { spawn } = require('child_process');
 const http = require('http');
-const path = require('path');
+const { startTestServer } = require('./_server');
+
+/** خرج الخادم — codeFor يقرأه وهو خارج run، فيُعلَن هنا. */
+let out = { text: '' };
 
 const PORT = process.env.TEST_PORT || 3196;
-let err = '';
 let pass = 0;
 let fail = 0;
 const failures = [];
@@ -71,7 +72,7 @@ function req(method, urlPath, body, headers = {}) {
 
 /** آخر رمز طُبع لهذا الرقم في وضع التجربة. */
 function codeFor(intl) {
-  const hits = [...err.matchAll(/OTP demo\] (\d+) -> (\d{6})/g)].filter((m) => m[1] === intl);
+  const hits = [...out.text.matchAll(/OTP demo\] (\d+) -> (\d{6})/g)].filter((m) => m[1] === intl);
   return hits.length ? hits[hits.length - 1][2] : null;
 }
 
@@ -80,39 +81,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function run() {
   console.log('\n\x1b[1m\x1b[36m═══ BRIMATEX — مسارات الحساب ═══\x1b[0m');
 
-  const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
-    env: {
-      ...process.env,
-      PORT: String(PORT),
-      DATABASE_URL: '',
-      ODOO_URL: '',
-      ODOO_DB: '',
-      ODOO_USERNAME: '',
-      ODOO_API_KEY: '',
-      WHATSAPP_TOKEN: '',
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const started = await startTestServer({
+    port: PORT,
   });
-  server.stderr.on('data', (d) => (err += d));
-  server.stdout.on('data', (d) => (err += d));
-
-  let up = false;
-  for (let i = 0; i < 60; i++) {
-    if (server.exitCode !== null) break;
-    try {
-      await req('GET', '/api/health');
-      up = true;
-      break;
-    } catch {
-      await wait(200);
-    }
-  }
-  if (!up) {
-    server.kill();
-    console.error('\x1b[31mالخادم لم يُقلع على المنفذ ' + PORT + '\x1b[0m');
-    console.error(err.trim() || '(لا خرج من الخادم)');
-    process.exit(1);
-  }
+  const server = started.server;
+  out = started.out;
 
   try {
     const phone = '09' + Math.floor(10000000 + Math.random() * 89999999);

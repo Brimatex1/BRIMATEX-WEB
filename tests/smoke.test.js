@@ -10,7 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const { spawn } = require('child_process');
+const { startTestServer } = require('./_server');
 
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'src', 'public');
@@ -313,21 +313,10 @@ async function testSupport() {
 
   testBuildOutput();
 
-  const server = spawn('node', [path.join(ROOT, 'server.js')], {
-    env: { ...process.env, PORT, ODOO_URL: '', TWILIO_ACCOUNT_SID: '', RATE_LIMIT_ORDERS_PER_MIN: '50' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const { server } = await startTestServer({
+    port: PORT,
+    env: { TWILIO_ACCOUNT_SID: '', RATE_LIMIT_ORDERS_PER_MIN: '50' },
   });
-  // A flat sleep isn't enough once DATABASE_URL is configured — startup then
-  // waits on a real network round-trip to Postgres before listen() fires.
-  // Poll instead, up to 10s.
-  for (let i = 0; i < 50; i++) {
-    try {
-      await request('GET', '/api/health');
-      break;
-    } catch {
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  }
 
   try {
     await testStatic();
