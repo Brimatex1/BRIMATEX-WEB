@@ -563,18 +563,42 @@ async function handleApi(req, res, url) {
     } catch {
       return sendJson(res, 400, { error: 'JSON غير صالح' });
     }
-    const { password, name, phone } = payload;
-    if (!password?.trim() || !name?.trim() || !phone?.trim()) {
-      return sendJson(res, 400, { error: 'رقم الهاتف والكلمة المرورية والاسم مطلوبة' });
-    }
-    // Checked on new accounts only — existing users keep whatever they signed up with.
-    if (!isValidPhone(phone)) {
-      return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
+    const { password, name, phone, signupToken } = payload;
+    if (!password?.trim() || !name?.trim()) {
+      return sendJson(res, 400, { error: 'الاسم والكلمة المرورية مطلوبان' });
     }
     if (password.length < 6) {
       return sendJson(res, 400, { error: 'الكلمة المرورية يجب أن تكون 6 أحرف على الأقل' });
     }
-    const user = await auth.createUser(phone, password, name);
+
+    /* Two shapes of body, on purpose:
+
+         { name, password, signupToken }  the verified path — the phone comes
+                                          from the token, never from the body
+         { name, phone, password }        the old path, still accepted so that
+                                          app builds shipped before phone
+                                          verification keep working
+
+       Reading `phone` from the body alongside a token would undo the whole
+       point: you could prove you own one number and register another. */
+    let accountPhone;
+    if (signupToken) {
+      accountPhone = await otp.consumeResetToken(String(signupToken));
+      if (!accountPhone) {
+        return sendJson(res, 400, { error: 'انتهت صلاحية التوثيق — أعد المحاولة' });
+      }
+    } else {
+      if (!phone?.trim()) {
+        return sendJson(res, 400, { error: 'رقم الهاتف مطلوب' });
+      }
+      // Checked on new accounts only — existing users keep whatever they signed up with.
+      if (!isValidPhone(phone)) {
+        return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
+      }
+      accountPhone = phone;
+    }
+
+    const user = await auth.createUser(accountPhone, password, name);
     if (!user) {
       return sendJson(res, 409, { error: 'هذا رقم الهاتف مسجل بالفعل' });
     }
@@ -640,6 +664,78 @@ async function handleApi(req, res, url) {
     });
 
     return sendJson(res, 200, { message: 'تم تسجيل الجهاز' });
+  }
+
+  /* --- Phone verification for new accounts ---
+     Same challenge machinery as password recovery below (src/lib/otp.js): one
+     code per phone, five minutes, five attempts, a minute between sends. Only
+     the account check is inverted — a code goes to a number that has *no*
+     account yet.
+
+     Why it exists: before this, anyone could sign up with a number they did
+     not own, and the real owner ended up with an account they never made,
+     receiving our order notifications.
+
+     The two token namespaces are safe to share. A recovery token cannot create
+     an account (register rejects a phone that already has one) and a signup
+     token cannot change a password (that route 404s when the phone has no
+     account), so neither can be spent on the other's route. */
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/signup/otp/request') {
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+    const phone = String(payload.phone || '').trim();
+    if (!phone || !isValidPhone(phone)) {
+      return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
+    }
+
+    // A registered number gets nothing: no code, and no separate message
+    // either — Meta fixes the body text of authentication templates, so
+    // telling the owner "you already have an account" would need a second
+    // template of category UTILITY.
+    const user = await auth.findByPhone(phone);
+    if (!user) {
+      const result = await otp.requestCode(phone);
+      if (!result.issued) console.log(`[signup OTP] not sent for ${phone}: ${result.reason}`);
+    }
+
+    // Identical reply either way, exactly as in the recovery route — varying it
+    // would answer "does this number have an account here?" for anyone asking.
+    return sendJson(res, 200, { message: 'إن كان الرقم متاحاً فسيصلك رمز على واتساب' });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/auth/signup/otp/verify') {
+    const body = await readBody(req);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+    const phone = String(payload.phone || '').trim();
+    const code = String(payload.code || '').trim();
+    if (!phone || !code) {
+      return sendJson(res, 400, { error: 'الرقم والرمز مطلوبان' });
+    }
+
+    const result = await otp.verifyCode(phone, code);
+    if (!result.ok) {
+      const message =
+        result.reason === 'too_many_attempts'
+          ? 'محاولات كثيرة — اطلب رمزاً جديداً'
+          : result.reason === 'expired'
+            ? 'انتهت صلاحية الرمز — اطلب رمزاً جديداً'
+            : 'الرمز غير صحيح';
+      return sendJson(res, 400, { error: message });
+    }
+
+    // Same single-use token as recovery, named for what it authorises here.
+    return sendJson(res, 200, { signupToken: result.resetToken });
   }
 
   /* --- Password recovery by one-time code over WhatsApp ---
