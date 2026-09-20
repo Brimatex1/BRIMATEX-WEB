@@ -1,0 +1,190 @@
+#!/usr/bin/env node
+// مسارات الحساب من طرفٍ إلى طرف — src/routes/auth.js.
+//
+// ما يحميه: smoke.test.js يغطي register وlogin وme وحدها، فبقيت ستة مسارات
+// بلا أي تغطية: رمزا التسجيل والاستعادة، وتغيير الكلمة، والخروج، وحذف
+// الحساب. وهي أكثر ما يُكسَر صامتاً، لأن العميل يرى رسالة واحدة ثابتة مهما
+// حدث — عمداً، كي لا تصير النقطة وسيلة لمعرفة الأرقام المسجّلة.
+//
+// الخادم يُولَّد ببيئة محكمة: بلا Postgres وبلا أودو وبلا رمز واتساب — فيعمل
+// على المخزن الملفّي، ويُطبع رمز التحقّق في السجلّ بدل إرساله، فيكتمل
+// التدفّق بلا تكلفة ولا رسالة إلى هاتف أحد.
+//
+// يُشغّل مع بقية الاختبارات: npm test
+
+const { spawn } = require('child_process');
+const http = require('http');
+const path = require('path');
+
+const PORT = process.env.TEST_PORT || 3196;
+let err = '';
+let pass = 0;
+let fail = 0;
+const failures = [];
+
+function ok(name, cond, detail = '') {
+  if (cond) {
+    pass++;
+    console.log('  \x1b[32m✓\x1b[0m ' + name);
+  } else {
+    fail++;
+    failures.push(name + (detail ? ' — ' + detail : ''));
+    console.log('  \x1b[31m✗\x1b[0m ' + name + (detail ? ' — ' + detail : ''));
+  }
+}
+
+function req(method, urlPath, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const r = http.request(
+      {
+        hostname: '127.0.0.1',
+        port: PORT,
+        path: urlPath,
+        method,
+        headers: {
+          ...(payload
+            ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+            : {}),
+          ...headers,
+        },
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (c) => (raw += c));
+        res.on('end', () => {
+          let json = null;
+          try {
+            json = JSON.parse(raw);
+          } catch {
+            /* غير JSON */
+          }
+          resolve({ status: res.statusCode, json });
+        });
+      }
+    );
+    r.on('error', reject);
+    if (payload) r.write(payload);
+    r.end();
+  });
+}
+
+/** آخر رمز طُبع لهذا الرقم في وضع التجربة. */
+function codeFor(intl) {
+  const hits = [...err.matchAll(/OTP demo\] (\d+) -> (\d{6})/g)].filter((m) => m[1] === intl);
+  return hits.length ? hits[hits.length - 1][2] : null;
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function run() {
+  console.log('\n\x1b[1m\x1b[36m═══ BRIMATEX — مسارات الحساب ═══\x1b[0m');
+
+  const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      DATABASE_URL: '',
+      ODOO_URL: '',
+      ODOO_DB: '',
+      ODOO_USERNAME: '',
+      ODOO_API_KEY: '',
+      WHATSAPP_TOKEN: '',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  server.stderr.on('data', (d) => (err += d));
+  server.stdout.on('data', (d) => (err += d));
+
+  let up = false;
+  for (let i = 0; i < 60; i++) {
+    if (server.exitCode !== null) break;
+    try {
+      await req('GET', '/api/health');
+      up = true;
+      break;
+    } catch {
+      await wait(200);
+    }
+  }
+  if (!up) {
+    server.kill();
+    console.error('\x1b[31mالخادم لم يُقلع على المنفذ ' + PORT + '\x1b[0m');
+    console.error(err.trim() || '(لا خرج من الخادم)');
+    process.exit(1);
+  }
+
+  try {
+    const phone = '09' + Math.floor(10000000 + Math.random() * 89999999);
+    const intl = '218' + phone.slice(1);
+
+    console.log('\n\x1b[1m1. توثيق الرقم عند التسجيل\x1b[0m');
+    const r1 = await req('POST', '/api/auth/signup/otp/request', { phone });
+    ok('طلب الرمز يُقبل (200)', r1.status === 200, `status ${r1.status}`);
+    await wait(400);
+    const code = codeFor(intl);
+    ok('الرمز صدر فعلاً', Boolean(code), 'لا رمز في سجلّ الخادم');
+
+    ok('رمز خاطئ يُرفض (400)', (await req('POST', '/api/auth/signup/otp/verify', { phone, code: '000000' })).status === 400);
+
+    const v = await req('POST', '/api/auth/signup/otp/verify', { phone, code });
+    ok('الرمز الصحيح يعيد signupToken', Boolean(v.json?.signupToken));
+
+    const reg = await req('POST', '/api/auth/register', {
+      name: 'فحص الحساب',
+      password: 'secret123',
+      signupToken: v.json?.signupToken,
+    });
+    ok('التسجيل بالرمز (201)', reg.status === 201, `status ${reg.status}`);
+    ok('الرقم جاء من الرمز لا من الجسم', reg.json?.user?.phone === phone, String(reg.json?.user?.phone));
+    ok('الرمز لمرة واحدة', (await req('POST', '/api/auth/register', {
+      name: 'مكرّر', password: 'secret123', signupToken: v.json?.signupToken,
+    })).status === 400);
+
+    console.log('\n\x1b[1m2. استعادة الحساب\x1b[0m');
+    ok('طلب رمز استعادة (200)', (await req('POST', '/api/auth/otp/request', { phone })).status === 200);
+    await wait(400);
+    const code2 = codeFor(intl);
+    ok('رمز جديد يختلف عن الأول', Boolean(code2) && code2 !== code);
+
+    const v2 = await req('POST', '/api/auth/otp/verify', { phone, code: code2 });
+    ok('التحقّق يعيد resetToken', Boolean(v2.json?.resetToken));
+
+    const pw = await req('POST', '/api/auth/password', {
+      resetToken: v2.json?.resetToken,
+      password: 'newsecret1',
+    });
+    ok('تغيير الكلمة يعيد جلسة (200)', pw.status === 200 && Boolean(pw.json?.token), `status ${pw.status}`);
+    ok('الدخول بالكلمة الجديدة ينجح', (await req('POST', '/api/auth/login', { phone, password: 'newsecret1' })).status === 200);
+    ok('الكلمة القديمة لم تعد تعمل', (await req('POST', '/api/auth/login', { phone, password: 'secret123' })).status !== 200);
+
+    console.log('\n\x1b[1m3. الخروج وحذف الحساب\x1b[0m');
+    const token = pw.json?.token;
+    ok('logout (200)', (await req('POST', '/api/auth/logout', null, { Authorization: `Bearer ${token}` })).status === 200);
+    ok('الرمز المُبطَل يردّ 401', (await req('GET', '/api/auth/me', null, { Authorization: `Bearer ${token}` })).status === 401);
+
+    const again = await req('POST', '/api/auth/login', { phone, password: 'newsecret1' });
+    ok('DELETE /api/auth/me (200)', (await req('DELETE', '/api/auth/me', null, { Authorization: `Bearer ${again.json?.token}` })).status === 200);
+    ok('الدخول بعد الحذف يفشل', (await req('POST', '/api/auth/login', { phone, password: 'newsecret1' })).status !== 200);
+  } catch (e) {
+    fail++;
+    failures.push('خطأ غير متوقع: ' + e.message);
+    console.error('\x1b[31m' + e.stack + '\x1b[0m');
+  } finally {
+    server.kill();
+  }
+
+  console.log('\n' + '─'.repeat(52));
+  console.log(
+    `\x1b[1mالنتيجة:\x1b[0m \x1b[32m${pass} ناجح\x1b[0m / ${pass + fail}` +
+      (fail ? ` — \x1b[31m${fail} فاشل\x1b[0m` : '')
+  );
+  if (fail) {
+    console.log('\n\x1b[31mالاختبارات الفاشلة:\x1b[0m');
+    failures.forEach((f) => console.log('  • ' + f));
+  }
+  console.log('─'.repeat(52) + '\n');
+  process.exit(fail ? 1 : 0);
+}
+
+run();
