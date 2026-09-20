@@ -26,6 +26,7 @@ const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
 const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
+const odooStatus = require('./lib/odooStatus');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 
 const PORT = process.env.PORT || 3000;
@@ -130,9 +131,6 @@ function validateSupportTicket(body) {
   return null;
 }
 
-/** Last Odoo error, surfaced to admins so a bad connection is diagnosable. */
-let lastOdooError = null;
-
 /**
  * Icons, a description override, an image override, and enabled/disabled
  * are admin-set metadata, stored separately from the product itself (see
@@ -170,10 +168,10 @@ async function getProducts() {
   try {
     const products = await odoo.fetchProducts();
     productCache = { data: products, at: Date.now() };
-    lastOdooError = null;
+    odooStatus.clear();
     return { source: 'odoo', products: await withOverrides(products) };
   } catch (err) {
-    lastOdooError = { message: err.message, at: new Date().toISOString() };
+    odooStatus.record(err);
     console.error('[Odoo] fetch failed:', err.message);
 
     // Serve the last good Odoo data rather than taking the shop down over a
@@ -972,7 +970,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/admin/settings/odoo') {
     if (!(await requireAdmin(req, res))) return;
     // Never includes the API key — only whether one is stored.
-    return sendJson(res, 200, { odoo: settings.readPublicOdoo(), lastError: lastOdooError });
+    return sendJson(res, 200, { odoo: settings.readPublicOdoo(), lastError: odooStatus.get() });
   }
 
   if (req.method === 'PUT' && url.pathname === '/api/admin/settings/odoo') {
@@ -1168,7 +1166,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 201, { ref: ticket.ref, message: 'وصلت رسالتك وسنتواصل معك قريباً' });
     } catch (err) {
       console.error('[Support] ticket failed:', err.message);
-      lastOdooError = { message: err.message, at: new Date().toISOString() };
+      odooStatus.record(err);
       return sendJson(res, 502, { error: 'تعذّر إرسال رسالتك الآن. حاول بعد قليل.' });
     }
   }
