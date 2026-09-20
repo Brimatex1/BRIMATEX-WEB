@@ -73,17 +73,49 @@ const customer = {
 async function run() {
   console.log('\n\x1b[1m\x1b[36m═══ BRIMATEX — تفرّد الطلبات ═══\x1b[0m\n');
 
+  /* بيئة محكمة عمداً.
+     كان الاختبار يمرّر process.env كما هي، فيقرأ الخادم المُولَّد ملف .env
+     ومعه DATABASE_URL المُوجّه إلى Postgres على المضيف — غير موجود على أي
+     جهاز تطوير، فيموت عند migrate ويظهر العطل كـECONNREFUSED على منفذ
+     الاختبار بلا سبب ظاهر.
+
+     وتفريغ ODOO_* ضرورة لا احتياط: بلا أودو يخدم الخادم الكتالوج التجريبي،
+     فيجري الاختبار فعلاً بدل أن يتخطّى نفسه، ويستحيل أن يلوّث مبيعات
+     حقيقية لأن العملية لا تملك بيانات الاتصال أصلاً. */
   const server = spawn('node', [path.join(ROOT, 'server.js')], {
-    env: { ...process.env, PORT, RATE_LIMIT_ORDERS_PER_MIN: '200' },
+    env: {
+      ...process.env,
+      PORT,
+      RATE_LIMIT_ORDERS_PER_MIN: '200',
+      DATABASE_URL: '',
+      ODOO_URL: '',
+      ODOO_DB: '',
+      ODOO_USERNAME: '',
+      ODOO_API_KEY: '',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+
+  // يُحتفظ بخرج الخادم كي يظهر سببُ فشلٍ في الإقلاع بدل ابتلاعه.
+  let serverErr = '';
+  server.stderr.on('data', (d) => (serverErr += d));
+
+  let up = false;
   for (let i = 0; i < 50; i++) {
+    if (server.exitCode !== null) break;
     try {
       await request('GET', '/api/health');
+      up = true;
       break;
     } catch {
       await new Promise((r) => setTimeout(r, 200));
     }
+  }
+  if (!up) {
+    server.kill();
+    console.error('[31m' + 'الخادم لم يُقلع على المنفذ ' + PORT + '[0m');
+    console.error(serverErr.trim() || '(لا خرج من الخادم)');
+    process.exit(1);
   }
 
   try {
@@ -91,15 +123,8 @@ async function run() {
     const product = (products.json?.products || []).find((p) => p.enabled !== false);
     if (!product) throw new Error('لا منتجات في الكتالوج');
 
-    // كل طلب صحيح هنا يُنشئ عرض سعر فعلياً. آمن على الكتالوج التجريبي، لكنه
-    // يلوّث مبيعات أودو الحقيقية — فنتخطّاه كما يفعل tests/smoke.test.js.
-    const odooConfigured = require('../src/lib/odoo').isConfigured();
-    if (odooConfigured) {
-      console.log(
-        '  \x1b[33m⚠\x1b[0m  Odoo متصل — تخطّي اختبار التفرّد لتفادي تلويث بيانات المبيعات'
-      );
-      return;
-    }
+    // لا تخطّي بعد اليوم: الخادم مُولَّد بلا بيانات أودو (انظر بيئة spawn
+    // أعلاه)، فالطلبات تقع على الكتالوج التجريبي والمخزن الملفّي وحدهما.
 
     const order = { customer, items: [{ productId: product.id, quantity: 1 }] };
     const key = `req_test_${Date.now().toString(36)}`;
