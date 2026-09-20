@@ -13,6 +13,7 @@
 const auth = require('../lib/auth');
 const otp = require('../lib/otp');
 const orders = require('../lib/orders');
+const { sendJson, readBody } = require('../lib/respond');
 
 /**
  * يُعاد حين لا يكون المسار من مسارات الحساب، ليواصل الموجّه سلسلته.
@@ -22,7 +23,7 @@ const orders = require('../lib/orders');
  */
 const NOT_HANDLED = Symbol('auth-route-not-handled');
 
-function createAuthRoutes({ sendJson, readBody, isValidPhone }) {
+function createAuthRoutes({ isValidPhone }) {
   return async function handleAuthRoutes(req, res, url) {
     // --- User Authentication ---
     if (req.method === 'POST' && url.pathname === '/api/auth/register') {

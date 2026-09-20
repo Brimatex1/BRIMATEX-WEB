@@ -23,11 +23,12 @@ const db = require('../lib/db');
 const odooStatus = require('../lib/odooStatus');
 const catalogue = require('../lib/catalogue');
 const { getProducts } = catalogue;
+const { sendJson, readBody } = require('../lib/respond');
 
 /** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
 const NOT_HANDLED = Symbol('admin-route-not-handled');
 
-function createAdminRoutes({ requireAdmin, sendJson, readBody, deleteUploadedFile }) {
+function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
   return async function handleAdminRoutes(req, res, url) {
     // ===================== لوحة التحكم =====================
 

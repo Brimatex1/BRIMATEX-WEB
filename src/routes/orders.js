@@ -17,17 +17,12 @@ const orders = require('../lib/orders');
 const push = require('../lib/push');
 const whatsapp = require('../lib/whatsapp');
 const { getProducts, productLookup } = require('../lib/catalogue');
+const { sendJson, readBody } = require('../lib/respond');
 
 /** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
 const NOT_HANDLED = Symbol('order-route-not-handled');
 
-function createOrderRoutes({
-  sendJson,
-  readBody,
-  validateOrder,
-  checkRateLimit,
-  requireAdmin,
-}) {
+function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
   return async function handleOrderRoutes(req, res, url) {
     if (req.method === 'POST' && url.pathname === '/api/orders') {
       const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;

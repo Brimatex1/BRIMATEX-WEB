@@ -28,10 +28,11 @@ const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
 const { getProducts, visibleOnly, productLookup } = require('./lib/catalogue');
+const { sendJson, readBody } = require('./lib/respond');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
 const { createOrderRoutes, NOT_HANDLED: ORDER_NOT_HANDLED } = require('./routes/orders');
-const { createUserRoutes, NOT_HANDLED: USER_NOT_HANDLED } = require('./routes/user');
+const { handleUserRoutes, NOT_HANDLED: USER_NOT_HANDLED } = require('./routes/user');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -137,38 +138,6 @@ function deleteUploadedFile(imageUrl) {
   fs.unlink(filePath, () => {});
 }
 
-function sendJson(res, status, payload) {
-  res.writeHead(status, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'SAMEORIGIN',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-  });
-  res.end(JSON.stringify(payload));
-}
-
-function readBody(req, maxBytes = 100_000) {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    const onData = (chunk) => {
-      data += chunk;
-      if (data.length > maxBytes) {
-        req.removeListener('data', onData);
-        req.removeListener('end', onEnd);
-        req.removeListener('error', onError);
-        req.destroy();
-        reject(new Error('حجم الطلب كبير جداً'));
-      }
-    };
-    const onEnd = () => resolve(data);
-    const onError = reject;
-    req.on('data', onData);
-    req.on('end', onEnd);
-    req.on('error', onError);
-  });
-}
-
 function checkRateLimit(ip) {
   const now = Date.now();
   const minute = Math.floor(now / 60_000);
@@ -246,21 +215,9 @@ async function requireAdmin(req, res) {
 }
 
 /* المساعدات تُحقَن مرةً واحدة عند الإقلاع لا مع كل طلب. */
-const handleAuthRoutes = createAuthRoutes({ sendJson, readBody, isValidPhone });
-const handleUserRoutes = createUserRoutes({ sendJson, readBody });
-const handleOrderRoutes = createOrderRoutes({
-  sendJson,
-  readBody,
-  validateOrder,
-  checkRateLimit,
-  requireAdmin,
-});
-const handleAdminRoutes = createAdminRoutes({
-  requireAdmin,
-  sendJson,
-  readBody,
-  deleteUploadedFile,
-});
+const handleAuthRoutes = createAuthRoutes({ isValidPhone });
+const handleOrderRoutes = createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin });
+const handleAdminRoutes = createAdminRoutes({ requireAdmin, deleteUploadedFile });
 
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
