@@ -1,0 +1,197 @@
+#!/usr/bin/env node
+// مسارات لوحة التحكّم — src/routes/admin.js.
+//
+// ما يحميه: تسعة عشر مساراً كانت بلا أي تغطية. وأخطر ما فيها ليس العطل بل
+// التسرّب — بوابة requireAdmin هي كل ما يفصل بيانات العملاء والإعدادات عن أي
+// زائر. فالاختبار يبدأ بإثبات أن الباب مقفل قبل أن يفتحه بمفتاحه.
+//
+// المدير يُعرَّف برقمه في ADMIN_PHONES (انظر src/lib/auth.js)، فنضبطه في بيئة
+// الخادم المُولَّد ثم نسجّل بذلك الرقم — لا بذرة ولا قاعدة بيانات.
+//
+// بيئة محكمة: بلا Postgres وبلا أودو. وما يتطلّب أودو يُتحقَّق أنه يردّ خطأً
+// واضحاً لا أن ينهار.
+//
+// يُشغّل مع بقية الاختبارات: npm test
+
+const { spawn } = require('child_process');
+const http = require('http');
+const path = require('path');
+
+const PORT = process.env.TEST_PORT || 3195;
+// أرقام جديدة في كل تشغيل: المخزن الملفّي يبقى بين التشغيلات،
+// فالرقم الثابت يُردّ 409 في المرة الثانية فيسقط الاختبار بلا ذنب الكود.
+const uniq = () => '09' + Math.floor(10000000 + Math.random() * 89999999);
+const ADMIN_PHONE = uniq();
+const USER_PHONE = uniq();
+
+let serverOut = '';
+let pass = 0;
+let fail = 0;
+const failures = [];
+
+function ok(name, cond, detail = '') {
+  if (cond) {
+    pass++;
+    console.log('  \x1b[32m✓\x1b[0m ' + name);
+  } else {
+    fail++;
+    failures.push(name + (detail ? ' — ' + detail : ''));
+    console.log('  \x1b[31m✗\x1b[0m ' + name + (detail ? ' — ' + detail : ''));
+  }
+}
+
+function req(method, urlPath, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const r = http.request(
+      {
+        hostname: '127.0.0.1',
+        port: PORT,
+        path: urlPath,
+        method,
+        headers: {
+          ...(payload
+            ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+            : {}),
+          ...headers,
+        },
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (c) => (raw += c));
+        res.on('end', () => {
+          let json = null;
+          try {
+            json = JSON.parse(raw);
+          } catch {
+            /* غير JSON */
+          }
+          resolve({ status: res.statusCode, json });
+        });
+      }
+    );
+    r.on('error', reject);
+    if (payload) r.write(payload);
+    r.end();
+  });
+}
+
+const bearer = (t) => ({ Authorization: 'Bearer ' + t });
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function run() {
+  console.log('\n\x1b[1m\x1b[36m═══ BRIMATEX — لوحة التحكّم ═══\x1b[0m');
+
+  const server = spawn('node', [path.join(__dirname, '..', 'server.js')], {
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      DATABASE_URL: '',
+      ODOO_URL: '',
+      ODOO_DB: '',
+      ODOO_USERNAME: '',
+      ODOO_API_KEY: '',
+      WHATSAPP_TOKEN: '',
+      ADMIN_PHONES: ADMIN_PHONE,
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  server.stderr.on('data', (d) => (serverOut += d));
+  server.stdout.on('data', (d) => (serverOut += d));
+
+  let up = false;
+  for (let i = 0; i < 60; i++) {
+    if (server.exitCode !== null) break;
+    try {
+      await req('GET', '/api/health');
+      up = true;
+      break;
+    } catch {
+      await wait(200);
+    }
+  }
+  if (!up) {
+    server.kill();
+    console.error('\x1b[31mالخادم لم يُقلع على المنفذ ' + PORT + '\x1b[0m');
+    console.error(serverOut.trim() || '(لا خرج من الخادم)');
+    process.exit(1);
+  }
+
+  try {
+    console.log('\n\x1b[1m1. البوابة\x1b[0m');
+    ok('بلا رمز ← 401', (await req('GET', '/api/admin/overview')).status === 401);
+    ok('برمز فاسد ← 401', (await req('GET', '/api/admin/overview', null, bearer('nope'))).status === 401);
+
+    const plain = await req('POST', '/api/auth/register', {
+      name: 'عميل عادي',
+      phone: USER_PHONE,
+      password: 'secret123',
+    });
+    ok('مستخدم عادي يُسجَّل', plain.status === 201, 'status ' + plain.status);
+    ok(
+      'مستخدم عادي ← 403 لا 200',
+      (await req('GET', '/api/admin/overview', null, bearer(plain.json && plain.json.token))).status === 403
+    );
+
+    const admin = await req('POST', '/api/auth/register', {
+      name: 'مدير',
+      phone: ADMIN_PHONE,
+      password: 'secret123',
+    });
+    ok('المدير يُسجَّل', admin.status === 201, 'status ' + admin.status);
+    const tok = admin.json && admin.json.token;
+
+    console.log('\n\x1b[1m2. القراءة\x1b[0m');
+    const ov = await req('GET', '/api/admin/overview', null, bearer(tok));
+    ok('overview (200)', ov.status === 200, 'status ' + ov.status);
+    ok('overview يحمل كائناً', ov.json !== null && typeof ov.json === 'object');
+    ok('orders (200)', (await req('GET', '/api/admin/orders', null, bearer(tok))).status === 200);
+    ok('customers (200)', (await req('GET', '/api/admin/customers', null, bearer(tok))).status === 200);
+    ok('products (200)', (await req('GET', '/api/admin/products', null, bearer(tok))).status === 200);
+
+    console.log('\n\x1b[1m3. الإعدادات\x1b[0m');
+    const odooGet = await req('GET', '/api/admin/settings/odoo', null, bearer(tok));
+    ok('قراءة إعداد أودو (200)', odooGet.status === 200, 'status ' + odooGet.status);
+    ok('الردّ لا يحمل مفتاح API', !JSON.stringify(odooGet.json || {}).includes('apiKey'));
+    ok('حقل lastError موجود', odooGet.json !== null && 'lastError' in odooGet.json);
+
+    const pxPut = await req('PUT', '/api/admin/settings/facebook-pixel', { pixelId: '1234567890' }, bearer(tok));
+    ok('حفظ معرّف البكسل', pxPut.status === 200, 'status ' + pxPut.status);
+    const pxPub = await req('GET', '/api/pixel-config');
+    ok('يظهر في النقطة العامة', pxPub.json && pxPub.json.pixelId === '1234567890', JSON.stringify(pxPub.json));
+    ok('حذفه (200)', (await req('DELETE', '/api/admin/settings/facebook-pixel', null, bearer(tok))).status === 200);
+    ok('اختفى من النقطة العامة', !(await req('GET', '/api/pixel-config')).json.pixelId);
+
+    const waPut = await req('PUT', '/api/admin/settings/whatsapp-support', { phone: '0911234567' }, bearer(tok));
+    ok('حفظ رقم دعم واتساب', waPut.status === 200, 'status ' + waPut.status);
+    ok(
+      'حذفه (200)',
+      (await req('DELETE', '/api/admin/settings/whatsapp-support', null, bearer(tok))).status === 200
+    );
+
+    console.log('\n\x1b[1m4. أودو غير مضبوط لا يُسقط الخادم\x1b[0m');
+    const sync = await req('POST', '/api/admin/sync', null, bearer(tok));
+    ok('sync يردّ خطأً واضحاً لا انهياراً', sync.status >= 400 && sync.status < 600, 'status ' + sync.status);
+    ok('الخادم ما زال حيّاً', (await req('GET', '/api/health')).status === 200);
+  } catch (e) {
+    fail++;
+    failures.push('خطأ غير متوقع: ' + e.message);
+    console.error('\x1b[31m' + e.stack + '\x1b[0m');
+  } finally {
+    server.kill();
+  }
+
+  console.log('\n' + '─'.repeat(52));
+  console.log(
+    '\x1b[1mالنتيجة:\x1b[0m \x1b[32m' + pass + ' ناجح\x1b[0m / ' + (pass + fail) +
+      (fail ? ' — \x1b[31m' + fail + ' فاشل\x1b[0m' : '')
+  );
+  if (fail) {
+    console.log('\n\x1b[31mالاختبارات الفاشلة:\x1b[0m');
+    failures.forEach((f) => console.log('  • ' + f));
+  }
+  console.log('─'.repeat(52) + '\n');
+  process.exit(fail ? 1 : 0);
+}
+
+run();
