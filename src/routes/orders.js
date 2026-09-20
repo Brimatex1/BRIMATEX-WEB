@@ -16,6 +16,7 @@ const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const push = require('../lib/push');
 const whatsapp = require('../lib/whatsapp');
+const { getProducts, productLookup } = require('../lib/catalogue');
 
 /** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
 const NOT_HANDLED = Symbol('order-route-not-handled');
@@ -23,8 +24,6 @@ const NOT_HANDLED = Symbol('order-route-not-handled');
 function createOrderRoutes({
   sendJson,
   readBody,
-  getProducts,
-  productLookup,
   validateOrder,
   checkRateLimit,
   requireAdmin,

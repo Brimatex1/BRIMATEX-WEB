@@ -21,11 +21,13 @@ const productOverrides = require('../lib/productOverrides');
 const push = require('../lib/push');
 const db = require('../lib/db');
 const odooStatus = require('../lib/odooStatus');
+const catalogue = require('../lib/catalogue');
+const { getProducts } = catalogue;
 
 /** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
 const NOT_HANDLED = Symbol('admin-route-not-handled');
 
-function createAdminRoutes({ requireAdmin, sendJson, readBody, getProducts, deleteUploadedFile }) {
+function createAdminRoutes({ requireAdmin, sendJson, readBody, deleteUploadedFile }) {
   return async function handleAdminRoutes(req, res, url) {
     // ===================== لوحة التحكم =====================
 
@@ -333,14 +335,14 @@ function createAdminRoutes({ requireAdmin, sendJson, readBody, getProducts, dele
       });
 
       // Products may now come from a different place.
-      productCache = { at: 0, data: null };
+      catalogue.invalidate();
       return sendJson(res, 200, { odoo: saved });
     }
 
     if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/odoo') {
       if (!(await requireAdmin(req, res))) return;
       const cleared = settings.clearOdoo();
-      productCache = { at: 0, data: null };
+      catalogue.invalidate();
       return sendJson(res, 200, { odoo: cleared });
     }
 
@@ -430,7 +432,7 @@ function createAdminRoutes({ requireAdmin, sendJson, readBody, getProducts, dele
     if (req.method === 'POST' && url.pathname === '/api/admin/sync') {
       if (!(await requireAdmin(req, res))) return;
 
-      productCache = { at: 0, data: null };
+      catalogue.invalidate();
       try {
         const result = await getProducts();
         return sendJson(res, 200, {

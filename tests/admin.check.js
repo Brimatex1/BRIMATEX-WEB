@@ -169,9 +169,17 @@ async function run() {
       (await req('DELETE', '/api/admin/settings/whatsapp-support', null, bearer(tok))).status === 200
     );
 
-    console.log('\n\x1b[1m4. أودو غير مضبوط لا يُسقط الخادم\x1b[0m');
+    console.log('\n\x1b[1m4. إبطال ذاكرة الكتالوج\x1b[0m');
+    // هذه الثلاثة تُبطل ذاكرة الكتالوج. كانت تُسنِد إلى productCache وهو
+    // مُعرَّف في server.js — فلمّا خرجت إلى routes/admin.js رمت ReferenceError
+    // وردّت 502، بينما كانت الحزمة خضراء لأن الفحص هنا قبِل «أي خطأ».
+    // فصار يطالب بالنجاح صراحةً: رمزٌ دقيق لا مدىً واسع.
     const sync = await req('POST', '/api/admin/sync', null, bearer(tok));
-    ok('sync يردّ خطأً واضحاً لا انهياراً', sync.status >= 400 && sync.status < 600, 'status ' + sync.status);
+    ok('sync (200)', sync.status === 200, 'status ' + sync.status);
+    ok('sync يذكر المصدر', Boolean(sync.json && sync.json.source), JSON.stringify(sync.json));
+
+    const odooDel = await req('DELETE', '/api/admin/settings/odoo', null, bearer(tok));
+    ok('حذف إعداد أودو (200)', odooDel.status === 200, 'status ' + odooDel.status);
     ok('الخادم ما زال حيّاً', (await req('GET', '/api/health')).status === 200);
   } catch (e) {
     fail++;
