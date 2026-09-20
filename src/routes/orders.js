@@ -1,13 +1,15 @@
 /**
- * الطلبات والفواتير — قلب المتجر.
+ * Orders and invoices - the heart of the shop.
  *
- * POST /api/orders هو المسار الوحيد الذي يُنشئ مالاً، ومعه تفرّد
- * الطلبات (requestId) التي تحمي من طلبين على محاولة دفع واحدة حين
- * تنقطع الشبكة قبل أن يصل الردّ إلى الهاتف — يحميه tests/idempotency.check.js.
+ * POST /api/orders is the only route that creates money, and with it comes
+ * order idempotency (requestId), which protects against two orders from one
+ * checkout attempt when the network drops before the reply reaches the phone.
+ * Guarded by tests/idempotency.check.js.
  *
- * والفواتير معها لأنّها سجلّ دفع الطلب لا مجال مستقلّ.
+ * Invoices sit here because they are an order's payment record, not a domain
+ * of their own.
  *
- * نُقلت كما هي من handleApi بلا تغيير منطقٍ واحد.
+ * Moved verbatim out of handleApi with no logic change.
  */
 'use strict';
 
@@ -19,7 +21,7 @@ const whatsapp = require('../lib/whatsapp');
 const { getProducts, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
 
-/** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
+/** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('order-route-not-handled');
 
 function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {

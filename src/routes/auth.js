@@ -1,12 +1,13 @@
 /**
- * مسارات الحساب — تسجيلاً ودخولاً وتوثيقاً واستعادةً.
+ * Account routes - registration, sign-in, phone verification and recovery.
  *
- * كانت هذه المسارات العشرة داخل handleApi في src/server.js، مقطوعةً إلى
- * جزأين تفصل بينهما كتلة /api/devices. نُقلت كما هي بلا تغيير منطقٍ
- * واحد، واجتمعت هنا.
+ * These ten routes lived inside handleApi in src/server.js, split into two
+ * stretches with the /api/devices block sitting between them. They moved here
+ * verbatim, with no logic change, and are together now.
  *
- * المساعدات الثلاث تأتي حقناً لا استيراداً: هي مُعرَّفة داخل server.js،
- * واستيرادها منه يصنع دائرة. والمكتبات تُستورد مباشرةً — لا دائرة فيها.
+ * The three helpers are injected rather than imported: they are defined inside
+ * server.js, and importing from it would create a cycle. The libraries are
+ * required directly - no cycle there.
  */
 'use strict';
 
@@ -16,10 +17,11 @@ const orders = require('../lib/orders');
 const { sendJson, readBody } = require('../lib/respond');
 
 /**
- * يُعاد حين لا يكون المسار من مسارات الحساب، ليواصل الموجّه سلسلته.
- * Symbol لا true/false: كل مسار هنا ينتهي بـreturn sendJson(...) التي تعيد
- * undefined، فلو كانت العلامة قيمةً عادية لالتبست بها — ولوجب تعديل
- * كل return في الملف، وهذا ما أردنا تجنّبه كي يبقى النقل حرفياً.
+ * Returned when the path is not one of this module's, so the router keeps
+ * walking its chain. A Symbol rather than true/false: every route here ends in
+ * `return sendJson(...)`, which yields undefined, so an ordinary value could be
+ * confused with it - and using one would have meant editing every return in the
+ * file, which is exactly what moving verbatim avoids.
  */
 const NOT_HANDLED = Symbol('auth-route-not-handled');
 

@@ -1,12 +1,14 @@
 /**
- * مسارات لوحة التحكّم — تسعة عشر مساراً خلف requireAdmin.
+ * Dashboard routes - nineteen of them, all behind requireAdmin.
  *
- * نُقلت كما هي من handleApi بلا تغيير منطقٍ واحد. وهي أكبر كتلة في
- * الموجّه وأقلّها مساساً بالعميل: لا يصلها إلا مدير موثّق، فعزلها يخفّف
- * ما يُقرأ عند تتبّع مسار عميل.
+ * Moved verbatim out of handleApi with no logic change. This is the largest
+ * block in the router and the one least reachable by a customer: nothing here
+ * answers without an authenticated admin, so isolating it shortens what has to
+ * be read when following a customer's path through the code.
  *
- * requireAdmin والمساعدات الأربع تُحقن لأنّها مُعرَّفة داخل server.js،
- * واستيرادها منه يصنع دائرة. والمكتبات تُستورد مباشرةً.
+ * requireAdmin and the other helpers are injected because they are defined in
+ * server.js; importing from it would create a cycle. Libraries are required
+ * directly.
  */
 'use strict';
 
@@ -25,12 +27,12 @@ const catalogue = require('../lib/catalogue');
 const { getProducts } = catalogue;
 const { sendJson, readBody } = require('../lib/respond');
 
-/** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
+/** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('admin-route-not-handled');
 
 function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
   return async function handleAdminRoutes(req, res, url) {
-    // ===================== لوحة التحكم =====================
+    // ===================== Dashboard =====================
 
     if (req.method === 'GET' && url.pathname === '/api/admin/overview') {
       if (!(await requireAdmin(req, res))) return;
@@ -198,7 +200,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       });
     }
 
-    // ---- تخصيص المنتج (أيقونات، وصف، تفعيل) ----
+    // ---- Product overrides (icons, description, enabled) ----
 
     const overridesMatch = url.pathname.match(/^\/api\/admin\/products\/(\d+)\/overrides$/);
     if (overridesMatch && (req.method === 'GET' || req.method === 'PATCH')) {
@@ -244,7 +246,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { productId, ...saved });
     }
 
-    // ---- صورة المنتج (رفع من اللوحة) ----
+    // ---- Product image (uploaded from the dashboard) ----
 
     const imageOverrideMatch = url.pathname.match(/^\/api\/admin\/products\/(\d+)\/image$/);
     if (imageOverrideMatch && (req.method === 'POST' || req.method === 'DELETE')) {
@@ -295,7 +297,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { productId, ...saved });
     }
 
-    // ---- إعدادات أودو ----
+    // ---- Odoo settings ----
 
     if (req.method === 'GET' && url.pathname === '/api/admin/settings/odoo') {
       if (!(await requireAdmin(req, res))) return;
@@ -347,7 +349,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { odoo: cleared });
     }
 
-    // ---- إعدادات فيسبوك بكسل ----
+    // ---- Facebook Pixel settings ----
 
     if (req.method === 'GET' && url.pathname === '/api/admin/settings/facebook-pixel') {
       if (!(await requireAdmin(req, res))) return;
@@ -380,7 +382,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { facebookPixel: cleared });
     }
 
-    // ---- إعدادات دعم واتساب ----
+    // ---- WhatsApp support settings ----
 
     if (req.method === 'GET' && url.pathname === '/api/admin/settings/whatsapp-support') {
       if (!(await requireAdmin(req, res))) return;

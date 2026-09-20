@@ -1,13 +1,15 @@
 /**
- * الكتالوج — مصدر المنتجات وذاكرتها المؤقّتة.
+ * The catalogue - where products come from, and their short-lived cache.
  *
- * كانت هذه الدوال في src/server.js مع `let productCache` بجوارها. وحين خرجت
- * مسارات الإدارة إلى ملفها، بقي فيها ثلاثة إسنادات إلى productCache وهو ليس
- * في نطاقها — فرمت ReferenceError وردّت 502: حفظ إعداد أودو، ومسحه،
- * والمزامنة اليدوية.
+ * These functions lived in src/server.js with `let productCache` beside them.
+ * When the admin routes moved to their own file, three assignments to
+ * productCache went with them while the variable did not - so they threw
+ * ReferenceError and returned 502: saving Odoo settings, clearing them, and
+ * the manual sync.
  *
- * الدرس: ذاكرة الكتالوج ليست شأن خادم HTTP. فصار لها مالك، وإبطالها
- * عملية مُسمّاة (invalidate) لا إسناداً إلى متغيّر في ملفٍ آخر.
+ * The lesson: a catalogue cache is not an HTTP server's business. It has an
+ * owner now, and invalidating it is a named operation rather than an
+ * assignment to a variable in someone else's file.
  */
 'use strict';
 
@@ -22,11 +24,11 @@ const DEMO_PRODUCTS = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'data', 'demo-products.json'), 'utf8')
 );
 
-// تُخزّن منتجات أودو برهةً كي لا يرهق التصفّح نظام المؤسسة.
+// Cache Odoo products briefly so browsing doesn't hammer the ERP.
 let productCache = { data: null, at: 0 };
 const CACHE_TTL_MS = 60_000;
 
-/** يُبطل الذاكرة — يُنادى حين يتغيّر مصدر المنتجات أو يُطلب جلبٌ طازج. */
+/** Drops the cache - called when the product source changes or a fresh fetch is demanded. */
 function invalidate() {
   productCache = { data: null, at: 0 };
 }

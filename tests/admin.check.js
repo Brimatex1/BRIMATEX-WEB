@@ -1,24 +1,26 @@
 #!/usr/bin/env node
-// مسارات لوحة التحكّم — src/routes/admin.js.
+// Dashboard routes - src/routes/admin.js.
 //
-// ما يحميه: تسعة عشر مساراً كانت بلا أي تغطية. وأخطر ما فيها ليس العطل بل
-// التسرّب — بوابة requireAdmin هي كل ما يفصل بيانات العملاء والإعدادات عن أي
-// زائر. فالاختبار يبدأ بإثبات أن الباب مقفل قبل أن يفتحه بمفتاحه.
+// What it guards: nineteen routes that had no coverage at all. The danger here
+// is not a crash but a leak - requireAdmin is all that stands between customer
+// data and settings and any visitor. So the test starts by proving the door is
+// locked, before unlocking it with its own key.
 //
-// المدير يُعرَّف برقمه في ADMIN_PHONES (انظر src/lib/auth.js)، فنضبطه في بيئة
-// الخادم المُولَّد ثم نسجّل بذلك الرقم — لا بذرة ولا قاعدة بيانات.
+// An admin is identified by phone through ADMIN_PHONES (see src/lib/auth.js),
+// so the test sets it in the spawned server's environment and registers with
+// that number - no seed, no database.
 //
-// بيئة محكمة: بلا Postgres وبلا أودو. وما يتطلّب أودو يُتحقَّق أنه يردّ خطأً
-// واضحاً لا أن ينهار.
+// Hermetic environment: no Postgres, no Odoo. Whatever needs Odoo is checked
+// to return a clear error rather than falling over.
 //
-// يُشغّل مع بقية الاختبارات: npm test
+// Runs with the rest: npm test
 
 const http = require('http');
 const { startTestServer } = require('./_server');
 
 const PORT = process.env.TEST_PORT || 3195;
-// أرقام جديدة في كل تشغيل: المخزن الملفّي يبقى بين التشغيلات،
-// فالرقم الثابت يُردّ 409 في المرة الثانية فيسقط الاختبار بلا ذنب الكود.
+// A fresh number on every run: the file store survives between runs, so a
+// fixed one gets 409 the second time and the test fails through no fault of the code.
 const uniq = () => '09' + Math.floor(10000000 + Math.random() * 89999999);
 const ADMIN_PHONE = uniq();
 const USER_PHONE = uniq();
@@ -61,7 +63,7 @@ function req(method, urlPath, body, headers = {}) {
           try {
             json = JSON.parse(raw);
           } catch {
-            /* غير JSON */
+            /* not JSON */
           }
           resolve({ status: res.statusCode, json });
         });
@@ -137,10 +139,11 @@ async function run() {
     );
 
     console.log('\n\x1b[1m4. إبطال ذاكرة الكتالوج\x1b[0m');
-    // هذه الثلاثة تُبطل ذاكرة الكتالوج. كانت تُسنِد إلى productCache وهو
-    // مُعرَّف في server.js — فلمّا خرجت إلى routes/admin.js رمت ReferenceError
-    // وردّت 502، بينما كانت الحزمة خضراء لأن الفحص هنا قبِل «أي خطأ».
-    // فصار يطالب بالنجاح صراحةً: رمزٌ دقيق لا مدىً واسع.
+    // These three invalidate the catalogue cache. They used to assign to
+    // productCache, which is defined in server.js - so once they moved to
+    // routes/admin.js they threw ReferenceError and returned 502, while the
+    // whole suite stayed green because the check here accepted "any error".
+    // It now demands success outright: an exact status, not a wide range.
     const sync = await req('POST', '/api/admin/sync', null, bearer(tok));
     ok('sync (200)', sync.status === 200, 'status ' + sync.status);
     ok('sync يذكر المصدر', Boolean(sync.json && sync.json.source), JSON.stringify(sync.json));

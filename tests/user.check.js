@@ -1,17 +1,19 @@
 #!/usr/bin/env node
-// ملف المستخدم والمفضّلة والفواتير — مسارات بلا أي تغطية قبل هذا الملف.
+// Customer profile, wishlist and invoices - routes with no prior coverage.
 //
-// ما يحميه:
-//   /api/user/*      عناوين العميل وطلباته ومفضّلته — كلها خلف رمز جلسة.
-//   /api/invoices/*  للمديرين فقط. والتعليق في الكود يذكر أنهما كانا مكشوفين
-//                    بلا فحص جلسة، فكان أي زائر يعدّ أرقاماً متسلسلة صغيرة
-//                    ليقرأ طلب عميل آخر، أو يسجّل دفعاً بمبلغ يختاره. الفحص
-//                    هنا حارسٌ على ذلك الإصلاح كي لا يعود.
+// What it guards:
+//   /api/user/*      a customer's addresses, orders and wishlist - all behind
+//                    a session token.
+//   /api/invoices/*  admins only. The comments in the code note that both were
+//                    once reachable with no session check, so any visitor could
+//                    walk small sequential ids to read another customer's order,
+//                    or record a payment for an amount of their choosing. These
+//                    checks stand guard over that fix.
 //
-// بيئة محكمة: بلا Postgres وبلا أودو — مخزن ملفّي وكتالوج تجريبي.
-// وأرقام جديدة في كل تشغيل، لأن المخزن يبقى بين التشغيلات.
+// Hermetic environment: no Postgres, no Odoo - file store and demo catalogue.
+// Fresh phone numbers on every run, because the store survives between runs.
 //
-// يُشغّل مع بقية الاختبارات: npm test
+// Runs with the rest: npm test
 
 const http = require('http');
 const { startTestServer } = require('./_server');
@@ -59,7 +61,7 @@ function req(method, urlPath, body, headers = {}) {
           try {
             json = JSON.parse(raw);
           } catch {
-            /* غير JSON */
+            /* not JSON */
           }
           resolve({ status: res.statusCode, json });
         });

@@ -1,19 +1,21 @@
-// مُشغّل خادم الاختبار — واحد لكل الاختبارات.
+// Test server launcher - one for every test.
 //
-// نشأ من عطلين حقيقيين وقعا فعلاً:
+// Born out of two real failures:
 //
-// ١. وراثة البيئة. كان كل اختبار يمرّر process.env كما هي، فيقرأ الخادم
-//    المُولَّد ملف .env ومعه DATABASE_URL المُوجّه إلى Postgres على المضيف —
-//    لا وجود له على جهاز تطوير، فيموت عند migrate. وstderr كان يُبتلع، فيظهر
-//    العطل كـECONNREFUSED بلا سبب.
+// 1. Inherited environment. Each test passed process.env straight through, so
+//    the spawned server read .env and with it DATABASE_URL, pointing at the
+//    Postgres on the host - which exists on no development machine, so it died
+//    in migrate. stderr was swallowed, and the failure surfaced as a bare
+//    ECONNREFUSED with no cause.
 //
-// ٢. الخادم اليتيم. server.kill() على ويندوز لا يقتل دائماً، فيبقى خادم من
-//    تشغيل سابق يستمع على المنفذ. الاختبار التالي يفشل في الحجز بصمت —
-//    ويتحدّث إلى ذلك الغريب. فكان smoke.test.js ينجح شهوراً وهو يختبر كوداً
-//    قديماً لا الكود الذي في المستودع.
+// 2. The orphaned server. server.kill() on Windows does not always kill, so a
+//    server from an earlier run kept listening on the port. The next test
+//    failed to bind, silently - and talked to that stranger instead. That is
+//    how smoke.test.js passed for months while testing old code rather than
+//    what is in the repository.
 //
-// ولذلك هنا حارسان: بيئة محكمة، ورفضٌ صريح للانطلاق إن كان المنفذ مشغولاً.
-// الفشل الصريح أرحم من نجاحٍ كاذب.
+// Hence two guards here: a hermetic environment, and a flat refusal to start
+// when the port is busy. An explicit failure is kinder than a false pass.
 
 'use strict';
 
@@ -24,7 +26,7 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 
-/** هل يستمع أحد على هذا المنفذ الآن؟ */
+/** Is anyone listening on this port right now? */
 function portBusy(port) {
   return new Promise((resolve) => {
     const socket = net.connect({ host: '127.0.0.1', port });
@@ -54,13 +56,16 @@ function ping(port) {
 }
 
 /**
- * يُقلع خادماً محكماً على `port` ويعيده مع مرجع إلى خرجه.
+ * Starts a hermetic server on `port` and returns it with a handle on its output.
  *
- * البيئة الافتراضية تُفرّغ كل ما يربط الخادم بالعالم: قاعدة البيانات وأودو
- * ورمز واتساب. فالمخزن ملفّي، والكتالوج تجريبي، ورمز التحقّق يُطبع في السجلّ
- * بدل إرساله — يكتمل كل تدفّق بلا تكلفة ولا أثر خارجي.
+ * The default environment empties everything that ties the server to the outside
+ * world: the database, Odoo, and the WhatsApp token. So the store is file-backed,
+ * the catalogue is the demo one, and the verification code is printed to the log
+ * instead of being sent - every flow completes at no cost and with no external
+ * trace.
  *
- * `env` يضيف أو يتجاوز. و`out` كائن يحمل `text` المتراكم كي يقرأه الاختبار.
+ * `env` adds to or overrides that. `out` carries the accumulated `text` for the
+ * test to read.
  */
 async function startTestServer({ port, env = {} } = {}) {
   if (await portBusy(port)) {

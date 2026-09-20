@@ -181,8 +181,9 @@ function validateOrder(order, allProducts) {
   for (const item of items) {
     const product = Number.isInteger(item.productId) ? productById.get(item.productId) : null;
     if (!product || product.enabled === false) return 'منتج غير موجود';
-    // بلا هذا السطر يبقى المنتج غير المسعَّر قابلاً للطلب وإن غاب عن القائمة:
-    // معرّفه محفوظ في كاش التطبيق، ويكفي طلبٌ واحد ليُشترى بدينار.
+    // Without this line an unpriced product stays orderable even after it has
+    // left the public list: its id is cached in the app, and one request is
+    // enough to buy it for a dinar.
     if (!isOfferable(product)) return 'هذا المنتج غير متاح للطلب';
     if (COMING_SOON_CATEGORIES.has(product.category)) return 'هذا المنتج غير متاح للطلب بعد';
     if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) {
@@ -214,7 +215,7 @@ async function requireAdmin(req, res) {
   return user;
 }
 
-/* المساعدات تُحقَن مرةً واحدة عند الإقلاع لا مع كل طلب. */
+/* Helpers are injected once at boot, not on every request. */
 const handleAuthRoutes = createAuthRoutes({ isValidPhone });
 const handleOrderRoutes = createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin });
 const handleAdminRoutes = createAdminRoutes({ requireAdmin, deleteUploadedFile });
@@ -240,13 +241,13 @@ async function handleApi(req, res, url) {
     return res.end(buf);
   }
 
-  // --- الطلبات والفواتير ---
-  // في src/routes/orders.js.
+  // --- Orders and invoices ---
+  // In src/routes/orders.js.
   const orderResult = await handleOrderRoutes(req, res, url);
   if (orderResult !== ORDER_NOT_HANDLED) return orderResult;
 
   // --- User Authentication ---
-  // العشرة نفسها في src/routes/auth.js — نُقلت كما هي والموجّه يفوّض إليها.
+  // The same ten, in src/routes/auth.js - moved verbatim, the router delegates.
   const authResult = await handleAuthRoutes(req, res, url);
   if (authResult !== AUTH_NOT_HANDLED) return authResult;
 
@@ -281,13 +282,13 @@ async function handleApi(req, res, url) {
 
     return sendJson(res, 200, { message: 'تم تسجيل الجهاز' });
   }
-  // --- ملف العميل ---
-  // في src/routes/user.js.
+  // --- Customer profile ---
+  // In src/routes/user.js.
   const userResult = await handleUserRoutes(req, res, url);
   if (userResult !== USER_NOT_HANDLED) return userResult;
 
-  // ===================== لوحة التحكم =====================
-  // التسعة عشر نفسها في src/routes/admin.js.
+  // ===================== Dashboard =====================
+  // The same nineteen, in src/routes/admin.js.
   const adminResult = await handleAdminRoutes(req, res, url);
   if (adminResult !== ADMIN_NOT_HANDLED) return adminResult;
 
@@ -357,8 +358,9 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, {
       ok: true,
       odooConfigured: odoo.isConfigured(),
-      // أي مخزن يخدم فعلاً — تطابقه مهمّة المزامنة في cron
-      // (scripts/cron-order-sync.sh): بيئة cron لا ترث بيئة التطبيق.
+      // Which store is actually serving - the cron sync job
+      // (scripts/cron-order-sync.sh) must match it: cron does not inherit
+      // the application's environment.
       store: db.isConfigured() ? 'postgres' : 'files',
       ...(DEPLOYED ? { version: DEPLOYED.commit, deployedAt: DEPLOYED.at } : {}),
     });

@@ -1,21 +1,24 @@
 #!/usr/bin/env node
-// مسارات الحساب من طرفٍ إلى طرف — src/routes/auth.js.
+// Account routes, end to end - src/routes/auth.js.
 //
-// ما يحميه: smoke.test.js يغطي register وlogin وme وحدها، فبقيت ستة مسارات
-// بلا أي تغطية: رمزا التسجيل والاستعادة، وتغيير الكلمة، والخروج، وحذف
-// الحساب. وهي أكثر ما يُكسَر صامتاً، لأن العميل يرى رسالة واحدة ثابتة مهما
-// حدث — عمداً، كي لا تصير النقطة وسيلة لمعرفة الأرقام المسجّلة.
+// What it guards: smoke.test.js covers register, login and me only, leaving
+// six routes with no coverage at all - the signup and recovery codes, the
+// password change, logout, and account deletion. Those are the likeliest to
+// break in silence, because the client sees one constant message whatever
+// happens - deliberately, so the endpoint cannot be used to learn which
+// numbers are registered.
 //
-// الخادم يُولَّد ببيئة محكمة: بلا Postgres وبلا أودو وبلا رمز واتساب — فيعمل
-// على المخزن الملفّي، ويُطبع رمز التحقّق في السجلّ بدل إرساله، فيكتمل
-// التدفّق بلا تكلفة ولا رسالة إلى هاتف أحد.
+// The server is spawned hermetically: no Postgres, no Odoo, no WhatsApp token.
+// So it runs on the file store, and the verification code is printed to the
+// log instead of being sent - the whole flow completes at no cost and with no
+// message to anyone's phone.
 //
-// يُشغّل مع بقية الاختبارات: npm test
+// Runs with the rest: npm test
 
 const http = require('http');
 const { startTestServer } = require('./_server');
 
-/** خرج الخادم — codeFor يقرأه وهو خارج run، فيُعلَن هنا. */
+/** Server output - codeFor reads it from outside run(), so it is declared here. */
 let out = { text: '' };
 
 const PORT = process.env.TEST_PORT || 3196;
@@ -58,7 +61,7 @@ function req(method, urlPath, body, headers = {}) {
           try {
             json = JSON.parse(raw);
           } catch {
-            /* غير JSON */
+            /* not JSON */
           }
           resolve({ status: res.statusCode, json });
         });
@@ -70,7 +73,7 @@ function req(method, urlPath, body, headers = {}) {
   });
 }
 
-/** آخر رمز طُبع لهذا الرقم في وضع التجربة. */
+/** The last code printed for this number in demo mode. */
 function codeFor(intl) {
   const hits = [...out.text.matchAll(/OTP demo\] (\d+) -> (\d{6})/g)].filter((m) => m[1] === intl);
   return hits.length ? hits[hits.length - 1][2] : null;

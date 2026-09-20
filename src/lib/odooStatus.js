@@ -1,26 +1,27 @@
-// آخر عطل في أودو — يُعرض على المدير كي يكون الاتصال السيّئ قابلاً للتشخيص.
+// Last Odoo failure, surfaced to admins so a bad connection is diagnosable.
 //
-// كان `let lastOdooError` في src/server.js: حالة متغيّرة يكتبها جلبُ المنتجات
-// ومسارُ الدعم، وتقرأها لوحة التحكّم. ما دام الجميع في ملف واحد كان ذلك
-// يمرّ، لكن تقسيم الموجّه يكشفه — فلا يمكن تمرير قيمة متغيّرة إلى وحدة أخرى
-// دون أن تتجمّد على ما كانت عليه لحظة التمرير.
+// This was `let lastOdooError` in src/server.js: mutable state written by the
+// product fetch and the support route, read by the dashboard. That worked
+// while everything lived in one file, but splitting the router exposed it —
+// a mutable value cannot be handed to another module without freezing at
+// whatever it held the moment it was passed.
 //
-// فصار للحالة مالكٌ صريح. لا مشاركة ضمنية عبر نطاق الملف، ولا دالة قراءة
-// تُحقَن لتعويض ذلك.
+// So the state got an explicit owner. No implicit sharing through file scope,
+// and no reader function injected to paper over it.
 
 let last = null;
 
-/** يسجّل عطلاً بوقته. */
+/** Records a failure with its timestamp. */
 function record(err) {
   last = { message: err.message, at: new Date().toISOString() };
 }
 
-/** يُمسح عند أول جلب ناجح — العطل القديم لا يبقى معروضاً بعد التعافي. */
+/** Cleared on the first successful fetch — a stale failure must not keep showing. */
 function clear() {
   last = null;
 }
 
-/** آخر عطل، أو null إن لم يقع شيء منذ آخر نجاح. */
+/** The last failure, or null if nothing has gone wrong since the last success. */
 function get() {
   return last;
 }

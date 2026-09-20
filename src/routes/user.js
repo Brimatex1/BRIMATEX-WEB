@@ -1,11 +1,12 @@
 /**
- * ملف العميل — عناوينه وطلباته ومفضّلته.
+ * Customer profile - addresses, orders and wishlist.
  *
- * خمسة مسارات يجمعها شرط واحد: لا يُقرأ ولا يُكتب شيء إلا برمز جلسة
- * صالح، وملكُ البيانات يُستنبط من الجلسة لا من الطلب — فلا يقرأ عميلٌ عناوين
- * عميلٍ آخر بتبديل معرّف في المسار. يحميه tests/user.check.js.
+ * Five routes sharing one condition: nothing is read or written without a
+ * valid session token, and ownership is derived from the session rather than
+ * the request - so no customer reads another's addresses by swapping an id in
+ * the path. Guarded by tests/user.check.js.
  *
- * نُقلت كما هي من handleApi بلا تغيير منطقٍ واحد.
+ * Moved verbatim out of handleApi with no logic change.
  */
 'use strict';
 
@@ -13,7 +14,7 @@ const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const { sendJson, readBody } = require('../lib/respond');
 
-/** مثل نظيرتها في routes/auth.js — انظر شرحها هناك. */
+/** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('user-route-not-handled');
 
 async function handleUserRoutes(req, res, url) {

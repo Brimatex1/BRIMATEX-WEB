@@ -1,15 +1,17 @@
 #!/usr/bin/env node
-// النقاط العمياء — خمسة مسارات لم يكن أيٌّ منها مذكوراً في أي اختبار.
+// The blind spots - five routes that no test mentioned.
 //
-// لماذا هذا الملف: تقسيم server.js إلى وحدات كشف عطلاً من صنف بعينه —
-// مسارٌ يشير إلى معرّف لم يعد في نطاقه، فيرمي ReferenceError ويردّ 502
-// بينما الحزمة كلها خضراء. وُجد واحد منه فعلاً (productCache في مسارات
-// الإدارة). وثلاثة من الخمسة هنا في الوحدة نفسها.
+// Why this file: splitting server.js into modules exposed a particular class of
+// bug - a route referring to an identifier no longer in its scope, throwing
+// ReferenceError and returning 502 while the whole suite stayed green. One was
+// found for real (productCache, in the admin routes). Three of the five here
+// are in that same module.
 //
-// والقاعدة المستفادة مطبّقة هنا: رمزٌ دقيق لا مدى واسع. فحصٌ يقبل
-// «أي شيء بين ٤٠٠ و٥٩٩» يبتلع بالضبط العطل الذي نبحث عنه.
+// The lesson learned is applied: an exact status, not a wide range. A check
+// that accepts "anything between 400 and 599" swallows precisely the bug we
+// are looking for.
 //
-// يُشغّل مع بقية الاختبارات: npm test
+// Runs with the rest: npm test
 
 const http = require('http');
 const { startTestServer } = require('./_server');
@@ -58,7 +60,7 @@ function req(method, urlPath, body, headers = {}) {
           try {
             json = JSON.parse(raw);
           } catch {
-            /* غير JSON */
+            /* not JSON */
           }
           resolve({ status: res.statusCode, json });
         });

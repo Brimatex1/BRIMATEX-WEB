@@ -1,12 +1,13 @@
 /**
- * أدوات HTTP مشتركة — الردّ وقراءة الجسم.
+ * Shared HTTP helpers — replying, and reading a request body.
  *
- * كانتا في src/server.js فتُحقَنان في كل وحدة مسارات. وهما دالتان نقيتان
- * بلا حالة ولا اعتماد على شيء في الخادم — فالحقن كان ضريبة موضِع لا ضرورة
- * تصميم. صارتا وحدةً تُستورد مباشرةً.
+ * These lived in src/server.js and were injected into every route module.
+ * They are pure functions with no state and no dependency on anything in the
+ * server, so the injection was a tax on where they happened to sit, not a
+ * design requirement. They are a module now, required directly.
  *
- * ترويسات الأمان في sendJson تلزم كل ردّ JSON لا بعضه، ووجودها في مكان
- * واحد هو ما يضمن ذلك.
+ * The security headers in sendJson belong on every JSON reply, not some of
+ * them, and keeping them in one place is what guarantees that.
  */
 'use strict';
 

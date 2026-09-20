@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// تفرّد الطلبات — POST /api/orders لا يصنع طلبين لمحاولة دفع واحدة.
+// Order idempotency - POST /api/orders must not create two orders for one
+// checkout attempt.
 //
-// السيناريو الذي يحميه: الطلب يصل الخادم ويُسجَّل، ثم تنقطع الشبكة قبل أن
-// يصل الرد إلى الهاتف. التطبيق يرى انتهاء المهلة فيُبقي السلة ويعرض «حاول
-// مجدداً»، والضغطة الثانية تحمل المفتاح نفسه — فيجب أن يردّ الخادم بالطلب
-// الأول لا أن يفتح ثانياً.
+// The scenario it protects: the order reaches the server and is recorded, then
+// the network drops before the reply gets back to the phone. The app sees a
+// timeout, keeps the cart and shows "try again", and the second tap carries the
+// same key - so the server must return the first order rather than opening a
+// second one.
 //
-// يشغَّل مع بقية الاختبارات: npm test
+// Runs with the rest: npm test
 
 const http = require('http');
 const path = require('path');
@@ -51,7 +53,7 @@ function request(method, urlPath, body) {
           try {
             json = JSON.parse(raw);
           } catch {
-            /* غير JSON */
+            /* not JSON */
           }
           resolve({ status: res.statusCode, json, body: raw });
         });
@@ -83,8 +85,9 @@ async function run() {
     const product = (products.json?.products || []).find((p) => p.enabled !== false);
     if (!product) throw new Error('لا منتجات في الكتالوج');
 
-    // لا تخطّي بعد اليوم: الخادم مُولَّد بلا بيانات أودو (انظر بيئة spawn
-    // أعلاه)، فالطلبات تقع على الكتالوج التجريبي والمخزن الملفّي وحدهما.
+    // No skipping any more: the server is spawned with no Odoo credentials (see
+    // the spawn environment above), so orders land on the demo catalogue and the
+    // file store alone.
 
     const order = { customer, items: [{ productId: product.id, quantity: 1 }] };
     const key = `req_test_${Date.now().toString(36)}`;
