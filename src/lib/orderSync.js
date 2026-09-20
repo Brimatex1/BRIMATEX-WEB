@@ -1,22 +1,25 @@
-// مزامنة حالات الطلبات من أودو — ومنها تُرسل الإشعارات.
+// Syncing order stages from Odoo - and sending notifications from there.
 //
-// لماذا وُجدت: الإشعار كان يُرسل فقط حين تتغيّر الحالة من لوحة إدارة المتجر
-// (‎PATCH /api/admin/orders/:name‎ أو تسجيل دفعة). لكن الفريق يعمل في أودو،
-// فتأكيد الفاتورة أو تسجيل الدفع يحدث هناك ولا يعلم به المتجر — فلا يصل
-// العميل إشعارٌ عن طلبٍ تغيّرت حالته فعلاً. هذه الحلقة تقرأ أودو دورياً،
-// تُحدّث السجلّ المحلي، وتنادي push.notifyOrderStage على ما تبدّل.
+// Why it exists: a notification only went out when the stage changed from the
+// shop's dashboard (PATCH /api/admin/orders/:name, or recording a payment). But
+// the team works in Odoo, so confirming an invoice or recording a payment
+// happens there and the shop never learns of it - and the customer gets no
+// notification about an order whose stage genuinely changed. This loop reads
+// Odoo periodically, updates the local record, and calls push.notifyOrderStage
+// for whatever moved.
 //
-// المنطق منفصل عن السكربت (scripts/sync-order-status.js) كي يُختبَر بعميل
-// أودو مُستعار بلا شبكة ولا خادم.
+// The logic is kept apart from the script (scripts/sync-order-status.js) so it
+// can be tested with a stand-in Odoo client, with no network and no server.
 
 const DONE_STAGES = new Set(['done', 'cancelled']);
 
 /**
- * حالة الفاتورة في أودو → حقول السجلّ المحلي.
+ * Odoo invoice state -> local record fields.
  *
- * `state` في account.move: draft | posted | cancel. والدفع في أودو الحديث
- * حقلٌ منفصل (`payment_state`)، ولهذا لا يكفي `state` وحده — قراءته وحدها
- * كانت ستُبقي كل طلب مدفوع في «في الطريق» إلى الأبد.
+ * `state` on account.move is draft | posted | cancel. Payment in modern Odoo is
+ * a separate field (`payment_state`), which is why `state` alone is not enough -
+ * reading only it would have left every paid order stuck in "on its way"
+ * forever.
  */
 function updatesFromInvoice(inv) {
   if (!inv) return null;
@@ -32,21 +35,23 @@ function updatesFromInvoice(inv) {
   return updates;
 }
 
-/** ما يستحقّ سؤال أودو عنه: طلبٌ لم ينته بعد وله فاتورة في أودو. */
+/** Worth asking Odoo about: an order not finished yet that has an invoice there. */
 function needsCheck(order, stageOf) {
   return Boolean(order?.odooInvoiceId) && !DONE_STAGES.has(stageOf(order));
 }
 
 /**
- * يمرّ على الطلبات غير المنتهية، يسأل أودو عن فواتيرها، ويُحدّث ما تبدّل.
+ * Walks the unfinished orders, asks Odoo about their invoices, and updates
+ * whatever moved.
  *
- * `deps` تُمرَّر كاملةً كي يعمل الاختبار بعميلٍ مُستعار:
+ * `deps` is passed in whole so the test can run with a stand-in client:
  *   odoo    { isConfigured, readInvoice(id) → { state, paymentState } | null }
  *   orders  { listOrders, updateOrder }
  *   push    { notifyOrderStage, stageOf }
  *
- * لا يرمي أبداً: خطأٌ في طلبٍ واحد (فاتورة محذوفة، انقطاع شبكة) لا يوقف
- * الباقي، فمهمّة cron لا تصير صامتة بسبب سجلٍّ واحد فاسد.
+ * Never throws: a failure on one order (a deleted invoice, a network drop)
+ * must not stop the rest, so the cron job does not fall silent over one bad
+ * record.
  */
 async function syncOrderStatuses({ odoo, orders, push, limit = 200, log = () => {} }) {
   const summary = { checked: 0, changed: 0, notified: 0, failed: 0, skipped: 0 };
@@ -82,7 +87,7 @@ async function syncOrderStatuses({ odoo, orders, push, limit = 200, log = () => 
     const after = { ...order, ...updates };
     if (push.stageOf(after) === push.stageOf(before)) continue;
 
-    // التاريخ يُكتب عند الانتقال إلى «مدفوع» فقط، ولا يُلمس بعدها.
+    // The timestamp is written only on the move to paid, and never touched after.
     if (updates.paymentStatus === 'paid' && !order.paidAt) {
       updates.paidAt = new Date().toISOString();
     }

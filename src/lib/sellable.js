@@ -32,28 +32,32 @@ function isSellable(product) {
   return Number.isFinite(price) && price > UNPRICED;
 }
 
-// ── قرار تجاري، لا نظافة بيانات ──
+// -- A commercial decision, not data hygiene --
 //
-// قوالب الإسفنج لا تُباع عبر الإنترنت: تُباع في المصنع، ويبقى المتجر —
-// الموقع والتطبيق كلاهما — للمراتب والفرشات. القاعدة كانت في التطبيق وحده
-// (‎src/api.ts:isSoldInApp‎) والموقع يعرضها، فصارت هنا: الخادم مصدرٌ واحد
-// يوافق عليه القناتان، ولا تحتاج القاعدة إلى تحديث نسخة تطبيق كي تسري.
+// Foam blocks are not sold online: they are sold at the factory, and the shop -
+// website and app alike - stays for mattresses and toppers. The rule used to
+// live in the app alone (src/api.ts:isSoldInApp) while the website showed them,
+// so it moved here: the server is one source both channels agree on, and the
+// rule no longer needs an app release to take effect.
 //
-// التمييز بالاسم لأن أودو لا يعطينا تصنيفات متجر — كل منتج يعود
-// ‎category: 'mattress'‎ مهما كان. وكل القوالب العشرة في الكتالوج تبدأ
-// بـ«قالب اسفنج» (تحقّقنا: لا اسمٌ آخر في الكتالوج يحمل الكلمة، والفرشات
-// تبقى لأن أسماءها «فرشة …»). فإن سُمّي منتجٌ يوماً «مرتبة بإسفنج ميموري»
-// فسيُحجب خطأً — ولذلك القاعدة بالاسم مؤقّتة حتى يحمل أودو تصنيفاً حقيقياً.
+// Matching by name, because Odoo gives us no shop categories - every product
+// comes back as category: 'mattress' whatever it is. All ten blocks in the
+// catalogue start with "قالب اسفنج" (checked: no other name in the catalogue
+// carries the word, and the toppers stay because theirs read "فرشة ..."). If a
+// product is ever named "مرتبة بإسفنج ميموري" it will be hidden by mistake -
+// which is why matching by name is temporary, until Odoo carries a real
+// category.
 const NOT_SOLD_ONLINE = /إسفنج|اسفنج|foam/i;
 
-/** ما يُباع عبر الإنترنت. القوالب تُستثنى بقرار المالك. */
+/** What is sold online. Blocks are excluded by the owner's decision. */
 function isSoldOnline(product) {
   return !NOT_SOLD_ONLINE.test(String(product?.name ?? ''));
 }
 
 /**
- * ما يُعرض ويُطلب فعلاً: سجلٌّ مُسعَّر **و** مسموحٌ بيعه هنا. تُستدعى من
- * ‎visibleOnly‎ ومن ‎validateOrder‎ كلتيهما — الإخفاء وحده لا يمنع الطلب.
+ * What is actually shown and orderable: a priced record **and** one allowed to
+ * be sold here. Called from `visibleOnly` and from `validateOrder` both -
+ * hiding alone does not prevent an order.
  */
 function isOfferable(product) {
   return isSellable(product) && isSoldOnline(product);

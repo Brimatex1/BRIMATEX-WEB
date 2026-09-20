@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-// مزامنة حالات الطلبات من أودو — src/lib/orderSync.js
+// Order stage sync from Odoo - src/lib/orderSync.js
 //
-// الحالة التي يحميها: الفريق يعمل في أودو، فتأكيد الفاتورة أو تسجيل الدفع
-// يحدث هناك. قبل هذه الحلقة كان الإشعار يُرسل فقط حين تتغيّر الحالة من لوحة
-// إدارة المتجر — فطلبٌ خرج للتوصيل في أودو لا يعرف عنه العميل شيئاً.
+// What it guards: the team works in Odoo, so confirming an invoice or recording
+// a payment happens there. Before this loop a notification only went out when
+// the stage changed from the shop's dashboard - so an order that left for
+// delivery in Odoo told the customer nothing.
 //
-// كل شيء هنا بعميل أودو مُستعار: لا شبكة، ولا خادم، ولا فاتورة حقيقية.
+// Everything here runs against a stand-in Odoo client: no network, no server,
+// no real invoice.
 //
-// يشغَّل مع بقية الاختبارات: npm test
-
+// Runs with the rest: npm test
 const { syncOrderStatuses, updatesFromInvoice, needsCheck } = require('../src/lib/orderSync');
 const realPush = require('../src/lib/push');
 
@@ -31,7 +32,7 @@ function group(title) {
   console.log(`\n\x1b[1m${title}\x1b[0m`);
 }
 
-/** متجرٌ في الذاكرة ودفترُ إشعارات — نفس أسماء الدوال الحقيقية. */
+/** An in-memory store and a notification log - same function names as the real ones. */
 function harness(initial) {
   const store = initial.map((o) => ({ ...o }));
   const sent = [];
@@ -81,8 +82,8 @@ check('مؤكّدة ومدفوعة → posted/paid', (() => {
 })());
 check('ملغاة → cancel', updatesFromInvoice({ state: 'cancel', paymentState: 'not_paid' }).invoiceStatus === 'cancel');
 check('مسوّدة → draft', updatesFromInvoice({ state: 'draft', paymentState: '' }).invoiceStatus === 'draft');
-// أودو القديم لا يملك payment_state، فتُقرأ الفاتورة بلا الحقل: لا يجوز أن
-// يُفهم غيابه «مدفوع».
+// Older Odoo has no payment_state, so the invoice reads back without the field:
+// its absence must never be taken to mean paid.
 check('بلا payment_state (أودو قديم) → غير مدفوع', updatesFromInvoice({ state: 'posted' }).paymentStatus === 'unpaid');
 check('دفعٌ جزئي ليس مدفوعاً', updatesFromInvoice({ state: 'posted', paymentState: 'partial' }).paymentStatus === 'unpaid');
 check('فاتورة معدومة → null', updatesFromInvoice(null) === null);
@@ -94,7 +95,7 @@ check('طلب مكتمل → لا', !needsCheck({ odooInvoiceId: 5, paymentStatu
 check('طلب ملغى → لا', !needsCheck({ odooInvoiceId: 5, invoiceStatus: 'cancel' }, realPush.stageOf));
 check('طلب تجريبي بلا فاتورة أودو → لا', !needsCheck({ invoiceStatus: 'draft' }, realPush.stageOf));
 
-// الباقي غير متزامن: Node لا يقبل await في جذر ملف CommonJS.
+// The rest is async: Node does not allow await at the top level of a CommonJS file.
 async function main() {
 group('3. المزامنة تُحدّث وتُشعر');
 {
@@ -105,9 +106,9 @@ group('3. المزامنة تُحدّث وتُشعر');
   ]);
   const summary = await syncOrderStatuses({
     odoo: odooWith({
-      1: { state: 'posted', paymentState: 'not_paid' }, // خرج للتوصيل
-      2: { state: 'posted', paymentState: 'paid' }, // سُلّم ودُفع
-      3: { state: 'draft', paymentState: 'not_paid' }, // لا جديد
+      1: { state: 'posted', paymentState: 'not_paid' }, // left for delivery
+      2: { state: 'posted', paymentState: 'paid' }, // delivered and paid
+      3: { state: 'draft', paymentState: 'not_paid' }, // nothing new
     }),
     orders: h.orders,
     push: h.push,
@@ -143,7 +144,7 @@ group('5. الأعطاب لا تُوقف الباقي');
   const summary = await syncOrderStatuses({
     odoo: odooWith({
       10: new Error('انقطاع شبكة'),
-      11: null, // فاتورة محذوفة من أودو
+      11: null, // invoice deleted in Odoo
       12: { state: 'posted', paymentState: 'paid' },
     }),
     orders: h.orders,

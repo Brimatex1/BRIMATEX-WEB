@@ -287,16 +287,17 @@ async function getInvoiceStatus(invoiceId) {
 }
 
 /**
- * الحالة الخام للفاتورة: تأكيدها ودفعها منفصلان في أودو.
+ * The invoice's raw state: in Odoo, confirming it and paying it are separate.
  *
- * `state` ∈ draft | posted | cancel، والدفع في `payment_state`
- * (not_paid | in_payment | partial | paid | reversed). getInvoiceStatus أعلاه
- * يقرأ `state` وحده ويتوقّع فيه 'paid' — وهي قيمة لا تظهر في أودو الحديث،
- * فلا يكفي لمعرفة أنّ الطلب سُلّم ودُفع. تُستعمل هذه في مزامنة الحالات
- * (src/lib/orderSync.js) وترجع القيم كما هي بلا تفسير.
+ * `state` is one of draft | posted | cancel, and payment lives in
+ * `payment_state` (not_paid | in_payment | partial | paid | reversed).
+ * getInvoiceStatus above reads `state` alone and expects 'paid' in it - a value
+ * modern Odoo never returns, so it cannot tell that an order was delivered and
+ * paid. This one is used by the status sync (src/lib/orderSync.js) and returns
+ * the values untouched, without interpreting them.
  *
- * `payment_state` غير موجود في الإصدارات القديمة، فتُعاد القراءة بلا هذا
- * الحقل بدل أن تفشل المزامنة كلها.
+ * `payment_state` does not exist in older versions, so the read is retried
+ * without that field rather than letting the whole sync fail.
  */
 async function readInvoice(invoiceId) {
   let rows;
