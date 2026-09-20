@@ -30,6 +30,7 @@ const odooStatus = require('./lib/odooStatus');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
 const { createOrderRoutes, NOT_HANDLED: ORDER_NOT_HANDLED } = require('./routes/orders');
+const { createUserRoutes, NOT_HANDLED: USER_NOT_HANDLED } = require('./routes/user');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -335,6 +336,7 @@ async function requireAdmin(req, res) {
 
 /* المساعدات تُحقَن مرةً واحدة عند الإقلاع لا مع كل طلب. */
 const handleAuthRoutes = createAuthRoutes({ sendJson, readBody, isValidPhone });
+const handleUserRoutes = createUserRoutes({ sendJson, readBody });
 const handleOrderRoutes = createOrderRoutes({
   sendJson,
   readBody,
@@ -414,113 +416,10 @@ async function handleApi(req, res, url) {
 
     return sendJson(res, 200, { message: 'تم تسجيل الجهاز' });
   }
-  // --- User Profile ---
-  if (req.method === 'POST' && url.pathname === '/api/user/addresses') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = await auth.verifySession(token);
-    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
-
-    const body = await readBody(req);
-    let payload;
-    try {
-      payload = JSON.parse(body);
-    } catch {
-      return sendJson(res, 400, { error: 'JSON غير صالح' });
-    }
-    const { address, city } = payload;
-    if (!address?.trim() || !city?.trim()) {
-      return sendJson(res, 400, { error: 'العنوان والمدينة مطلوبة' });
-    }
-
-    const newAddr = await auth.addAddress(session.userId, {
-      address: address.trim(),
-      city: city.trim(),
-    });
-    if (!newAddr) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
-
-    return sendJson(res, 201, { message: 'تم إضافة العنوان بنجاح', address: newAddr });
-  }
-
-  if (req.method === 'DELETE' && url.pathname.startsWith('/api/user/addresses/')) {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = await auth.verifySession(token);
-    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
-
-    const addressId = url.pathname.split('/').pop();
-    await auth.removeAddress(session.userId, addressId);
-
-    return sendJson(res, 200, { message: 'تم حذف العنوان بنجاح' });
-  }
-
-  // --- Orders ---
-  if (req.method === 'GET' && url.pathname === '/api/user/orders') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = await auth.verifySession(token);
-    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
-
-    const entries = await orders.listOrdersForUser(session.userId);
-    const result = entries.map((o) => ({
-      orderName: o.orderName,
-      invoiceName: o.invoiceName,
-      invoiceStatus: o.invoiceStatus || 'draft',
-      paymentStatus: o.paymentStatus || 'unpaid',
-      total: o.total || 0,
-      items: Array.isArray(o.items) ? o.items : [],
-      note: o.note || '',
-      city: o.customer?.city || '',
-      address: o.customer?.address || '',
-      placedAt: o.placedAt,
-      paidAt: o.paidAt || null,
-    }));
-
-    return sendJson(res, 200, { orders: result });
-  }
-
-  // --- Wishlist ---
-  if (req.method === 'POST' && url.pathname === '/api/user/wishlist') {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = await auth.verifySession(token);
-    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
-
-    const body = await readBody(req);
-    let payload;
-    try {
-      payload = JSON.parse(body);
-    } catch {
-      return sendJson(res, 400, { error: 'JSON غير صالح' });
-    }
-    // Always store the id as a number so the DELETE lookup can match it.
-    const productId = Number(payload.productId);
-    if (!Number.isInteger(productId)) {
-      return sendJson(res, 400, { error: 'معرف المنتج مطلوب' });
-    }
-
-    await auth.addWishlistItem(session.userId, productId);
-
-    return sendJson(res, 201, { message: 'تم الإضافة للمفضلة' });
-  }
-
-  if (req.method === 'DELETE' && url.pathname.startsWith('/api/user/wishlist/')) {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
-    const session = await auth.verifySession(token);
-    if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
-
-    // The id arrives as a path string; stored ids are numbers. Compare as numbers
-    // or the filter never matches and nothing is ever removed.
-    const productId = Number(url.pathname.split('/').pop());
-    if (!Number.isInteger(productId)) {
-      return sendJson(res, 400, { error: 'معرف المنتج غير صالح' });
-    }
-
-    await auth.removeWishlistItem(session.userId, productId);
-
-    return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
-  }
+  // --- ملف العميل ---
+  // في src/routes/user.js.
+  const userResult = await handleUserRoutes(req, res, url);
+  if (userResult !== USER_NOT_HANDLED) return userResult;
 
   // ===================== لوحة التحكم =====================
   // التسعة عشر نفسها في src/routes/admin.js.
