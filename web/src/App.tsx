@@ -21,15 +21,20 @@ import { useCart } from '@/hooks/useCart';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
-import { initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
+import { disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
+import { parseRoute, routePath, type Route } from '@/lib/route';
 import type { Address, Category, Product, SectionId } from '@/types';
 
+const DEFAULT_TITLE = document.title;
+
 export default function App() {
-  const [section, setSection] = useState<SectionId>('home');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // The first screen comes from the address, so a link from an ad lands on it.
+  const [landing] = useState(() => parseRoute(window.location));
+  const [section, setSection] = useState<SectionId>(landing.section);
+  const [selectedId, setSelectedId] = useState<number | null>(landing.productId ?? null);
   const [justAddedId, setJustAddedId] = useState<number | null>(null);
-  const [shopCategory, setShopCategory] = useState<Category | 'all'>('all');
-  const [shopQuery, setShopQuery] = useState('');
+  const [shopCategory, setShopCategory] = useState<Category | 'all'>(landing.category ?? 'all');
+  const [shopQuery, setShopQuery] = useState(landing.query ?? '');
   const [cameFromShop, setCameFromShop] = useState(false);
 
   const catalogue = useProducts();
@@ -37,49 +42,73 @@ export default function App() {
   const auth = useAuth();
   const wishlist = useWishlist(auth.token, auth.user);
 
-  // Loads the admin-configured Pixel ID (if any) and fires the first PageView.
-  // A no-op when unconfigured — see lib/pixel.ts.
+  // Loads the admin-configured Pixel ID (if any). The first PageView is queued
+  // now, before the ViewContent of a product landing, so Meta receives them in
+  // page order once the Pixel is up. A no-op when unconfigured — see lib/pixel.ts.
   useEffect(() => {
+    trackPageView();
     api
       .getPixelConfig()
-      .then(({ pixelId }) => {
-        if (pixelId) initPixel(pixelId);
-        trackPageView();
-      })
-      .catch(() => {});
+      .then(({ pixelId }) => (pixelId ? initPixel(pixelId) : disablePixel()))
+      .catch(() => disablePixel());
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function navigate(next: SectionId) {
-    setSection(next);
+  /** Puts a route on screen. Shared by in-app navigation and the back button. */
+  function show(route: Route) {
+    setSection(route.section);
+    if (route.productId !== undefined) setSelectedId(route.productId);
+    if (route.section === 'shop') {
+      setShopCategory(route.category ?? 'all');
+      setShopQuery(route.query ?? '');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    // This SPA has no router — every section switch is the "virtual page
-    // load" equivalent, so a fresh PageView belongs here, not just on boot.
+    // Every screen change is a virtual page load, so it gets its own PageView.
     trackPageView();
   }
+
+  function go(route: Route) {
+    window.history.pushState(null, '', routePath(route));
+    show(route);
+  }
+
+  function navigate(next: SectionId) {
+    go({ section: next });
+  }
+
+  // The browser's back and forward buttons move between screens, not off the site.
+  useEffect(() => {
+    const onPop = () => show(parseRoute(window.location));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filters typed in the shop update its address in place - no history entry per keystroke.
+  useEffect(() => {
+    if (section !== 'shop') return;
+    const path = routePath({ section: 'shop', category: shopCategory, query: shopQuery });
+    if (path !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, '', path);
+    }
+  }, [section, shopCategory, shopQuery]);
 
   function openProduct(product: Product) {
     // Remembered so "back" returns where the visitor actually came from —
     // the shop listing, or the homepage when opened from a card there.
     setCameFromShop(section === 'shop');
-    setSelectedId(product.id);
-    navigate('product');
-    trackViewContent(product);
+    go({ section: 'product', productId: product.id });
   }
 
   /** Home category cards jump into the shop with that filter already applied. */
   function shopCategoryFrom(category: Category | 'all') {
-    setShopCategory(category);
-    setShopQuery('');
-    navigate('shop');
+    go({ section: 'shop', category, query: '' });
   }
 
   /** The homepage search box is the main way into the catalogue. */
   function searchFromHome(query: string) {
-    setShopQuery(query);
-    setShopCategory('all');
-    navigate('shop');
+    go({ section: 'shop', category: 'all', query });
   }
 
   function handleAdd(product: Product) {
@@ -111,6 +140,19 @@ export default function App() {
   }
 
   const selected = catalogue.products.find((p) => p.id === selectedId) ?? null;
+
+  // ViewContent fires here rather than on click, so a visitor who lands on a
+  // product straight from an ad counts too - once the catalogue has loaded.
+  const viewedId = section === 'product' ? selected?.id : undefined;
+  useEffect(() => {
+    if (!selected || viewedId === undefined) return;
+    trackViewContent(selected);
+    document.title = `${selected.name} — بريماتكس`;
+    return () => {
+      document.title = DEFAULT_TITLE;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedId]);
 
   return (
     <>
@@ -283,8 +325,8 @@ export default function App() {
         </div>
       </footer>
 
-      {/* خدمة العملاء في كل صفحات المتجر — العميل الذي يسأل عن طلبه يكون في «طلباتي»
-          لا في الرئيسية. لوحة الإدارة وحدها بلا نافذة. */}
+      {/* Customer care on every store page — a customer asking about an order is
+          on "my orders", not the homepage. Only the admin dashboard goes without. */}
       {section !== 'admin' && <SupportWidget user={auth.user} token={auth.token} />}
 
       <Toaster />

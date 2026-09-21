@@ -15,6 +15,12 @@ declare global {
 }
 
 let initialized = false;
+/**
+ * The Pixel ID arrives from the server a moment after the page loads, and a
+ * visitor landing on a product from an ad fires ViewContent before that. Such
+ * events wait here, then go out on init - or are dropped if no Pixel is set.
+ */
+let pending: [string, Record<string, unknown> | undefined][] | null = [];
 
 /** Inserts Meta's loader script and calls fbq('init', ...). Safe to call once. */
 export function initPixel(pixelId: string) {
@@ -42,11 +48,18 @@ export function initPixel(pixelId: string) {
   })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
   window.fbq?.('init', pixelId);
+  for (const [event, params] of pending ?? []) window.fbq?.('track', event, params);
+  pending = null;
+}
+
+/** No Pixel configured (or its config failed to load): stop holding events. */
+export function disablePixel() {
+  pending = null;
 }
 
 function track(event: string, params?: Record<string, unknown>) {
-  if (!initialized) return;
-  window.fbq?.('track', event, params);
+  if (initialized) window.fbq?.('track', event, params);
+  else pending?.push([event, params]);
 }
 
 export function trackPageView() {
