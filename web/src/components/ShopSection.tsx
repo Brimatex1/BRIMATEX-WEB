@@ -21,7 +21,6 @@ const TRUST = [
 const CATEGORIES: { id: Category | 'all'; label: string }[] = [
   { id: 'all', label: 'الكل' },
   { id: 'mattress', label: 'المراتب' },
-  { id: 'pillow', label: 'الوسائد' },
   { id: 'bedding', label: 'المفروشات' },
 ];
 

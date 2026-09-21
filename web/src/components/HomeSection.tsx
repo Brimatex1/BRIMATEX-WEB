@@ -30,14 +30,13 @@ const PROMISES = [
   { Icon: Wallet, title: 'ادفع عند الاستلام', body: 'لا تدفع ديناراً قبل أن تستلم.' },
 ];
 
-const CATEGORY_COPY: Record<Category, { title: string; body: string }> = {
+/** Categories shown as homepage cards. Pillows are not sold, so they get none. */
+const CATEGORY_ORDER = ['mattress', 'bedding'] as const satisfies readonly Category[];
+
+const CATEGORY_COPY: Record<(typeof CATEGORY_ORDER)[number], { title: string; body: string }> = {
   mattress: {
     title: 'المراتب',
     body: 'من الطبية الداعمة إلى الفاخرة متعددة الطبقات — لكل جسم مرتبة تناسبه.',
-  },
-  pillow: {
-    title: 'الوسائد',
-    body: 'دعم للرقبة يتشكّل حسب وضعية نومك ويعود لشكله كل صباح.',
   },
   bedding: {
     title: 'المفروشات',
@@ -45,10 +44,8 @@ const CATEGORY_COPY: Record<Category, { title: string; body: string }> = {
   },
 };
 
-const CATEGORY_ORDER: Category[] = ['mattress', 'pillow', 'bedding'];
-
 /** Shortcuts under the search box — the terms people actually type. */
-const QUICK_SEARCHES = ['مرتبة طبية', 'وسادة', 'ذاكرة', 'مقاس 180'];
+const QUICK_SEARCHES = ['مرتبة طبية', 'ذاكرة', 'مقاس 180'];
 
 interface HomeSectionProps {
   products: Product[];
@@ -140,7 +137,7 @@ export function HomeSection({
                   type="search"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder="ابحث عن مرتبة، وسادة، أو رقم منتج…"
+                  placeholder="ابحث عن مرتبة أو رقم منتج…"
                   // Trailing padding tracks the button, which shrinks to an
                   // icon on phones — a fixed pe-32 cut the placeholder off.
                   className="h-12 w-full rounded-full border border-input bg-card ps-11 pe-16 text-base shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-14 sm:ps-12 sm:pe-28"
