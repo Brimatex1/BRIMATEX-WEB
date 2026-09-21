@@ -107,11 +107,36 @@ export const api = {
       )
     ),
 
-  register: (name: string, phone: string, password: string) =>
+  /* Sign-up proves the phone first: request a WhatsApp code, trade it for a
+     single-use signupToken, then register with that token. The phone is never
+     sent to /register - the server reads it from the token, so nobody can
+     verify one number and register another. */
+
+  /** Always answers the same message, whether or not a code was sent. */
+  requestSignupOtp: (phone: string) =>
+    request<{ message: string }>('/api/auth/signup/otp/request', jsonBody({ phone })),
+
+  verifySignupOtp: (phone: string, code: string) =>
+    request<{ signupToken: string }>('/api/auth/signup/otp/verify', jsonBody({ phone, code })),
+
+  registerVerified: (name: string, password: string, signupToken: string) =>
     request<{ token: string; user: User }>(
       '/api/auth/register',
-      jsonBody({ name, phone, password })
+      jsonBody({ name, password, signupToken })
     ),
+
+  /* Password recovery: the same three steps, against an existing account. */
+
+  /** Always answers the same message, whether or not the number has an account. */
+  requestPasswordOtp: (phone: string) =>
+    request<{ message: string }>('/api/auth/otp/request', jsonBody({ phone })),
+
+  verifyPasswordOtp: (phone: string, code: string) =>
+    request<{ resetToken: string }>('/api/auth/otp/verify', jsonBody({ phone, code })),
+
+  /** Signs the user in: the server drops old sessions and returns a new one. */
+  resetPassword: (resetToken: string, password: string) =>
+    request<{ token: string; user: User }>('/api/auth/password', jsonBody({ resetToken, password })),
 
   login: (phone: string, password: string) =>
     request<{ token: string; user: User }>('/api/auth/login', jsonBody({ phone, password })),
