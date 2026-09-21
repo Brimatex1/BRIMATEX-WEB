@@ -49,7 +49,7 @@ export default function App() {
     trackPageView();
     api
       .getPixelConfig()
-      .then(({ pixelId }) => (pixelId ? initPixel(pixelId) : disablePixel()))
+      .then(({ pixelId, lydPerUsd }) => (pixelId ? initPixel(pixelId, lydPerUsd) : disablePixel()))
       .catch(() => disablePixel());
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

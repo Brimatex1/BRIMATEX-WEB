@@ -72,7 +72,7 @@ export const api = {
   getProducts: () =>
     request<{ source: string; products: Product[] }>('/api/products'),
 
-  getPixelConfig: () => request<{ pixelId: string | null }>('/api/pixel-config'),
+  getPixelConfig: () => request<{ pixelId: string | null; lydPerUsd: number | null }>('/api/pixel-config'),
 
   /**
    * Customer care. Files a ticket in Odoo Helpdesk (team Customer Care) and
@@ -278,11 +278,12 @@ export const api = {
       authHeaders(token)
     ),
 
-  adminSaveFacebookPixel: (token: string, pixelId: string) =>
+  /** An empty `lydPerUsd` clears the rate, and events go back to LYD. */
+  adminSaveFacebookPixel: (token: string, pixelId: string, lydPerUsd: string) =>
     request<{ facebookPixel: FacebookPixelSettings }>('/api/admin/settings/facebook-pixel', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ pixelId }),
+      body: JSON.stringify({ pixelId, lydPerUsd }),
     }),
 
   adminClearFacebookPixel: (token: string) =>

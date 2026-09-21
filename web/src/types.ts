@@ -195,6 +195,8 @@ export interface FacebookPixelSettings {
   /** Value comes from .env with no dashboard override. */
   fromEnv: boolean;
   configured: boolean;
+  /** Dinars to one dollar; Pixel values go to Meta in USD when set. */
+  lydPerUsd: number | null;
 }
 
 export interface WhatsappSupportSettings {

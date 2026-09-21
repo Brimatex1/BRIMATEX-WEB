@@ -17,6 +17,7 @@ interface FacebookPixelSettingsPanelProps {
 export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanelProps) {
   const [settings, setSettings] = useState<FacebookPixelSettings | null>(null);
   const [pixelId, setPixelId] = useState('');
+  const [rate, setRate] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -28,6 +29,7 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
         if (cancelled) return;
         setSettings(facebookPixel);
         setPixelId(facebookPixel.pixelId ?? '');
+        setRate(facebookPixel.lydPerUsd ? String(facebookPixel.lydPerUsd) : '');
       })
       .catch((err) => !cancelled && toast.error(err.message))
       .finally(() => !cancelled && setLoading(false));
@@ -39,9 +41,10 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
   async function save() {
     setSaving(true);
     try {
-      const { facebookPixel } = await api.adminSaveFacebookPixel(token, pixelId.trim());
+      const { facebookPixel } = await api.adminSaveFacebookPixel(token, pixelId.trim(), rate.trim());
       setSettings(facebookPixel);
       setPixelId(facebookPixel.pixelId ?? '');
+      setRate(facebookPixel.lydPerUsd ? String(facebookPixel.lydPerUsd) : '');
       toast.success('حُفظ رقم البكسل — سيعمل على كل الصفحات والمنتجات تلقائياً');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر الحفظ');
@@ -56,6 +59,7 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
       const { facebookPixel } = await api.adminClearFacebookPixel(token);
       setSettings(facebookPixel);
       setPixelId('');
+      setRate('');
       toast.success('فُصل بكسل فيسبوك');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر الفصل');
@@ -114,6 +118,22 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
             />
             <p className="text-xs text-muted-foreground">
               تجده في Meta Events Manager. أرقام فقط — لصق كود كامل غير مطلوب ولن يُقبل.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="fb-lyd-rate">سعر الصرف لإعلانات ميتا (دينار لكل دولار)</Label>
+            <Input
+              id="fb-lyd-rate"
+              inputMode="decimal"
+              dir="ltr"
+              value={rate}
+              onChange={(e) => setRate(e.target.value.replace(/[^\d.]/g, ''))}
+              placeholder="4.85"
+            />
+            <p className="text-xs text-muted-foreground">
+              ميتا لا تقبل الدينار الليبي، فتُرسَل قيم المشتريات إليها بالدولار بهذا السعر. الزبون
+              لا يرى الدولار أبداً — الأسعار في الموقع تبقى بالدينار. اتركه فارغاً لإرسالها بالدينار.
             </p>
           </div>
 

@@ -372,7 +372,17 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
         return sendJson(res, 400, { error: 'رقم الـ Pixel يجب أن يتكون من أرقام فقط' });
       }
 
-      const saved = settings.saveFacebookPixel({ pixelId });
+      // Empty clears the rate; otherwise a plausible dinars-per-dollar figure.
+      const rawRate = payload.lydPerUsd;
+      let lydPerUsd = null;
+      if (rawRate !== undefined && rawRate !== null && String(rawRate).trim() !== '') {
+        lydPerUsd = Number(rawRate);
+        if (!Number.isFinite(lydPerUsd) || lydPerUsd <= 0 || lydPerUsd > 1000) {
+          return sendJson(res, 400, { error: 'سعر الصرف يجب أن يكون رقماً موجباً (دينار لكل دولار)' });
+        }
+      }
+
+      const saved = settings.saveFacebookPixel({ pixelId, lydPerUsd });
       return sendJson(res, 200, { facebookPixel: saved });
     }
 

@@ -119,13 +119,22 @@ function readPublicFacebookPixel() {
     pixelId: pixelId || null,
     fromEnv: !stored.pixelId && Boolean(ENV_FACEBOOK_PIXEL_ID),
     configured: Boolean(pixelId),
+    lydPerUsd: stored.lydPerUsd || null,
   };
 }
 
-function saveFacebookPixel({ pixelId }) {
+/**
+ * `lydPerUsd` (dinars to one dollar) exists because Meta does not accept LYD:
+ * it is missing from Meta's supported currencies, so purchase values sent in
+ * dinars cannot drive value optimisation or ROAS. With a rate set, the Pixel
+ * reports values in USD. Customers never see it - prices on the site stay in
+ * dinars. Null keeps the old behaviour (LYD).
+ */
+function saveFacebookPixel({ pixelId, lydPerUsd }) {
   const data = readFile();
   data.facebookPixel = {
     pixelId: String(pixelId || '').trim(),
+    lydPerUsd: lydPerUsd || null,
     updatedAt: new Date().toISOString(),
   };
   writeFile(data);

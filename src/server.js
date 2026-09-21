@@ -295,8 +295,8 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/pixel-config') {
     // Public — a Pixel ID isn't a secret, and every visitor's browser needs
     // it to initialize tracking, not just admins.
-    const { pixelId } = settings.readPublicFacebookPixel();
-    return sendJson(res, 200, { pixelId });
+    const { pixelId, lydPerUsd } = settings.readPublicFacebookPixel();
+    return sendJson(res, 200, { pixelId, lydPerUsd });
   }
 
   /**

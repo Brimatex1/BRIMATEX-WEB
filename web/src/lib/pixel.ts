@@ -22,10 +22,20 @@ let initialized = false;
  */
 let pending: [string, Record<string, unknown> | undefined][] | null = [];
 
-/** Inserts Meta's loader script and calls fbq('init', ...). Safe to call once. */
-export function initPixel(pixelId: string) {
+/** Dinars to one dollar, from the dashboard. Null: report in LYD as-is. */
+let lydPerUsd: number | null = null;
+
+/**
+ * Inserts Meta's loader script and calls fbq('init', ...). Safe to call once.
+ *
+ * `rate` (dinars per dollar) converts event values to USD, because Meta does
+ * not accept LYD. This touches only what is sent to Meta - never a price the
+ * customer sees.
+ */
+export function initPixel(pixelId: string, rate?: number | null) {
   if (initialized || !pixelId || typeof window === 'undefined') return;
   initialized = true;
+  lydPerUsd = rate && rate > 0 ? rate : null;
 
   // Meta's standard bootstrap snippet, unmodified apart from formatting.
   (function (f: Window, b: Document, e: string, v: string) {
@@ -48,8 +58,16 @@ export function initPixel(pixelId: string) {
   })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
   window.fbq?.('init', pixelId);
-  for (const [event, params] of pending ?? []) window.fbq?.('track', event, params);
+  for (const [event, params] of pending ?? []) send(event, params);
   pending = null;
+}
+
+/** Converts at send time, so events queued before the rate arrived are converted too. */
+function send(event: string, params?: Record<string, unknown>) {
+  if (params && lydPerUsd && params.currency === CURRENCY_ISO && typeof params.value === 'number') {
+    params = { ...params, value: Math.round((params.value / lydPerUsd) * 100) / 100, currency: 'USD' };
+  }
+  window.fbq?.('track', event, params);
 }
 
 /** No Pixel configured (or its config failed to load): stop holding events. */
@@ -58,7 +76,7 @@ export function disablePixel() {
 }
 
 function track(event: string, params?: Record<string, unknown>) {
-  if (initialized) window.fbq?.('track', event, params);
+  if (initialized) send(event, params);
   else pending?.push([event, params]);
 }
 

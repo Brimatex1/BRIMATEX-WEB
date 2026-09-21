@@ -128,6 +128,16 @@ async function run() {
     ok('حفظ معرّف البكسل', pxPut.status === 200, 'status ' + pxPut.status);
     const pxPub = await req('GET', '/api/pixel-config');
     ok('يظهر في النقطة العامة', pxPub.json && pxPub.json.pixelId === '1234567890', JSON.stringify(pxPub.json));
+    ok('بلا سعر صرف افتراضياً', pxPub.json && pxPub.json.lydPerUsd === null, JSON.stringify(pxPub.json));
+
+    // Meta does not accept LYD, so the Pixel can report in USD at a dashboard rate.
+    const rateBad = await req('PUT', '/api/admin/settings/facebook-pixel', { pixelId: '1234567890', lydPerUsd: '-3' }, bearer(tok));
+    ok('سعر صرف سالب يُرفض (400)', rateBad.status === 400, 'status ' + rateBad.status);
+    const ratePut = await req('PUT', '/api/admin/settings/facebook-pixel', { pixelId: '1234567890', lydPerUsd: '4.85' }, bearer(tok));
+    ok('حفظ سعر الصرف', ratePut.status === 200 && ratePut.json.facebookPixel.lydPerUsd === 4.85, JSON.stringify(ratePut.json));
+    ok('السعر في النقطة العامة', (await req('GET', '/api/pixel-config')).json.lydPerUsd === 4.85);
+    const rateClear = await req('PUT', '/api/admin/settings/facebook-pixel', { pixelId: '1234567890', lydPerUsd: '' }, bearer(tok));
+    ok('حقل فارغ يمسح السعر', rateClear.status === 200 && rateClear.json.facebookPixel.lydPerUsd === null, JSON.stringify(rateClear.json));
     ok('حذفه (200)', (await req('DELETE', '/api/admin/settings/facebook-pixel', null, bearer(tok))).status === 200);
     ok('اختفى من النقطة العامة', !(await req('GET', '/api/pixel-config')).json.pixelId);
 
