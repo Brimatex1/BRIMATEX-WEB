@@ -5,6 +5,7 @@ import type {
   AdminOverview,
   AdminProducts,
   CartLine,
+  ConversionsApiStatus,
   Customer,
   FacebookPixelSettings,
   OrderResult,
@@ -93,7 +94,9 @@ export const api = {
     customer: Customer,
     lines: CartLine[],
     note: string,
-    token?: string | null
+    token?: string | null,
+    /** Website only - lets the server report the purchase to Meta (lib/pixel.ts). */
+    tracking?: { eventSourceUrl: string; fbp?: string; fbc?: string }
   ) =>
     request<OrderResult>(
       '/api/orders',
@@ -102,6 +105,7 @@ export const api = {
           customer,
           items: lines.map((l) => ({ productId: l.id, quantity: l.qty })),
           note,
+          tracking,
         },
         token
       )
@@ -273,7 +277,7 @@ export const api = {
     }),
 
   adminFacebookPixelSettings: (token: string) =>
-    request<{ facebookPixel: FacebookPixelSettings }>(
+    request<{ facebookPixel: FacebookPixelSettings; conversionsApi: ConversionsApiStatus }>(
       '/api/admin/settings/facebook-pixel',
       authHeaders(token)
     ),

@@ -87,6 +87,9 @@ async function startTestServer({ port, env = {} } = {}) {
       ODOO_USERNAME: '',
       ODOO_API_KEY: '',
       WHATSAPP_TOKEN: '',
+      // Never report test orders to the real Meta dataset.
+      FACEBOOK_CAPI_TOKEN: '',
+      FACEBOOK_PIXEL_ID: '',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],

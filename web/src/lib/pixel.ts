@@ -20,7 +20,10 @@ let initialized = false;
  * visitor landing on a product from an ad fires ViewContent before that. Such
  * events wait here, then go out on init - or are dropped if no Pixel is set.
  */
-let pending: [string, Record<string, unknown> | undefined][] | null = [];
+type Params = Record<string, unknown> | undefined;
+/** fbq's fourth argument. `eventID` pairs a browser event with its server copy. */
+type Options = { eventID?: string } | undefined;
+let pending: [string, Params, Options][] | null = [];
 
 /** Dinars to one dollar, from the dashboard. Null: report in LYD as-is. */
 let lydPerUsd: number | null = null;
@@ -58,16 +61,17 @@ export function initPixel(pixelId: string, rate?: number | null) {
   })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
   window.fbq?.('init', pixelId);
-  for (const [event, params] of pending ?? []) send(event, params);
+  for (const [event, params, options] of pending ?? []) send(event, params, options);
   pending = null;
 }
 
 /** Converts at send time, so events queued before the rate arrived are converted too. */
-function send(event: string, params?: Record<string, unknown>) {
+function send(event: string, params?: Params, options?: Options) {
   if (params && lydPerUsd && params.currency === CURRENCY_ISO && typeof params.value === 'number') {
     params = { ...params, value: Math.round((params.value / lydPerUsd) * 100) / 100, currency: 'USD' };
   }
-  window.fbq?.('track', event, params);
+  if (options) window.fbq?.('track', event, params, options);
+  else window.fbq?.('track', event, params);
 }
 
 /** No Pixel configured (or its config failed to load): stop holding events. */
@@ -75,9 +79,9 @@ export function disablePixel() {
   pending = null;
 }
 
-function track(event: string, params?: Record<string, unknown>) {
-  if (initialized) send(event, params);
-  else pending?.push([event, params]);
+function track(event: string, params?: Params, options?: Options) {
+  if (initialized) send(event, params, options);
+  else pending?.push([event, params, options]);
 }
 
 export function trackPageView() {
@@ -120,6 +124,10 @@ export function trackInitiateCheckout(lines: CartLine[], total: number) {
   });
 }
 
+/**
+ * The event ID matches the one the server sends through the Conversions API
+ * (src/lib/meta-capi.js), so Meta counts this purchase once, not twice.
+ */
 export function trackPurchase(order: OrderResult, lines: CartLine[]) {
   track('Purchase', {
     content_ids: lines.map((l) => l.id),
@@ -128,5 +136,55 @@ export function trackPurchase(order: OrderResult, lines: CartLine[]) {
     num_items: lines.reduce((n, l) => n + l.qty, 0),
     value: order.total,
     currency: CURRENCY_ISO,
-  });
+  }, { eventID: `purchase-${order.orderName}` });
+}
+
+/** A message sent to customer care - Meta's standard event for a customer reaching out. */
+export function trackContact() {
+  track('Contact');
+}
+
+/* ------------------------------------------------ Conversions API context */
+
+const CLICK_KEY = 'fb_click';
+/** Meta attributes clicks for up to 7 days; a click ID older than that is useless. */
+const CLICK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function readCookie(name: string): string | undefined {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+/**
+ * Keeps the ad click ID (fbclid) from the landing address. The Pixel stores it
+ * in the _fbc cookie itself - but only when its script loads, and an ad
+ * blocker stops exactly that. Kept here, the click still reaches Meta through
+ * the server when the customer orders. Call once, at startup.
+ */
+export function captureClickId() {
+  try {
+    const fbclid = new URLSearchParams(window.location.search).get('fbclid');
+    if (fbclid) {
+      // Meta's documented _fbc format: fb.<subdomain index>.<ms>.<fbclid>
+      localStorage.setItem(CLICK_KEY, JSON.stringify({ fbc: `fb.1.${Date.now()}.${fbclid}`, at: Date.now() }));
+    }
+  } catch {
+    /* storage blocked - the _fbc cookie still covers most visitors */
+  }
+}
+
+/** What the checkout sends with an order, for the server's Purchase event. */
+export function trackingContext() {
+  let storedFbc: string | undefined;
+  try {
+    const saved = JSON.parse(localStorage.getItem(CLICK_KEY) || 'null');
+    if (saved && Date.now() - saved.at < CLICK_TTL_MS) storedFbc = saved.fbc;
+  } catch {
+    /* storage blocked or corrupt */
+  }
+  return {
+    eventSourceUrl: window.location.href,
+    fbp: readCookie('_fbp'),
+    fbc: readCookie('_fbc') || storedFbc,
+  };
 }

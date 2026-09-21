@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { trackingContext } from '@/lib/pixel';
 import { phoneIsValid } from '@/lib/utils';
 import type { CartLine, Customer, OrderResult, User } from '@/types';
 
@@ -78,7 +79,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
         },
         lines,
         form.note.trim(),
-        token
+        token,
+        trackingContext()
       );
       onSuccess(result);
     } catch (err) {

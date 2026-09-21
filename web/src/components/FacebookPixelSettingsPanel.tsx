@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
-import type { FacebookPixelSettings } from '@/types';
+import type { ConversionsApiStatus, FacebookPixelSettings } from '@/types';
 
 interface FacebookPixelSettingsPanelProps {
   token: string;
@@ -18,6 +18,7 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
   const [settings, setSettings] = useState<FacebookPixelSettings | null>(null);
   const [pixelId, setPixelId] = useState('');
   const [rate, setRate] = useState('');
+  const [capi, setCapi] = useState<ConversionsApiStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -25,9 +26,10 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
     let cancelled = false;
     api
       .adminFacebookPixelSettings(token)
-      .then(({ facebookPixel }) => {
+      .then(({ facebookPixel, conversionsApi }) => {
         if (cancelled) return;
         setSettings(facebookPixel);
+        setCapi(conversionsApi);
         setPixelId(facebookPixel.pixelId ?? '');
         setRate(facebookPixel.lydPerUsd ? String(facebookPixel.lydPerUsd) : '');
       })
@@ -155,6 +157,25 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
             )}
           </div>
         </form>
+
+        <div className="space-y-1.5 rounded-md border p-3 text-sm">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-medium">Conversions API (من الخادم)</p>
+            <Badge variant={capi?.configured ? 'success' : 'secondary'}>
+              {capi?.configured ? (capi.testMode ? 'وضع الاختبار' : 'مفعّل') : 'غير مفعّل'}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            يرسل كل عملية شراء من الموقع إلى ميتا من الخادم مباشرة — لا يحجبها مانع الإعلانات ولا
+            قيود آيفون. يُفعَّل بوضع مفتاح FACEBOOK_CAPI_TOKEN في ملف .env على الخادم.
+          </p>
+          {capi?.lastResult && (
+            <p className={capi.lastResult.ok ? 'text-xs text-muted-foreground' : 'text-xs text-destructive'}>
+              آخر إرسال ({new Date(capi.lastResult.at).toLocaleString('ar-LY')}):{' '}
+              {capi.lastResult.ok ? 'وصل إلى ميتا' : `رُفض — ${capi.lastResult.error}`}
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

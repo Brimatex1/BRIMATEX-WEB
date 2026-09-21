@@ -19,6 +19,7 @@ const whatsapp = require('../lib/whatsapp');
 const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const settings = require('../lib/settings');
+const metaCapi = require('../lib/meta-capi');
 const productOverrides = require('../lib/productOverrides');
 const push = require('../lib/push');
 const db = require('../lib/db');
@@ -353,7 +354,12 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
 
     if (req.method === 'GET' && url.pathname === '/api/admin/settings/facebook-pixel') {
       if (!(await requireAdmin(req, res))) return;
-      return sendJson(res, 200, { facebookPixel: settings.readPublicFacebookPixel() });
+      // The Conversions API status rides along: whether the server token is set,
+      // and how the last send went - the only place a rejection is visible.
+      return sendJson(res, 200, {
+        facebookPixel: settings.readPublicFacebookPixel(),
+        conversionsApi: metaCapi.status(),
+      });
     }
 
     if (req.method === 'PUT' && url.pathname === '/api/admin/settings/facebook-pixel') {

@@ -199,6 +199,20 @@ export interface FacebookPixelSettings {
   lydPerUsd: number | null;
 }
 
+/** Server-side reporting to Meta. The token itself never leaves the server. */
+export interface ConversionsApiStatus {
+  configured: boolean;
+  /** FACEBOOK_TEST_EVENT_CODE is set: events land in Events Manager's "Test events". */
+  testMode: boolean;
+  lastResult: {
+    ok: boolean;
+    at: string;
+    events: string;
+    received?: number;
+    error?: string;
+  } | null;
+}
+
 export interface WhatsappSupportSettings {
   phone: string | null;
   message: string;

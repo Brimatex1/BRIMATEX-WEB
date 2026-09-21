@@ -21,7 +21,7 @@ import { useCart } from '@/hooks/useCart';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
-import { disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
+import { captureClickId, disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
 import { parseRoute, routePath, type Route } from '@/lib/route';
 import type { Address, Category, Product, SectionId } from '@/types';
 
@@ -46,6 +46,7 @@ export default function App() {
   // now, before the ViewContent of a product landing, so Meta receives them in
   // page order once the Pixel is up. A no-op when unconfigured — see lib/pixel.ts.
   useEffect(() => {
+    captureClickId();
     trackPageView();
     api
       .getPixelConfig()

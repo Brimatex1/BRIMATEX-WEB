@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { api, ApiError } from '@/lib/api';
+import { trackContact } from '@/lib/pixel';
 import { cn, phoneIsValid } from '@/lib/utils';
 import type { SupportTopic, User } from '@/types';
 
@@ -95,6 +96,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
         token
       );
       setRef(result.ref);
+      trackContact();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'تعذّر إرسال رسالتك الآن. حاول بعد قليل.');
     } finally {

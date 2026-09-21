@@ -18,11 +18,50 @@ const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const push = require('../lib/push');
 const whatsapp = require('../lib/whatsapp');
+const metaCapi = require('../lib/meta-capi');
+const settings = require('../lib/settings');
 const { getProducts, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
 
 /** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('order-route-not-handled');
+
+/**
+ * Reports a website purchase to Meta's Conversions API, in the background.
+ *
+ * Only orders that carry `tracking` are reported: the website's checkout sends
+ * it, the iOS/Android app does not. App orders are not website events, and
+ * reporting them as such would credit web ads with app sales.
+ *
+ * Started before the reply goes out, so the server's copy - the one with the
+ * hashed phone and name - usually reaches Meta ahead of the browser's, and
+ * that is the copy Meta keeps when it deduplicates.
+ */
+function reportPurchase(req, order, { orderName, total, userId, products }) {
+  const tracking = order.tracking;
+  if (!tracking || typeof tracking !== 'object' || !metaCapi.isConfigured()) return;
+  const { pixelId, lydPerUsd } = settings.readPublicFacebookPixel();
+  if (!pixelId) return;
+
+  const prices = new Map([...productLookup(products)].map(([id, p]) => [id, Number(p.price) || 0]));
+  const event = metaCapi.buildPurchase({
+    req,
+    orderName,
+    customer: order.customer,
+    items: order.items,
+    total,
+    userId,
+    lydPerUsd,
+    prices,
+    tracking: {
+      eventSourceUrl: typeof tracking.eventSourceUrl === 'string' ? tracking.eventSourceUrl.slice(0, 500) : undefined,
+      fbp: typeof tracking.fbp === 'string' ? tracking.fbp.slice(0, 200) : undefined,
+      fbc: typeof tracking.fbc === 'string' ? tracking.fbc.slice(0, 500) : undefined,
+    },
+  });
+  // send() never throws; the catch only guards against a bug in it.
+  metaCapi.send(pixelId, [event]).catch((err) => console.error('[Meta CAPI]', err.message));
+}
 
 function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
   return async function handleOrderRoutes(req, res, url) {
@@ -95,6 +134,13 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           placedAt: new Date().toISOString(),
         });
 
+        reportPurchase(req, order, {
+          orderName: odooResult.name,
+          total: odooResult.total,
+          userId: orderSession?.userId,
+          products: result.products,
+        });
+
         // Remembers which Odoo partner this account maps to, so repeat orders
         // don't need to be re-matched by phone number.
         if (orderSession && odooResult.partnerId) {
@@ -143,6 +189,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         total,
         placedAt: new Date().toISOString(),
       });
+
+      reportPurchase(req, order, { orderName, total, userId: orderSession?.userId, products: result.products });
 
       // Send invoice via WhatsApp (non-blocking, fire-and-forget)
       whatsapp.sendInvoiceViaWhatsApp(
