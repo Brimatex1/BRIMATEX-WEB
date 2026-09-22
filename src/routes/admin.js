@@ -414,11 +414,22 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { facebookPixel: saved });
     }
 
-    // Verifies the Conversions API token against the saved dataset - no event sent.
+    // Sends one test event (Events Manager > Test events code) - never live data.
     if (req.method === 'POST' && url.pathname === '/api/admin/settings/facebook-pixel/test') {
       if (!(await requireAdmin(req, res))) return;
+      let payload = {};
+      try {
+        payload = JSON.parse((await readBody(req)) || '{}');
+      } catch {
+        return sendJson(res, 400, { error: 'JSON غير صالح' });
+      }
       const { pixelId } = settings.readPublicFacebookPixel();
-      return sendJson(res, 200, await metaCapi.checkConnection(pixelId));
+      const result = await metaCapi.sendTestEvent(pixelId, String(payload.testEventCode || '').trim(), {
+        sourceUrl: `https://${req.headers.host || 'brimatex.ly'}/`,
+        userAgent: req.headers['user-agent'],
+        ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress,
+      });
+      return sendJson(res, 200, result);
     }
 
     if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/facebook-pixel') {

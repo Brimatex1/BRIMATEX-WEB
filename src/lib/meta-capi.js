@@ -36,7 +36,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { postRaw, getRaw } = require('./http');
+const { postRaw } = require('./http');
 const { toInternational } = require('./whatsapp-cloud');
 
 /** Latest Graph API version as of July 2026. */
@@ -257,19 +257,41 @@ async function send(datasetId, events) {
 }
 
 /**
- * Checks the setup without sending any event: asks Meta for the dataset with
- * the token. Success proves the token is valid and has access to that dataset
- * - the two things a live purchase needs. Nothing reaches Events Manager.
+ * Meta's own way to verify a Conversions API setup: one event sent with a
+ * test code from Events Manager > Test events. It appears in that tab within
+ * seconds and never counts as live data. A PageView, so even a mistyped code
+ * could not add a fake sale.
+ *
+ * (Reading the dataset with the token is not a valid check: tokens generated
+ * in Events Manager may only send events, and Meta answers a read with
+ * "Missing Permission" even when sending works.)
  */
-async function checkConnection(datasetId) {
+async function sendTestEvent(datasetId, testEventCode, { sourceUrl, userAgent, ip }) {
   if (!isConfigured()) return { ok: false, error: 'FACEBOOK_CAPI_TOKEN غير موجود في ملف .env على الخادم' };
   if (!datasetId) return { ok: false, error: 'لا يوجد رقم بكسل محفوظ' };
+  if (!/^TEST[A-Z0-9]{2,20}$/i.test(testEventCode || '')) {
+    return { ok: false, error: 'رمز الاختبار يبدأ بـ TEST — انسخه من Events Manager > Test events' };
+  }
+  const body = {
+    data: [
+      {
+        event_name: 'PageView',
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: `capi-test-${Date.now()}`,
+        action_source: 'website',
+        event_source_url: sourceUrl,
+        user_data: dropEmpty({ client_ip_address: ip, client_user_agent: userAgent, country: hashed('ly') }),
+      },
+    ],
+    access_token: TOKEN,
+    test_event_code: testEventCode.toUpperCase(),
+  };
   try {
-    const res = await getRaw(
-      `${GRAPH_URL}/${GRAPH_VERSION}/${encodeURIComponent(datasetId)}?fields=id,name`,
-      // Bearer header, not a query parameter - the token stays out of any URL.
-      { headers: { Authorization: `Bearer ${TOKEN}` }, timeout: TIMEOUT_MS }
-    );
+    const res = await postRaw(`${GRAPH_URL}/${GRAPH_VERSION}/${encodeURIComponent(datasetId)}/events`, {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      timeout: TIMEOUT_MS,
+    });
     let json = null;
     try {
       json = JSON.parse(res.text);
@@ -277,10 +299,10 @@ async function checkConnection(datasetId) {
       /* non-JSON error page */
     }
     if (!res.ok) return { ok: false, error: json?.error?.message || `HTTP ${res.status}` };
-    return { ok: true, datasetId: json?.id, datasetName: json?.name };
+    return { ok: true, received: json?.events_received };
   } catch (err) {
     return { ok: false, error: err.message };
   }
 }
 
-module.exports = { isConfigured, status, buildPurchase, send, checkConnection, hashedPhone };
+module.exports = { isConfigured, status, buildPurchase, send, sendTestEvent, hashedPhone };

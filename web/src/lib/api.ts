@@ -292,11 +292,11 @@ export const api = {
       body: JSON.stringify({ pixelId, lydPerUsd }),
     }),
 
-  /** Asks Meta whether the server's token can reach the saved dataset. Sends no event. */
-  adminTestConversionsApi: (token: string) =>
-    request<{ ok: boolean; datasetId?: string; datasetName?: string; error?: string }>(
+  /** Sends one test event under Events Manager's test code - never counted as live data. */
+  adminTestConversionsApi: (token: string, testEventCode: string) =>
+    request<{ ok: boolean; received?: number; error?: string }>(
       '/api/admin/settings/facebook-pixel/test',
-      { method: 'POST', ...authHeaders(token) }
+      jsonBody({ testEventCode }, token)
     ),
 
   adminClearFacebookPixel: (token: string) =>

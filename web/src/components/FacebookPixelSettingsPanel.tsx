@@ -20,6 +20,7 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
   const [rate, setRate] = useState('');
   const [capi, setCapi] = useState<ConversionsApiStatus | null>(null);
   const [testing, setTesting] = useState(false);
+  const [testCode, setTestCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -59,8 +60,8 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
   async function testConnection() {
     setTesting(true);
     try {
-      const result = await api.adminTestConversionsApi(token);
-      if (result.ok) toast.success(`الاتصال بميتا سليم — «${result.datasetName ?? result.datasetId}»`);
+      const result = await api.adminTestConversionsApi(token, testCode.trim());
+      if (result.ok) toast.success('وصل الحدث التجريبي — تأكد منه في Events Manager > Test events');
       else toast.error(`ميتا رفضت: ${result.error}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر الاختبار');
@@ -190,15 +191,30 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
             </p>
           )}
           {capi?.configured && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              loading={testing}
-              onClick={() => void testConnection()}
-            >
-              اختبار الاتصال بميتا
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Input
+                aria-label="رمز الاختبار من Events Manager"
+                dir="ltr"
+                value={testCode}
+                onChange={(e) => setTestCode(e.target.value)}
+                placeholder="TEST12345"
+                className="h-9 w-36"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                loading={testing}
+                disabled={!testCode.trim()}
+                onClick={() => void testConnection()}
+              >
+                إرسال حدث تجريبي
+              </Button>
+              <p className="w-full text-xs text-muted-foreground">
+                الرمز من Events Manager ← SHOP - Brimatex ← Test events. الحدث التجريبي يظهر هناك فقط
+                ولا يُحسب ضمن البيانات الحقيقية.
+              </p>
+            </div>
           )}
         </div>
       </CardContent>

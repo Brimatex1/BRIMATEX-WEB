@@ -83,13 +83,6 @@ function req(method, path, body, headers = {}) {
 const received = [];
 let mockStatus = 200;
 const mock = http.createServer((r, res) => {
-  // GET = the dashboard's connection check; only the right Bearer token passes.
-  if (r.method === 'GET') {
-    const good = r.headers.authorization === `Bearer ${TOKEN}` && r.url.startsWith(`/v26.0/${PIXEL}?`);
-    res.writeHead(good ? 200 : 400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(good ? { id: PIXEL, name: 'SHOP - Brimatex' } : { error: { message: 'Invalid OAuth access token (mock)' } }));
-    return;
-  }
   let text = '';
   r.on('data', (c) => (text += c));
   r.on('end', () => {
@@ -232,10 +225,14 @@ async function main() {
     ok('لوحة الإدارة: مفعّل وآخر إرسال ناجح', st.json?.conversionsApi?.configured && st.json.conversionsApi.lastResult?.ok === true, JSON.stringify(st.json?.conversionsApi));
     ok('المفتاح لا يظهر في لوحة الإدارة', !JSON.stringify(st.json).includes(TOKEN));
 
-    const conn = await req('POST', '/api/admin/settings/facebook-pixel/test', null, auth);
-    ok('اختبار الاتصال: سليم ويرجّع اسم البكسل', conn.json?.ok === true && conn.json.datasetName === 'SHOP - Brimatex', JSON.stringify(conn.json));
-    ok('اختبار الاتصال لا يبعث أي حدث', received.length === 1, 'received ' + received.length);
-    ok('اختبار الاتصال للمدير فقط (401)', (await req('POST', '/api/admin/settings/facebook-pixel/test')).status === 401);
+    const badCode = await req('POST', '/api/admin/settings/facebook-pixel/test', { testEventCode: 'hello' }, auth);
+    ok('حدث تجريبي: رمز بلا TEST يُرفض ولا يُرسل', badCode.json?.ok === false && received.length === 1, JSON.stringify(badCode.json));
+    const conn = await req('POST', '/api/admin/settings/facebook-pixel/test', { testEventCode: 'test12345' }, auth);
+    const t = received[received.length - 1]?.body || {};
+    ok('حدث تجريبي: يصل لميتا', conn.json?.ok === true && received.length === 2, JSON.stringify(conn.json));
+    ok('حدث تجريبي: بالرمز، وPageView لا شراء', t.test_event_code === 'TEST12345' && t.data?.[0]?.event_name === 'PageView');
+    ok('حدث تجريبي: للمدير فقط (401)', (await req('POST', '/api/admin/settings/facebook-pixel/test', { testEventCode: 'TEST1' })).status === 401);
+    received.pop();
 
     section('3. طلب من التطبيق');
     const app = await req('POST', '/api/orders', {
