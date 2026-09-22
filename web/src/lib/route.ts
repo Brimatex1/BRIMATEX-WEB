@@ -1,4 +1,5 @@
-import type { Category, SectionId } from '@/types';
+import { ALL_TIERS, isTierKey, type TierFilter } from '@/lib/tiers';
+import type { SectionId } from '@/types';
 
 /**
  * Every screen has its own address, so an ad, a WhatsApp message or a Meta
@@ -6,7 +7,7 @@ import type { Category, SectionId } from '@/types';
  * the visitor's own history instead of leaving the site.
  *
  *   /                          home
- *   /shop?category=mattress&q= shop, optionally filtered
+ *   /shop?category=comfort&q=  shop, optionally filtered by an Odoo tier
  *   /product/12                one product
  *   /quiz  /cart  /account  /wishlist  /orders  /admin  /vouchers  /points
  *
@@ -16,7 +17,7 @@ import type { Category, SectionId } from '@/types';
 export interface Route {
   section: SectionId;
   productId?: number;
-  category?: Category | 'all';
+  category?: TierFilter;
   query?: string;
 }
 
@@ -32,8 +33,6 @@ const PATHS: Record<Exclude<SectionId, 'home' | 'product'>, string> = {
   points: '/points',
 };
 
-const CATEGORIES: readonly (Category | 'all')[] = ['all', 'mattress', 'pillow', 'bedding'];
-
 export function parseRoute(location: Pick<Location, 'pathname' | 'search'>): Route {
   const path = location.pathname.replace(/\/+$/, '') || '/';
   const params = new URLSearchParams(location.search);
@@ -43,10 +42,12 @@ export function parseRoute(location: Pick<Location, 'pathname' | 'search'>): Rou
 
   const section = (Object.keys(PATHS) as (keyof typeof PATHS)[]).find((s) => PATHS[s] === path);
   if (section === 'shop') {
-    const category = params.get('category') as Category | 'all' | null;
+    const category = params.get('category');
     return {
       section,
-      category: category && CATEGORIES.includes(category) ? category : 'all',
+      // Any well-formed key: the tiers are Odoo's, so an unknown one just
+      // shows an empty list, never an error.
+      category: isTierKey(category) ? category : ALL_TIERS,
       query: params.get('q') ?? '',
     };
   }
@@ -64,7 +65,7 @@ export function routePath(route: Route): string {
   const base = PATHS[route.section];
   if (route.section !== 'shop') return base;
   const params = new URLSearchParams();
-  if (route.category && route.category !== 'all') params.set('category', route.category);
+  if (route.category && route.category !== ALL_TIERS) params.set('category', route.category);
   if (route.query?.trim()) params.set('q', route.query.trim());
   const qs = params.toString();
   return qs ? `${base}?${qs}` : base;

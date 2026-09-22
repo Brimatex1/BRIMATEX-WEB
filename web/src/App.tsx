@@ -29,7 +29,8 @@ import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
 import { captureClickId, disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
 import { parseRoute, routePath, type Route } from '@/lib/route';
-import type { Address, Category, Product, SectionId } from '@/types';
+import type { TierFilter } from '@/lib/tiers';
+import type { Address, Product, SectionId } from '@/types';
 
 const DEFAULT_TITLE = document.title;
 
@@ -59,7 +60,7 @@ export default function App() {
   const [section, setSection] = useState<SectionId>(landing.section);
   const [selectedId, setSelectedId] = useState<number | null>(landing.productId ?? null);
   const [justAddedId, setJustAddedId] = useState<number | null>(null);
-  const [shopCategory, setShopCategory] = useState<Category | 'all'>(landing.category ?? 'all');
+  const [shopCategory, setShopCategory] = useState<TierFilter>(landing.category ?? 'all');
   const [shopQuery, setShopQuery] = useState(landing.query ?? '');
 
   // One design at every size - the iOS app's (components/app). Phones also
@@ -196,7 +197,8 @@ export default function App() {
   }, [viewedId]);
 
   const productRelated = selected
-    ? catalogue.products.filter((p) => p.id !== selected.id && p.category === selected.category)
+    ? // "You may also like": the same Odoo tier, so an Elite mattress suggests Elite ones.
+      catalogue.products.filter((p) => p.id !== selected.id && (p.tier?.key ?? null) === (selected.tier?.key ?? null))
     : [];
 
   return (

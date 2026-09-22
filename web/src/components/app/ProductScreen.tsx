@@ -86,6 +86,7 @@ export function ProductScreen({
 
       <div>
       <AppCard className="mb-4">
+        {product.tier && <p className="mb-1 text-sm font-semibold text-app-muted">فئة {product.tier.name}</p>}
         <h1 className="text-xl font-bold leading-[30px] text-app-ocean">{product.name}</h1>
         <div className="mt-3 flex items-center justify-between">
           <p className="text-[26px] font-bold text-app-ocean">{formatPrice(price)} د.ل</p>

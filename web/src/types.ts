@@ -27,6 +27,16 @@ export interface ProductVariant {
   inStock?: boolean;
 }
 
+/** A subcategory of Mattresses in Odoo - see web/src/lib/tiers.ts. */
+export interface Tier {
+  /** Odoo's name, lower-cased: economy, comfort, premium, elite. */
+  key: string;
+  /** Arabic, for display. */
+  name: string;
+  /** Listing order, cheapest first. */
+  rank: number;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -37,6 +47,8 @@ export interface Product {
   stock?: number | null;
   /** Present on demo products; Odoo products may omit the richer fields. */
   category?: Category;
+  /** The Odoo category the product is filed under; null when it is in none of the tiers. */
+  tier?: Tier | null;
   tagline?: string;
   size?: ProductSize;
   specs?: ProductSpecs;

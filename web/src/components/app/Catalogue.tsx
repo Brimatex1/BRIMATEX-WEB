@@ -1,13 +1,8 @@
 import { useMemo } from 'react';
 
 import { Chip, CatalogueCard } from '@/components/app/ui';
-import type { Category, Product } from '@/types';
-
-const CATEGORY_LABEL: Record<Category, string> = {
-  mattress: 'مراتب',
-  pillow: 'وسائد',
-  bedding: 'مفروشات',
-};
+import { ALL_TIERS, inTier, tiersOf, type TierFilter } from '@/lib/tiers';
+import type { Product } from '@/types';
 
 interface CatalogueProps {
   products: Product[];
@@ -16,8 +11,9 @@ interface CatalogueProps {
   onReload: () => void;
   query: string;
   onQueryChange: (query: string) => void;
-  category: Category | 'all';
-  onCategoryChange: (category: Category | 'all') => void;
+  /** An Odoo tier's key, or 'all'. */
+  category: TierFilter;
+  onCategoryChange: (category: TierFilter) => void;
   isSaved: (productId: number) => boolean;
   wishlistPending: number | null;
   onOpen: (product: Product) => void;
@@ -26,10 +22,11 @@ interface CatalogueProps {
 
 /**
  * "All products" as the app's home screen has it: a borderless search field,
- * category chips, the count, and one card per row.
+ * a chip per Odoo tier (Economy, Comfort, Premium, Elite), the count, and one
+ * card per row.
  *
- * Only categories that have products get a chip - an empty chip would lead to
- * an empty list.
+ * Only tiers that have products get a chip - an empty chip would lead to an
+ * empty list.
  */
 export function Catalogue({
   products,
@@ -45,15 +42,12 @@ export function Catalogue({
   onOpen,
   onToggleWishlist,
 }: CatalogueProps) {
-  const categories = useMemo(
-    () => (Object.keys(CATEGORY_LABEL) as Category[]).filter((c) => products.some((p) => p.category === c)),
-    [products]
-  );
+  const tiers = useMemo(() => tiersOf(products).map((t) => t.tier), [products]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return products.filter((p) => {
-      if (category !== 'all' && p.category !== category) return false;
+      if (!inTier(p, category)) return false;
       if (!needle) return true;
       return (
         p.name.toLowerCase().includes(needle) ||
@@ -78,11 +72,11 @@ export function Catalogue({
         className="w-full rounded-[28px] bg-app-input md:max-w-md px-5 py-3.5 text-base text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-ocean/30"
       />
 
-      {categories.length > 1 && (
+      {tiers.length > 1 && (
         <div className="no-scrollbar -mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1">
-          <Chip label="الكل" active={category === 'all'} onClick={() => onCategoryChange('all')} />
-          {categories.map((c) => (
-            <Chip key={c} label={CATEGORY_LABEL[c]} active={category === c} onClick={() => onCategoryChange(c)} />
+          <Chip label="الكل" active={category === ALL_TIERS} onClick={() => onCategoryChange(ALL_TIERS)} />
+          {tiers.map((t) => (
+            <Chip key={t.key} label={t.name} active={category === t.key} onClick={() => onCategoryChange(t.key)} />
           ))}
         </div>
       )}

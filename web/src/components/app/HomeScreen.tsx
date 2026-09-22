@@ -6,8 +6,9 @@ import { Avatar } from '@/components/app/AvatarPicker';
 import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/app/ui';
 import { QUESTIONS } from '@/lib/mattressQuiz';
 import { openSupport } from '@/lib/support';
+import { ALL_TIERS, tiersOf, type TierFilter } from '@/lib/tiers';
 import { cn } from '@/lib/utils';
-import type { Category, Perks, Product, SectionId, User } from '@/types';
+import type { Perks, Product, SectionId, User } from '@/types';
 
 interface HomeScreenProps {
   user: User | null;
@@ -42,12 +43,6 @@ function writeSeen(codes: string[]) {
   }
 }
 
-const CATEGORY_LABEL: Record<Category, string> = {
-  mattress: 'مراتب',
-  pillow: 'وسائد',
-  bedding: 'مفروشات',
-};
-
 /**
  * Home - the iOS app's home screen (brimatex-ios/src/screens/
  * HomeScreen.tsx), section for section: the account photo and "my activity",
@@ -71,7 +66,7 @@ export function HomeScreen({
   perks,
 }: HomeScreenProps) {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<Category | 'all'>('all');
+  const [category, setCategory] = useState<TierFilter>(ALL_TIERS);
 
   const firstName = user?.name?.trim().split(/\s+/)[0];
   // A reward voucher earned in the last two weeks that this browser has not
@@ -83,13 +78,8 @@ export function HomeScreen({
     ) ?? null;
   // The newest products: the catalogue's order is Odoo's, highest ids last.
   const newest = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 8), [products]);
-  const categories = useMemo(
-    () =>
-      (Object.keys(CATEGORY_LABEL) as Category[])
-        .map((c) => ({ key: c, items: products.filter((p) => p.category === c) }))
-        .filter((c) => c.items.length > 0),
-    [products]
-  );
+  // Odoo's tiers under Mattresses - Economy, Comfort, Premium, Elite.
+  const categories = useMemo(() => tiersOf(products), [products]);
 
   return (
     <div className="mx-auto max-w-6xl px-5 pb-10 pt-3 md:px-8 md:pb-16 md:pt-10">
@@ -200,15 +190,15 @@ export function HomeScreen({
         <section className="mt-7">
           <SectionHeader title="التصنيفات" />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {categories.map(({ key, items }) => (
+            {categories.map(({ tier, items }) => (
               <button
-                key={key}
+                key={tier.key}
                 type="button"
-                onClick={() => setCategory(category === key ? 'all' : key)}
-                aria-pressed={category === key}
+                onClick={() => setCategory(category === tier.key ? ALL_TIERS : tier.key)}
+                aria-pressed={category === tier.key}
                 className={cn(
                   'rounded-[20px] border-[1.5px] bg-white p-2 text-start',
-                  category === key ? 'border-app-ocean' : 'border-app-border'
+                  category === tier.key ? 'border-app-ocean' : 'border-app-border'
                 )}
               >
                 <span className="grid grid-cols-2 gap-1.5">
@@ -221,7 +211,7 @@ export function HomeScreen({
                   )}
                 </span>
                 <span className="flex items-center justify-between px-1 pb-1 pt-3">
-                  <span className="text-[17px] font-bold text-app-text">{CATEGORY_LABEL[key]}</span>
+                  <span className="text-[17px] font-bold text-app-text">{tier.name}</span>
                   <span className="rounded-full bg-app-tint-soft px-3 py-1 text-sm font-bold text-app-text">{items.length}</span>
                 </span>
               </button>

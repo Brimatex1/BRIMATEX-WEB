@@ -6,6 +6,7 @@
 
 const settings = require('./settings');
 const http = require('./http');
+const { isSellable } = require('./sellable');
 
 // Read per call rather than captured at boot, so saving settings from the
 // dashboard takes effect without a restart.
@@ -124,22 +125,70 @@ async function readInBatches(model, ids, kwargs) {
   return result;
 }
 
+/** The Odoo product category the shop sells from; its children are the tiers. */
+const SHOP_CATEGORY = 'Mattresses';
+
+/**
+ * The tiers under Mattresses, by their Odoo name: the Arabic name the shop
+ * shows, and the order they are listed in (cheapest first). A tier added in
+ * Odoo later still shows - under its Odoo name, after these.
+ */
+const TIERS = {
+  economy: { name: 'اقتصادية', rank: 1 },
+  comfort: { name: 'كومفورت', rank: 2 },
+  premium: { name: 'بريميوم', rank: 3 },
+  elite: { name: 'إيليت', rank: 4 },
+};
+
+/**
+ * The Mattresses category and its children, as { rootId, tierByCategoryId }.
+ * Null when Odoo has no such category - the shop then shows nothing rather
+ * than every sellable record in the ERP (chemicals and labour included).
+ */
+async function fetchShopCategories() {
+  const roots = await call('product.category', 'search_read', [[['name', '=', SHOP_CATEGORY], ['parent_id', '=', false]]], {
+    fields: ['id'],
+    limit: 1,
+  });
+  if (!roots[0]) return null;
+  const rootId = roots[0].id;
+  const children = await call('product.category', 'search_read', [[['parent_id', '=', rootId]]], { fields: ['id', 'name'] });
+  const tierByCategoryId = new Map();
+  for (const c of children) {
+    const key = String(c.name).trim().toLowerCase();
+    const known = TIERS[key];
+    tierByCategoryId.set(c.id, { key, name: known ? known.name : String(c.name).trim(), rank: known ? known.rank : 99 });
+  }
+  return { rootId, tierByCategoryId };
+}
+
 /**
  * A mattress in Odoo is a product template with one or more variants (size,
  * height, ...) — this used to fetch product.product directly, which is the
  * *variant* table, so every size of every mattress showed up as its own
  * product card. Grouped here into one card per template, each carrying its
  * variants for the size picker on the product page.
+ *
+ * Only what Odoo files under Mattresses is the shop's, and each card carries
+ * its tier - the subcategory it sits in (Economy, Comfort, Premium, Elite) -
+ * which the website and the app show as their categories.
  */
 async function fetchProducts() {
-  const templates = await searchReadAll('product.template', [['sale_ok', '=', true]], {
-    fields: ['id', 'name', 'product_variant_ids'],
-  });
+  const shop = await fetchShopCategories();
+  if (!shop) return [];
+  const templates = await searchReadAll(
+    'product.template',
+    [
+      ['sale_ok', '=', true],
+      ['categ_id', 'child_of', shop.rootId],
+    ],
+    { fields: ['id', 'name', 'categ_id', 'product_variant_ids'] }
+  );
   if (templates.length === 0) return [];
 
   const variantIds = templates.flatMap((t) => t.product_variant_ids);
   const variants = await readInBatches('product.product', variantIds, {
-    fields: ['id', 'default_code', 'list_price', 'qty_available', 'product_template_attribute_value_ids'],
+    fields: ['id', 'default_code', 'lst_price', 'qty_available', 'product_template_attribute_value_ids'],
   });
 
   const ptavIds = [...new Set(variants.flatMap((v) => v.product_template_attribute_value_ids))];
@@ -162,7 +211,8 @@ async function fetchProducts() {
         // still a usable (if ugly) label rather than a blank option.
         label: v.product_template_attribute_value_ids.map((id) => ptavNameById.get(id) || id).join(' / '),
         sku: v.default_code || '',
-        price: v.list_price,
+        // lst_price, not list_price: the variant's own price, attribute extras included.
+        price: v.lst_price,
         stock: typeof v.qty_available === 'number' ? v.qty_available : null,
         inStock: typeof v.qty_available === 'number' ? v.qty_available > 0 : true,
       });
@@ -170,9 +220,14 @@ async function fetchProducts() {
   }
 
   return templates.map((t) => {
-    const vs = variantsByTemplateId.get(t.id);
-    // The first variant (Odoo's own product_variant_ids order) is the card's
-    // stable identity — fixed regardless of stock, so admin overrides (keyed
+    // A size Odoo has not priced yet is left out of the picker (it could not
+    // be ordered anyway - see src/lib/sellable.js), so a mattress being priced
+    // one size at a time shows the sizes that are ready.
+    const all = variantsByTemplateId.get(t.id);
+    const priced = all.filter(isSellable);
+    const vs = priced.length > 0 ? priced : all;
+    // The first priced variant (Odoo's own product_variant_ids order) is the
+    // card's identity — fixed regardless of stock, so admin overrides (keyed
     // by this id) and cart/order lookups don't shift between fetches.
     const primary = vs[0];
     return {
@@ -187,6 +242,8 @@ async function fetchProducts() {
       // rather than something read from a field. Revisit if pillows/bedding
       // ever get added to Odoo.
       category: 'mattress',
+      // Null for a product filed under Mattresses itself rather than a tier.
+      tier: shop.tierByCategoryId.get(Array.isArray(t.categ_id) ? t.categ_id[0] : t.categ_id) ?? null,
       // A single-variant template (or one with no attributes at all) has
       // nothing to pick between, so no size selector is needed for it.
       variants: vs.length > 1 ? vs : undefined,
