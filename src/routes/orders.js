@@ -39,16 +39,19 @@ function orderChannel(order) {
 }
 
 /**
- * Reports a purchase to Meta's Conversions API, in the background - website
- * and app orders each under their own action_source, so web ads and app ads
- * are credited with their own sales only.
+ * Reports a website purchase to Meta's Conversions API, in the background.
  *
- * Started before the reply goes out, so for the website the server's copy -
- * the one with the hashed phone and name - usually reaches Meta ahead of the
- * browser's, and that is the copy Meta keeps when it deduplicates.
+ * Website orders only: app orders stay out, because the Meta dataset is not
+ * connected to an app and would reject them - and counting them as website
+ * sales would credit web ads with app sales. They are still kept apart in the
+ * dashboard through `channel`.
+ *
+ * Started before the reply goes out, so the server's copy - the one with the
+ * hashed phone and name - usually reaches Meta ahead of the browser's, and
+ * that is the copy Meta keeps when it deduplicates.
  */
 function reportPurchase(req, order, { channel, orderName, total, userId, products }) {
-  if (!channel || !metaCapi.isConfigured()) return;
+  if (channel !== 'web' || !metaCapi.isConfigured()) return;
   const { pixelId, lydPerUsd } = settings.readPublicFacebookPixel();
   if (!pixelId) return;
 
@@ -56,8 +59,6 @@ function reportPurchase(req, order, { channel, orderName, total, userId, product
   const prices = new Map([...productLookup(products)].map(([id, p]) => [id, Number(p.price) || 0]));
   const event = metaCapi.buildPurchase({
     req,
-    channel,
-    app: order.app,
     orderName,
     customer: order.customer,
     items: order.items,
@@ -71,9 +72,6 @@ function reportPurchase(req, order, { channel, orderName, total, userId, product
       fbc: typeof tracking.fbc === 'string' ? tracking.fbc.slice(0, 500) : undefined,
     },
   });
-  // An app order from a build that sends no device details cannot be a valid
-  // app event - skipped rather than rejected by Meta.
-  if (!event) return;
   // send() never throws; the catch only guards against a bug in it.
   metaCapi.send(pixelId, [event]).catch((err) => console.error('[Meta CAPI]', err.message));
 }

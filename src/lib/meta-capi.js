@@ -6,11 +6,8 @@
  * This module sends the one event that matters most - Purchase - from the
  * server, where nothing can block it.
  *
- * Two channels, reported apart so each ad type is measured on its own sales:
- *   website  action_source 'website', paired with the browser Pixel's copy
- *   app      action_source 'app', with the device details Meta requires
- *            (app_data.extinfo). The dataset must be connected to the app in
- *            Events Manager, or Meta rejects these - the dashboard shows it.
+ * Website orders only. App orders are not reported: the dataset is not
+ * connected to an app in Meta, and app events would be rejected.
  *
  * Deduplication: the browser sends the same Purchase with the same event ID
  * (`purchase-<order name>`), so Meta counts one purchase, not two (48 h window;
@@ -103,64 +100,15 @@ function money(lyd, lydPerUsd) {
     : { value: lyd, currency: 'LYD' };
 }
 
-const str = (v, max = 100) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : '');
-const num = (v) => (Number.isFinite(Number(v)) && Number(v) > 0 ? String(Math.round(Number(v) * 100) / 100) : '');
-
-/**
- * app_data for an app event, from what the app sends with its order.
- * Returns null when the one required device field (OS version) is missing -
- * Meta rejects the event without it, so it is better not sent at all.
- *
- * advertiser_tracking_enabled: on iOS this is the App Tracking Transparency
- * answer, and the app does not ask it - so iOS always reports 0, and Meta
- * measures those sales in aggregate only. Android has no such prompt: 1.
- */
-function appData(app) {
-  if (!app || typeof app !== 'object') return null;
-  const ios = app.platform === 'ios';
-  const osVersion = str(app.osVersion, 20);
-  if (!osVersion || (app.platform !== 'ios' && app.platform !== 'android')) return null;
-  const tracking = ios ? (app.att === 1 ? 1 : 0) : 1;
-  return {
-    advertiser_tracking_enabled: tracking,
-    application_tracking_enabled: tracking,
-    extinfo: [
-      ios ? 'i2' : 'a2',
-      str(app.packageName),
-      str(app.appVersion, 20),
-      str(app.buildVersion, 20),
-      osVersion,
-      str(app.deviceModel, 50),
-      str(app.locale, 20).replace('-', '_'),
-      str(app.timezoneAbbr, 10),
-      '', // carrier - not available to the app
-      num(app.screenWidth),
-      num(app.screenHeight),
-      num(app.screenDensity),
-      '', // CPU cores
-      '', // external storage
-      '', // free space
-      str(app.timezone, 50),
-    ],
-  };
-}
-
 /**
  * Builds the Purchase event. Exported separately so tests can check the payload
  * without a network call.
  *
- * channel 'web': `tracking` comes from the website's checkout -
- *   { eventSourceUrl, fbp, fbc }. The browser's copies of _fbp/_fbc are used
- *   only when the request cookies are missing - the same values when both exist.
- * channel 'app': `app` carries the device details for app_data.
- *
- * Returns null when the event cannot be built validly (an app order without
- * device details).
+ * `tracking` comes from the website's checkout: { eventSourceUrl, fbp, fbc }.
+ * The browser's copies of _fbp/_fbc are used only when the request cookies are
+ * missing - they are the same values when both exist.
  */
-function buildPurchase({ req, channel = 'web', orderName, customer, items, total, userId, tracking, app, lydPerUsd, prices }) {
-  const isApp = channel === 'app';
-  const app_data = isApp ? appData(app) : undefined;
-  if (isApp && !app_data) return null;
+function buildPurchase({ req, orderName, customer, items, total, userId, tracking, lydPerUsd, prices }) {
 
   const [first, ...rest] = String(customer.name || '').trim().split(/\s+/);
   const last = rest.length ? rest[rest.length - 1] : '';
@@ -178,9 +126,8 @@ function buildPurchase({ req, channel = 'web', orderName, customer, items, total
     external_id: userId ? [hashed(`user:${userId}`)] : phoneHash ? [phoneHash] : undefined,
     client_ip_address: clientIp(req),
     client_user_agent: req.headers['user-agent'],
-    // Browser IDs exist only on the website.
-    fbp: isApp ? undefined : cookie(req, '_fbp') || tracking?.fbp,
-    fbc: isApp ? undefined : cookie(req, '_fbc') || tracking?.fbc,
+    fbp: cookie(req, '_fbp') || tracking?.fbp,
+    fbc: cookie(req, '_fbc') || tracking?.fbc,
   });
 
   const contents = items.map((i) => {
@@ -196,9 +143,8 @@ function buildPurchase({ req, channel = 'web', orderName, customer, items, total
     event_name: 'Purchase',
     event_time: Math.floor(Date.now() / 1000),
     event_id: `purchase-${orderName}`,
-    action_source: isApp ? 'app' : 'website',
-    event_source_url: isApp ? undefined : tracking?.eventSourceUrl,
-    app_data,
+    action_source: 'website',
+    event_source_url: tracking?.eventSourceUrl,
     user_data,
     custom_data: dropEmpty({
       ...money(Number(total) || 0, lydPerUsd),
