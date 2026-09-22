@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { api, ApiError } from '@/lib/api';
+import { onOpenSupport } from '@/lib/support';
 import { trackContact } from '@/lib/pixel';
 import { cn, phoneIsValid } from '@/lib/utils';
 import type { SupportTopic, User } from '@/types';
@@ -23,6 +24,11 @@ interface SupportWidgetProps {
   user: User | null;
   token: string | null;
   className?: string;
+  /**
+   * False hides the round launcher while the window is closed - for pages
+   * that open it from a button of their own (lib/support.ts).
+   */
+  launcher?: boolean;
 }
 
 type Fields = { name: string; phone: string; topic: SupportTopic | ''; orderName: string; message: string };
@@ -35,7 +41,7 @@ type Fields = { name: string; phone: string; topic: SupportTopic | ''; orderName
  * Odoo's own embeddable ticket form needs its Website apps, which this Odoo
  * does not have — so the form lives here and the store server files the ticket.
  */
-export function SupportWidget({ user, token, className }: SupportWidgetProps) {
+export function SupportWidget({ user, token, className, launcher = true }: SupportWidgetProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [fields, setFields] = useState<Fields>({
@@ -55,6 +61,17 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
     if (!user) return;
     setFields((f) => ({ ...f, name: f.name || user.name, phone: f.phone || user.phone || '' }));
   }, [user]);
+
+  // Opened from elsewhere on the page (lib/support.ts), possibly with the
+  // product the customer is asking about already written in.
+  useEffect(
+    () =>
+      onOpenSupport(({ message }) => {
+        if (message) setFields((f) => ({ ...f, message: f.message || message }));
+        setOpen(true);
+      }),
+    []
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -283,6 +300,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
         </div>
       )}
 
+      {(launcher || open) && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -292,6 +310,7 @@ export function SupportWidget({ user, token, className }: SupportWidgetProps) {
       >
         {open ? <X className="size-6" aria-hidden="true" /> : <Headset className="size-7" aria-hidden="true" />}
       </button>
+      )}
     </div>
   );
 }

@@ -53,14 +53,14 @@ export function Header({
             className="h-8 w-auto shrink-0 text-primary sm:h-10 md:h-11"
           />
 
-          {/* The full trade name, spelled out beside the mark. On phones the
-              navigation lives in the bottom tab bar, so the name has the row
-              to itself there. */}
+          {/* The full trade name, spelled out beside the mark. Hidden on
+              phones — five nav buttons plus the logo already fill a 375px
+              row, so the name is repeated at the top of the homepage there. */}
           <span
             aria-hidden="true"
             // Capped per breakpoint so the name wraps instead of pushing the
             // nav off-screen; only at `lg` does it fit on a single line.
-            className="block max-w-[13rem] text-start text-xs font-bold leading-snug text-primary sm:max-w-[11rem] sm:text-sm md:max-w-[15rem] md:text-base lg:max-w-none lg:text-lg"
+            className="hidden max-w-[11rem] text-start text-sm font-bold leading-snug text-primary sm:block md:max-w-[15rem] md:text-base lg:max-w-none lg:text-lg"
           >
             بريماتكس لصناعة الإسفنج الصناعي والمراتب
           </span>
@@ -94,9 +94,6 @@ export function Header({
                   // buttons plus the logo overflow a 320px screen. Width comes
                   // from padding instead — still well past the 24px AA floor.
                   'relative inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors',
-                  // Phones navigate from the bottom tab bar (MobileTabBar); only
-                  // the dashboard, which has no tab there, stays up here.
-                  id !== 'admin' && 'max-md:hidden',
                   'px-2.5 md:px-3',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   isActive

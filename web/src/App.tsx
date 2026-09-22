@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -8,7 +8,11 @@ import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { CartSection } from '@/components/CartSection';
 import { Header } from '@/components/Header';
 import { HomeSection } from '@/components/HomeSection';
-import { MobileTabBar } from '@/components/MobileTabBar';
+import { MobileCatalogue } from '@/components/mobile/MobileCatalogue';
+import { MobileHome } from '@/components/mobile/MobileHome';
+import { MobileProduct } from '@/components/mobile/MobileProduct';
+import { MobileTabBar } from '@/components/mobile/MobileTabBar';
+import { MobileTopBar } from '@/components/mobile/MobileTopBar';
 import { OrdersSection } from '@/components/OrdersSection';
 import { ProductDetail } from '@/components/ProductDetail';
 import { QuizSection } from '@/components/QuizSection';
@@ -19,6 +23,7 @@ import { WishlistSection } from '@/components/WishlistSection';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
+import { useIsPhone } from '@/hooks/useIsPhone';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
@@ -27,6 +32,23 @@ import { parseRoute, routePath, type Route } from '@/lib/route';
 import type { Address, Category, Product, SectionId } from '@/types';
 
 const DEFAULT_TITLE = document.title;
+
+/**
+ * Phone screen titles, as the iOS app's headers show them. Home has none - it
+ * draws its own header, as in the app. Sections not listed here are tabs,
+ * which get a title but no back arrow.
+ */
+const PHONE_TITLE: Partial<Record<SectionId, string>> = {
+  product: 'تفاصيل المنتج',
+  quiz: 'ساعدني أختار',
+  wishlist: 'المفضّلة',
+  cart: 'السلة',
+  auth: 'حسابي',
+  orders: 'طلباتي',
+  admin: 'لوحة التحكم',
+};
+/** Screens pushed on top of a tab: they get a back arrow. */
+const PUSHED: SectionId[] = ['shop', 'product', 'quiz', 'orders', 'admin'];
 
 export default function App() {
   // The first screen comes from the address, so a link from an ad lands on it.
@@ -37,6 +59,12 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<Category | 'all'>(landing.category ?? 'all');
   const [shopQuery, setShopQuery] = useState(landing.query ?? '');
   const [cameFromShop, setCameFromShop] = useState(false);
+
+  // Phones get the iOS app's design (components/mobile); larger screens keep
+  // the website's own.
+  const isPhone = useIsPhone();
+  /** Screens opened inside the site this visit - "back" leaves it only at zero. */
+  const depth = useRef(0);
 
   const catalogue = useProducts();
   const cart = useCart();
@@ -72,7 +100,18 @@ export default function App() {
 
   function go(route: Route) {
     window.history.pushState(null, '', routePath(route));
+    depth.current += 1;
     show(route);
+  }
+
+  /**
+   * The top bar's back arrow. Within the visit it is the browser's back; a
+   * visitor who landed straight on this page (an ad, a shared link) has
+   * nothing behind it on this site, so it goes home instead of leaving.
+   */
+  function back() {
+    if (depth.current > 0) window.history.back();
+    else navigate('home');
   }
 
   function navigate(next: SectionId) {
@@ -81,7 +120,10 @@ export default function App() {
 
   // The browser's back and forward buttons move between screens, not off the site.
   useEffect(() => {
-    const onPop = () => show(parseRoute(window.location));
+    const onPop = () => {
+      depth.current = Math.max(0, depth.current - 1);
+      show(parseRoute(window.location));
+    };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,16 +210,48 @@ export default function App() {
         تخطّي إلى المحتوى
       </a>
 
-      <Header
-        active={section}
-        cartCount={cart.count}
-        wishlistCount={wishlist.ids.length}
-        isAdmin={auth.user?.role === 'admin'}
-        onNavigate={navigate}
-      />
+      {isPhone ? (
+        section !== 'home' && (
+          <MobileTopBar
+            title={section === 'shop' ? (shopQuery.trim() ? 'نتائج البحث' : 'كل المنتجات') : (PHONE_TITLE[section] ?? '')}
+            onBack={PUSHED.includes(section) ? back : undefined}
+          />
+        )
+      ) : (
+        <Header
+          active={section}
+          cartCount={cart.count}
+          wishlistCount={wishlist.ids.length}
+          isAdmin={auth.user?.role === 'admin'}
+          onNavigate={navigate}
+        />
+      )}
 
-      <main id="main" className="min-h-[60vh]">
-        {section === 'home' && (
+      <main
+        id="main"
+        className={
+          isPhone
+            ? // White like the app's screens; clear of the tab bar at the bottom
+              'min-h-[100svh] bg-white font-app pb-[calc(72px+env(safe-area-inset-bottom))]'
+            : 'min-h-[60vh]'
+        }
+      >
+        {section === 'home' && isPhone && (
+          <MobileHome
+            user={auth.user}
+            products={catalogue.products}
+            loading={catalogue.loading}
+            error={catalogue.error}
+            onReload={catalogue.reload}
+            isSaved={wishlist.has}
+            wishlistPending={wishlist.pending}
+            onOpen={openProduct}
+            onToggleWishlist={handleToggleWishlist}
+            onNavigate={navigate}
+          />
+        )}
+
+        {section === 'home' && !isPhone && (
           <HomeSection
             products={catalogue.products}
             loading={catalogue.loading}
@@ -202,7 +276,26 @@ export default function App() {
           />
         )}
 
-        {section === 'shop' && (
+        {section === 'shop' && isPhone && (
+          <div className="px-5 pb-10 pt-4">
+            <MobileCatalogue
+              products={catalogue.products}
+              loading={catalogue.loading}
+              error={catalogue.error}
+              onReload={catalogue.reload}
+              query={shopQuery}
+              onQueryChange={setShopQuery}
+              category={shopCategory}
+              onCategoryChange={setShopCategory}
+              isSaved={wishlist.has}
+              wishlistPending={wishlist.pending}
+              onOpen={openProduct}
+              onToggleWishlist={handleToggleWishlist}
+            />
+          </div>
+        )}
+
+        {section === 'shop' && !isPhone && (
           <ShopSection
             products={catalogue.products}
             category={shopCategory}
@@ -223,7 +316,24 @@ export default function App() {
         )}
 
         {section === 'product' &&
-          (selected ? (
+          (selected && isPhone ? (
+            <MobileProduct
+              product={selected}
+              related={catalogue.products.filter(
+                (p) => p.id !== selected.id && p.category === selected.category
+              )}
+              justAddedId={justAddedId}
+              saved={wishlist.has(selected.id)}
+              wishlistPending={wishlist.pending === selected.id}
+              onAdd={handleAdd}
+              onBuyNow={(p) => {
+                handleAdd(p);
+                navigate('cart');
+              }}
+              onToggleWishlist={handleToggleWishlist}
+              onOpenProduct={openProduct}
+            />
+          ) : selected ? (
             <ProductDetail
               product={selected}
               related={catalogue.products.filter(
@@ -309,8 +419,9 @@ export default function App() {
         )}
       </main>
 
-      {/* Bottom padding on phones: the tab bar covers the last 4rem of the page */}
-      <footer className="bg-primary pt-12 text-center text-sm text-primary-foreground/80 max-md:pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      {/* The app has no footer; on phones the tab bar ends the page */}
+      {!isPhone && (
+      <footer className="bg-primary pt-12 text-center text-sm text-primary-foreground/80">
         <div className="container flex flex-col items-center pb-8">
           {/* currentColor puts the mark in Cloud Dancer here, not the navy it ships as */}
           <BrimatexLogo className="mb-4 h-16 w-auto text-primary-foreground" />
@@ -327,28 +438,23 @@ export default function App() {
           </p>
         </div>
       </footer>
+      )}
 
       {/* Customer care on every store page — a customer asking about an order is
           on "my orders", not the homepage. Only the admin dashboard goes without. */}
+      {/* Not on the dashboard. A phone's product page hides the round button:
+          it has its own "ask about this product" card, as in the app. */}
       {section !== 'admin' && (
         <SupportWidget
+          launcher={!(isPhone && section === 'product')}
           user={auth.user}
           token={auth.token}
-          // Phones: above the tab bar, and above the product page's buy bar too
-          className={
-            section === 'product'
-              ? 'max-md:bottom-[calc(9.5rem+env(safe-area-inset-bottom))]'
-              : 'max-md:bottom-[calc(5rem+env(safe-area-inset-bottom))]'
-          }
+          // Phones: above the tab bar
+          className={isPhone ? 'bottom-[calc(88px+env(safe-area-inset-bottom))]' : undefined}
         />
       )}
 
-      <MobileTabBar
-        active={section}
-        cartCount={cart.count}
-        wishlistCount={wishlist.ids.length}
-        onNavigate={navigate}
-      />
+      {isPhone && <MobileTabBar active={section} cartCount={cart.count} onNavigate={navigate} />}
 
       <Toaster />
     </>

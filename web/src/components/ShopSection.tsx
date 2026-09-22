@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Clock, Search, SlidersHorizontal, Truck, X } from 'lucide-react';
+import { ArrowRight, Clock, Search, Truck, X } from 'lucide-react';
 
 import { ProductCard } from '@/components/ProductCard';
 import { Reveal } from '@/components/Reveal';
@@ -69,8 +69,6 @@ export function ShopSection({
 }: ShopSectionProps) {
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [sort, setSort] = useState<SortKey>('featured');
-  /** Phones only: sort and price fold behind one button so products show first. */
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const priceCeiling = useMemo(
     () => products.reduce((max, p) => Math.max(max, Number(p.price) || 0), 0),
@@ -114,8 +112,7 @@ export function ShopSection({
 
   return (
     <section className="container animate-fade-up">
-      {/* Phones have the tab bar's home tab; the back link is for larger screens */}
-      <div className="pt-6 max-sm:hidden">
+      <div className="pt-6">
         <Button variant="ghost" onClick={onBackHome} className="px-2">
           <ArrowRight aria-hidden="true" />
           الرئيسية
@@ -123,18 +120,18 @@ export function ShopSection({
       </div>
 
       {/* The heading reflects how the visitor arrived — a search or a category */}
-      <div className="pt-5 pb-4 sm:pt-4 sm:pb-6">
-        <h1 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-primary sm:text-5xl">
+      <div className="pt-4 pb-6">
+        <h1 className="font-heading text-4xl font-semibold leading-tight tracking-tight text-primary sm:text-5xl">
           {heading}
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
+        <p className="mt-3 text-muted-foreground">
           {query.trim()
             ? `نتائج البحث عن «${query.trim()}»`
             : 'اطلب مباشرة دون تسجيل، وادفع عند الاستلام.'}
         </p>
       </div>
 
-      <ul className="mb-8 flex flex-wrap gap-x-8 gap-y-3 border-y py-4 max-sm:hidden">
+      <ul className="mb-8 flex flex-wrap gap-x-8 gap-y-3 border-y py-4">
         {TRUST.map(({ Icon, label }) => (
           <li key={label} className="flex items-center gap-2 text-sm text-secondary-foreground">
             <Icon className="size-[17px] shrink-0 text-accent" aria-hidden="true" />
@@ -144,10 +141,10 @@ export function ShopSection({
       </ul>
 
       {!loading && !error && products.length > 0 && (
-        <div className="mb-5 space-y-3 sm:mb-8 sm:space-y-4">
-          <div className="flex flex-wrap items-end gap-3 sm:gap-4">
+        <div className="mb-8 space-y-4">
+          <div className="flex flex-wrap items-end gap-4">
             <div className="min-w-56 flex-1 space-y-1.5">
-              <Label htmlFor="shop-search" className="max-sm:sr-only">البحث</Label>
+              <Label htmlFor="shop-search">البحث</Label>
               <div className="relative">
                 <Search
                   className="pointer-events-none absolute top-1/2 size-4 -translate-y-1/2 text-muted-foreground start-3"
@@ -164,7 +161,7 @@ export function ShopSection({
               </div>
             </div>
 
-            <div className={cn('space-y-1.5', !filtersOpen && 'max-sm:hidden')}>
+            <div className="space-y-1.5">
               <Label htmlFor="shop-sort">الترتيب</Label>
               <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
                 <SelectTrigger id="shop-sort" className="w-auto min-w-36">
@@ -181,7 +178,7 @@ export function ShopSection({
             </div>
 
             {priceCeiling > 0 && (
-              <div className={cn('min-w-48 flex-1 space-y-1.5', !filtersOpen && 'max-sm:hidden')}>
+              <div className="min-w-48 flex-1 space-y-1.5">
                 <Label htmlFor="shop-price">
                   السعر الأقصى:{' '}
                   <span className="tabular">
@@ -201,22 +198,8 @@ export function ShopSection({
             )}
           </div>
 
-          {/* One row on phones, scrolled sideways, with the filter toggle first */}
-          <div className="flex items-center gap-2 max-sm:-mx-4 max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-1 sm:flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFiltersOpen((open) => !open)}
-              aria-expanded={filtersOpen}
-              className="shrink-0 rounded-full sm:hidden"
-            >
-              <SlidersHorizontal aria-hidden="true" />
-              تصفية وترتيب
-              {(maxPrice !== null || sort !== 'featured') && (
-                <span className="size-2 rounded-full bg-accent" aria-label="(مفعّلة)" />
-              )}
-            </Button>
-            <span className="text-sm text-muted-foreground max-sm:hidden">التصنيف:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">التصنيف:</span>
             {CATEGORIES.map((c) => (
               <button
                 key={c.id}
@@ -224,7 +207,7 @@ export function ShopSection({
                 onClick={() => onCategoryChange(c.id)}
                 aria-pressed={category === c.id}
                 className={cn(
-                  'min-h-9 shrink-0 rounded-full border px-4 text-sm transition-colors',
+                  'min-h-9 rounded-full border px-4 text-sm transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   category === c.id
                     ? 'border-accent bg-accent/10 font-semibold text-accent'
@@ -236,7 +219,7 @@ export function ShopSection({
             ))}
 
             {filtersActive && (
-              <Button variant="ghost" size="sm" onClick={resetFilters} className="shrink-0 ms-auto">
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="ms-auto">
                 <X aria-hidden="true" />
                 مسح الفلاتر
               </Button>
@@ -252,7 +235,7 @@ export function ShopSection({
       )}
 
       {loading && (
-        <div className="grid grid-cols-2 gap-3 pb-12 sm:gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 pb-12 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="gap-3">
@@ -293,7 +276,7 @@ export function ShopSection({
       )}
 
       {!loading && !error && visible.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 pb-12 sm:gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 pb-12 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((product, i) => (
             // Stagger caps at 6 so a long grid does not crawl in
             <Reveal key={product.id} delay={Math.min(i, 6) * 60} className="flex">

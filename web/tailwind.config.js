@@ -17,8 +17,39 @@ export default {
         // had under Iwanzaza, which only ever had Arabic glyphs.
         heading: ['IBM Plex Sans Arabic', 'Cormorant', 'Georgia', 'serif'],
         sans: ['Montserrat', 'Segoe UI', 'Tahoma', 'sans-serif'],
+        // The phone layout (components/mobile) - IBM Plex Sans Arabic for every
+        // character, digits and Latin included, exactly as in the iOS app.
+        app: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        // The iOS app's shadows (brimatex-ios/src/theme/index.ts): faint, and
+        // tinted with Dark Ocean rather than a dead grey.
+        'app-card': '0 4px 14px rgb(40 40 104 / 0.05)',
+        'app-raised': '0 8px 20px rgb(40 40 104 / 0.10)',
+        'app-bar': '0 -4px 16px rgb(40 40 104 / 0.08)',
       },
       colors: {
+        // The iOS app's palette, one-to-one with brimatex-ios/src/theme/index.ts.
+        // Used by the phone layout only, which mirrors the app; the app is
+        // light-only, so these do not follow dark mode either.
+        app: {
+          ocean: '#282868',
+          'ocean-dark': '#1d1d4d',
+          tint: '#dfe3f6',
+          'tint-soft': '#f1f3fb',
+          sun: '#dee337',
+          porcelain: '#9dc9cf',
+          nebula: '#d9e3e2',
+          bg: '#f4f5f4',
+          input: '#f5f6f8',
+          border: '#ebedec',
+          divider: '#f1f2f1',
+          text: '#1f2937',
+          muted: '#8a9199',
+          success: '#17803d',
+          'success-bg': '#e8f5ec',
+          danger: '#b42318',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
