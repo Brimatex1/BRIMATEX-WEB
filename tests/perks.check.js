@@ -23,8 +23,10 @@ const http = require('http');
 const path = require('path');
 const { startTestServer } = require('./_server');
 
-const PORT = process.env.TEST_PORT || 3198;
-const ODOO_PORT = 3199;
+// Ports no other test uses: smoke.test.js takes 3199 right after this one,
+// and a mock still closing there made it refuse to start.
+const PORT = process.env.TEST_PORT || 3188;
+const ODOO_PORT = 3189;
 const uniq = () => '09' + Math.floor(10000000 + Math.random() * 89999999);
 const ADMIN_PHONE = uniq();
 
@@ -145,6 +147,7 @@ async function odooPart() {
     const plain = calls.find((c) => c.model === 'sale.order' && c.method === 'create')?.args[0]?.order_line || [];
     ok('بدون قسيمة: لا سطر خصم', plain.length === 1);
   } finally {
+    odoo.closeAllConnections();
     odoo.close();
     if (before) fs.writeFileSync(settingsFile, before);
     else fs.rmSync(settingsFile, { force: true });
