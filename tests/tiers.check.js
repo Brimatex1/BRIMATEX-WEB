@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The shop's categories come from Odoo - src/lib/odoo.js:fetchProducts.
 //
-// - only templates under Mattresses are asked for, and only sellable ones
+// - only templates under Mattresses are asked for - the category alone decides
 // - each card carries its tier (Economy, Comfort, Premium, Elite) with its
 //   Arabic name and rank; an unknown subcategory keeps its Odoo name
 // - sizes Odoo has not priced are left out of the picker; the card's price is
@@ -108,7 +108,7 @@ function answer(model, method, args) {
     const tplCall = calls.find((c) => c.model === 'product.template');
     const domain = JSON.stringify(tplCall?.args[0]);
     ok('يطلب منتجات Mattresses فقط', domain.includes('["categ_id","child_of",15]'), domain);
-    ok('والقابلة للبيع فقط', domain.includes('["sale_ok","=",true]'), domain);
+    ok('الفئة وحدها تقرّر (بدون شرط «يمكن بيعه»)', !domain.includes('sale_ok'), domain);
 
     ok('Comfort → كومفورت (2)', byName['Comfort Mattress']?.tier?.name === 'كومفورت' && byName['Comfort Mattress'].tier.rank === 2);
     ok('Economy → اقتصادية (1)', byName['Bordo Mattress D20']?.tier?.key === 'economy' && byName['Bordo Mattress D20'].tier.rank === 1);

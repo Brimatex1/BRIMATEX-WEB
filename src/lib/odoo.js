@@ -87,11 +87,15 @@ async function testConnection() {
   const uid = await authenticate();
   const version = await jsonRpc('call', { service: 'common', method: 'version', args: [] });
   const c = config();
-  const productCount = await jsonRpc('call', {
-    service: 'object',
-    method: 'execute_kw',
-    args: [c.db, uid, c.apiKey, 'product.product', 'search_count', [[['sale_ok', '=', true]]]],
-  });
+  // What the shop would list: the products filed under Mattresses.
+  const shop = await fetchShopCategories();
+  const productCount = shop
+    ? await jsonRpc('call', {
+        service: 'object',
+        method: 'execute_kw',
+        args: [c.db, uid, c.apiKey, 'product.template', 'search_count', [[['categ_id', 'child_of', shop.rootId]]]],
+      })
+    : 0;
 
   settings.saveOdoo({ ...c, uid });
   return {
@@ -169,19 +173,20 @@ async function fetchShopCategories() {
  * product card. Grouped here into one card per template, each carrying its
  * variants for the size picker on the product page.
  *
- * Only what Odoo files under Mattresses is the shop's, and each card carries
- * its tier - the subcategory it sits in (Economy, Comfort, Premium, Elite) -
- * which the website and the app show as their categories.
+ * Only what Odoo files under Mattresses is the shop's - the owner's rule:
+ * these categories and nothing else are synced, whatever else Odoo marks as
+ * sellable (the old "مراتب 1" and topper records included). Filing a product
+ * there is what puts it on sale, so "Can be Sold" is not asked for; a product
+ * with no price still stays off the shop (src/lib/sellable.js). Each card
+ * carries its tier - the subcategory it sits in (Economy, Comfort, Premium,
+ * Elite) - which the website and the app show as their categories.
  */
 async function fetchProducts() {
   const shop = await fetchShopCategories();
   if (!shop) return [];
   const templates = await searchReadAll(
     'product.template',
-    [
-      ['sale_ok', '=', true],
-      ['categ_id', 'child_of', shop.rootId],
-    ],
+    [['categ_id', 'child_of', shop.rootId]],
     { fields: ['id', 'name', 'categ_id', 'product_variant_ids'] }
   );
   if (templates.length === 0) return [];

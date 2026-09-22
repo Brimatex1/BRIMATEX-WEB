@@ -64,7 +64,7 @@ export function OdooSettingsPanel({ token, onChanged }: OdooSettingsPanelProps) 
       const r = await api.adminTestOdoo(token);
       const parts = [`المستخدم رقم ${r.uid}`];
       if (r.serverVersion) parts.push(`أودو ${r.serverVersion}`);
-      if (typeof r.productCount === 'number') parts.push(`${r.productCount} منتج قابل للبيع`);
+      if (typeof r.productCount === 'number') parts.push(`${r.productCount} منتج في فئة المراتب`);
       setTestResult(parts.join(' · '));
       toast.success('الاتصال ناجح');
       const { odoo } = await api.adminOdooSettings(token);
