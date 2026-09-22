@@ -97,7 +97,7 @@ export function Header({
                   'px-2.5 md:px-3',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   isActive
-                    ? 'font-semibold text-accent'
+                    ? 'font-semibold text-highlight'
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >

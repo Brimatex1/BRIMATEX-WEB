@@ -199,7 +199,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
     <section className="container animate-fade-up pb-16">
       <div className="flex flex-wrap items-end justify-between gap-4 pt-10 pb-6">
         <div>
-          <h1 className="font-heading text-3xl font-semibold text-primary sm:text-4xl">
+          <h1 className="font-heading text-3xl max-md:sr-only font-semibold text-primary sm:text-4xl">
             لوحة التحكم
           </h1>
           <p className="mt-2 text-muted-foreground">مرحباً {user.name} — إدارة المتجر.</p>
@@ -222,7 +222,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
               'inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               tab === id
-                ? 'border-accent font-semibold text-accent'
+                ? 'border-accent font-semibold text-highlight'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             )}
           >

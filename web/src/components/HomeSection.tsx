@@ -104,7 +104,7 @@ export function HomeSection({
             <p className="mb-3 text-base font-semibold leading-snug text-primary sm:hidden">
               بريماتكس لصناعة الإسفنج الصناعي والمراتب
             </p>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-highlight">
               مجموعة 2026
             </p>
             <h1 className="font-heading text-4xl font-semibold leading-[1.15] tracking-tight text-primary sm:text-5xl lg:text-6xl">

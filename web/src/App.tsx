@@ -8,11 +8,13 @@ import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { CartSection } from '@/components/CartSection';
 import { Header } from '@/components/Header';
 import { HomeSection } from '@/components/HomeSection';
+import { MobileCart } from '@/components/mobile/MobileCart';
 import { MobileCatalogue } from '@/components/mobile/MobileCatalogue';
 import { MobileHome } from '@/components/mobile/MobileHome';
 import { MobileProduct } from '@/components/mobile/MobileProduct';
 import { MobileTabBar } from '@/components/mobile/MobileTabBar';
 import { MobileTopBar } from '@/components/mobile/MobileTopBar';
+import { MobileWishlist } from '@/components/mobile/MobileWishlist';
 import { OrdersSection } from '@/components/OrdersSection';
 import { ProductDetail } from '@/components/ProductDetail';
 import { QuizSection } from '@/components/QuizSection';
@@ -231,8 +233,9 @@ export default function App() {
         id="main"
         className={
           isPhone
-            ? // White like the app's screens; clear of the tab bar at the bottom
-              'min-h-[100svh] bg-white font-app pb-[calc(72px+env(safe-area-inset-bottom))]'
+            ? // White like the app's screens; clear of the tab bar at the bottom.
+              // app-skin dresses the pages that have no phone twin (index.css).
+              'app-skin min-h-[100svh] bg-white font-app pb-[calc(72px+env(safe-area-inset-bottom))]'
             : 'min-h-[60vh]'
         }
       >
@@ -355,7 +358,20 @@ export default function App() {
             </section>
           ))}
 
-        {section === 'wishlist' && (
+        {section === 'wishlist' && isPhone && (
+          <MobileWishlist
+            user={auth.user}
+            products={catalogue.products}
+            savedIds={wishlist.ids}
+            onAdd={handleAdd}
+            onOpen={openProduct}
+            onToggleWishlist={handleToggleWishlist}
+            onGoToAuth={() => navigate('auth')}
+            onContinueShopping={() => navigate('home')}
+          />
+        )}
+
+        {section === 'wishlist' && !isPhone && (
           <WishlistSection
             user={auth.user}
             products={catalogue.products}
@@ -380,7 +396,29 @@ export default function App() {
           />
         )}
 
-        {section === 'cart' && (
+        {section === 'cart' && isPhone && (
+          <MobileCart
+            lines={cart.lines}
+            total={cart.total}
+            products={catalogue.products}
+            wishlistIds={wishlist.ids}
+            user={auth.user}
+            token={auth.token}
+            onSetQty={cart.setQty}
+            onRemove={(id) => {
+              cart.remove(id);
+              toast.success('تم حذف المنتج');
+            }}
+            onClear={cart.clear}
+            onAdd={handleAdd}
+            onOpen={openProduct}
+            onToggleWishlist={handleToggleWishlist}
+            onContinueShopping={() => navigate('home')}
+            onViewOrders={() => navigate('orders')}
+          />
+        )}
+
+        {section === 'cart' && !isPhone && (
           <CartSection
             lines={cart.lines}
             total={cart.total}
@@ -442,11 +480,13 @@ export default function App() {
 
       {/* Customer care on every store page — a customer asking about an order is
           on "my orders", not the homepage. Only the admin dashboard goes without. */}
-      {/* Not on the dashboard. A phone's product page hides the round button:
-          it has its own "ask about this product" card, as in the app. */}
+      {/* Not on the dashboard. On a phone the round button stays off the two
+          screens with a fixed bottom bar it would cover - the product page
+          (which has its own "ask about this product" card, as in the app)
+          and the cart. */}
       {section !== 'admin' && (
         <SupportWidget
-          launcher={!(isPhone && section === 'product')}
+          launcher={!(isPhone && (section === 'product' || section === 'cart'))}
           user={auth.user}
           token={auth.token}
           // Phones: above the tab bar

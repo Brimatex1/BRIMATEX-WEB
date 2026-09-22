@@ -237,3 +237,49 @@
     display: none;
   }
 }
+
+/*
+ * The app skin: on phones (App.tsx puts .app-skin on <main>) the website's own
+ * pages - sign-in, checkout, orders, the quiz, the dashboard - take the iOS
+ * app's look through the shared primitives, without touching their logic:
+ * white screens, 20px cards with the app's hairline border and Dark Ocean
+ * shadow, borderless grey fields, Plex everywhere.
+ */
+@layer components {
+  .app-skin {
+    --background: 0 0% 100%;
+    --border: 150 5% 92.5%; /* #ebedec - the app's card border */
+    --muted: 220 23% 97%; /* #f5f6f8 - the app's field background */
+  }
+  .app-skin .font-heading {
+    font-family: 'Brimatex Plex', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  }
+  /* Cards (components/ui/card.tsx) */
+  .app-skin .bg-card {
+    border-radius: 20px;
+    border-color: #ebedec;
+    box-shadow: 0 4px 14px rgb(40 40 104 / 0.05);
+  }
+  /*
+   * Fields: borderless on the app's grey, rounded. 16px text, because iOS
+   * Safari zooms the page into any field smaller than that when it is tapped.
+   */
+  .app-skin input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  .app-skin textarea,
+  .app-skin button[role='combobox'] {
+    border-color: transparent;
+    background-color: #f5f6f8;
+    border-radius: 14px;
+    font-size: 16px;
+    min-height: 48px;
+  }
+  .app-skin input[aria-invalid='true'],
+  .app-skin textarea[aria-invalid='true'] {
+    border-color: hsl(var(--destructive));
+  }
+  /* Page headings sit under the top bar's title - the app's size, not the site's display size */
+  .app-skin h1.font-heading {
+    font-size: 26px;
+    line-height: 1.3;
+  }
+}

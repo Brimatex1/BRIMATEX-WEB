@@ -61,7 +61,7 @@ export function ProductCard({
             <button
               type="button"
               onClick={() => onOpen(product)}
-              className="text-start hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="text-start hover:text-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {product.name}
             </button>

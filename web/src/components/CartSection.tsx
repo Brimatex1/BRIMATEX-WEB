@@ -65,7 +65,7 @@ export function CartSection({
             )}
             <p className="mt-4 text-lg">
               الإجمالي:{' '}
-              <strong className="font-heading text-2xl tabular text-accent">
+              <strong className="font-heading text-2xl tabular text-highlight">
                 {formatPrice(result.total)} د.ل
               </strong>
             </p>

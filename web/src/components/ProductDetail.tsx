@@ -115,7 +115,7 @@ export function ProductDetail({
           <h1 className="font-heading text-3xl font-semibold leading-tight text-primary sm:text-4xl">
             {product.name}
           </h1>
-          {product.tagline && <p className="mt-2 text-accent">{product.tagline}</p>}
+          {product.tagline && <p className="mt-2 text-highlight">{product.tagline}</p>}
 
           <p className="mt-6">
             <span className="font-heading text-4xl font-semibold tabular text-primary">
@@ -272,7 +272,7 @@ export function ProductDetail({
                 <tbody>
                   <tr className="border-b bg-accent/5">
                     <th scope="row" className="py-4 pe-4 text-start font-semibold">
-                      {product.name} <span className="text-accent">(تعرضه الآن)</span>
+                      {product.name} <span className="text-highlight">(تعرضه الآن)</span>
                     </th>
                     <td className="py-4 pe-4">{selectedVariant?.label ?? size?.label ?? '—'}</td>
                     <td className="py-4 pe-4">{specs?.firmness ?? '—'}</td>
@@ -284,7 +284,7 @@ export function ProductDetail({
                         <button
                           type="button"
                           onClick={() => onOpenProduct(other)}
-                          className="text-start hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="text-start hover:text-highlight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
                           {other.name}
                         </button>

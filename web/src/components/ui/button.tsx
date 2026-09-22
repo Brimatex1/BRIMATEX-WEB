@@ -10,12 +10,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-accent',
+        // Sun Glare behind white text reads at 1.39:1 - hover switches the text to Dark Ocean with it.
+        default: 'bg-primary text-primary-foreground hover:bg-accent hover:text-accent-foreground',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline: 'border border-border bg-card text-foreground hover:bg-muted hover:border-primary',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-muted hover:text-foreground text-muted-foreground',
-        link: 'text-accent underline-offset-4 hover:underline',
+        // Not text-accent: Sun Glare as ink fails contrast (index.css). highlight is its text-safe twin.
+        link: 'text-highlight underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-11 px-6',

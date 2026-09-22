@@ -162,7 +162,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
 
     return (
       <section className="container max-w-4xl animate-fade-up py-12">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">ترشيحنا لك</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-highlight">ترشيحنا لك</p>
         <h1 className="mt-2 font-heading text-4xl font-semibold text-primary">
           {best.product.name}
         </h1>
@@ -171,7 +171,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
           <ProductVisual product={best.product} variant="hero" />
 
           <div>
-            {best.product.tagline && <p className="text-accent">{best.product.tagline}</p>}
+            {best.product.tagline && <p className="text-highlight">{best.product.tagline}</p>}
 
             {best.reasons.length > 0 && (
               <>
@@ -225,7 +225,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
                 >
                   <ProductVisual product={product} className="w-28 shrink-0" />
                   <div className="min-w-0">
-                    <p className="font-semibold text-primary group-hover:text-accent">
+                    <p className="font-semibold text-primary group-hover:text-highlight">
                       {product.name}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">{product.specs?.firmness}</p>

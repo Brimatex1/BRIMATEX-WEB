@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ArrowLeft, Heart } from 'lucide-react';
+import { ArrowLeft, Heart, Minus, Plus, ShoppingBag, Trash2, type LucideIcon } from 'lucide-react';
 
 import { cn, formatPrice } from '@/lib/utils';
 import type { Product } from '@/types';
@@ -225,5 +225,151 @@ export function NewItemCard({ product, onOpen }: { product: Product; onOpen: (pr
       <span className="mt-3 line-clamp-2 block min-h-10 text-sm leading-5 text-app-text">{product.name}</span>
       <span className="mt-0.5 block text-[17px] font-bold text-app-text">{formatPrice(priceFrom(product))} د.ل</span>
     </button>
+  );
+}
+
+/** Round icon button (ui CircleIconButton): white with a red icon for "delete", tinted for actions. */
+export function CircleIconButton({
+  Icon,
+  label,
+  tone,
+  size = 44,
+  onClick,
+  className,
+}: {
+  Icon: LucideIcon;
+  label: string;
+  tone: 'danger' | 'light';
+  size?: number;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={label}
+      style={{ width: size, height: size }}
+      className={cn(
+        'grid shrink-0 place-items-center rounded-full',
+        tone === 'danger' ? 'bg-white text-app-danger shadow-app-card' : 'bg-app-tint-soft text-app-ocean',
+        className
+      )}
+    >
+      <Icon className="size-5" aria-hidden="true" />
+    </button>
+  );
+}
+
+/** Quantity stepper (ui Stepper): minus, the count, plus - on the app's grey. */
+export function Stepper({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  label: string;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-app-input p-1">
+      <button
+        type="button"
+        onClick={() => onChange(value - 1)}
+        disabled={value <= 1}
+        aria-label={`إنقاص كمية ${label}`}
+        className="grid size-9 place-items-center rounded-full bg-white text-app-ocean disabled:opacity-40"
+      >
+        <Minus className="size-4" aria-hidden="true" />
+      </button>
+      <span className="min-w-8 text-center text-base font-bold text-app-text">{value}</span>
+      <button
+        type="button"
+        onClick={() => onChange(value + 1)}
+        aria-label={`زيادة كمية ${label}`}
+        className="grid size-9 place-items-center rounded-full bg-white text-app-ocean"
+      >
+        <Plus className="size-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/** Empty screen (the cart's): a large white circle with the icon, and one line under it. */
+export function EmptyCircle({ Icon = ShoppingBag, text, children }: { Icon?: LucideIcon; text: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col items-center py-10 text-center">
+      <span className="grid size-[170px] place-items-center rounded-full bg-white shadow-app-raised">
+        <Icon className="size-[76px] text-app-ocean" strokeWidth={1.5} aria-hidden="true" />
+      </span>
+      <p className="mt-5 text-base text-app-muted">{text}</p>
+      {children}
+    </div>
+  );
+}
+
+/** The fixed bar above the tab bar (ui StickyBar): white, hairline top border, upward shadow. */
+export function StickyBar({ children }: { children: ReactNode }) {
+  return (
+    <div className="fixed inset-x-0 z-20 border-t border-app-border bg-white px-4 py-3 shadow-app-bar bottom-[calc(72px+env(safe-area-inset-bottom))]">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * A product row (components/WishRow): the picture in a white frame with a round
+ * delete button over it, then the name, the price, the sizes as chips, and a
+ * round "add to cart".
+ */
+export function WishRow({
+  product,
+  onOpen,
+  onRemove,
+  onAdd,
+}: {
+  product: Product;
+  onOpen: () => void;
+  onRemove?: () => void;
+  onAdd: () => void;
+}) {
+  const variants = product.variants ?? [];
+  const chips = variants.slice(0, 2).map((v) => v.label);
+  return (
+    <div className="mb-5 flex gap-4">
+      <div className="relative w-[130px] shrink-0 rounded-[14px] bg-white p-[5px] shadow-app-raised">
+        <button type="button" onClick={onOpen} aria-label={product.name} className="block w-full">
+          <ProductImage product={product} letterSize={48} className="aspect-[0.85] rounded-[10px]" />
+        </button>
+        {onRemove && (
+          <CircleIconButton Icon={Trash2} label={`حذف ${product.name}`} tone="danger" onClick={onRemove} className="absolute bottom-3 start-3" />
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        <button type="button" onClick={onOpen} className="text-start">
+          <span className="line-clamp-2 text-base leading-6 text-app-text">{product.name}</span>
+          <span className="mt-2 block text-xl font-bold text-app-text">
+            {formatPrice(priceFrom(product))} د.ل
+            {variants.length > 1 && <span className="text-xs font-normal text-app-muted">  يبدأ من</span>}
+          </span>
+        </button>
+        <div className="mt-3 flex items-end justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {(chips.length ? chips : ['مقاس واحد']).map((c) => (
+              <span key={c} className="rounded-full bg-app-tint-soft px-3 py-1.5 text-sm font-medium text-app-ocean">
+                {c}
+              </span>
+            ))}
+            {variants.length > 2 && (
+              <span className="rounded-full bg-app-tint-soft px-3 py-1.5 text-sm font-medium text-app-ocean">+{variants.length - 2}</span>
+            )}
+          </div>
+          <CircleIconButton Icon={ShoppingBag} label={variants.length ? 'اختر المقاس' : 'أضف للسلة'} tone="light" size={46} onClick={onAdd} />
+        </div>
+      </div>
+    </div>
   );
 }

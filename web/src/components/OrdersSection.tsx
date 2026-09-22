@@ -64,7 +64,7 @@ export function OrdersSection({
             <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
               <Package className="size-7" aria-hidden="true" />
             </div>
-            <h1 className="mb-3 font-heading text-2xl font-semibold text-primary">طلباتي</h1>
+            <h1 className="mb-3 font-heading max-md:sr-only text-2xl font-semibold text-primary">طلباتي</h1>
             <p className="mb-6 text-muted-foreground">
               سجّل الدخول لمتابعة طلباتك وفواتيرك.
             </p>
@@ -79,8 +79,8 @@ export function OrdersSection({
 
   return (
     <section className="container max-w-3xl animate-fade-up">
-      <div className="pt-12 pb-6">
-        <h1 className="font-heading text-4xl font-semibold tracking-tight text-primary">طلباتي</h1>
+      <div className="pt-12 pb-6 max-md:pt-4">
+        <h1 className="font-heading text-4xl max-md:sr-only font-semibold tracking-tight text-primary">طلباتي</h1>
         <p className="mt-3 text-muted-foreground">
           الطلبات التي أنشأتها وأنت مسجّل الدخول تظهر هنا مع حالة الفاتورة.
         </p>
@@ -152,7 +152,7 @@ export function OrdersSection({
 
                 <div className="flex items-baseline justify-between border-t pt-3">
                   <span className="text-muted-foreground">الإجمالي</span>
-                  <strong className="font-heading text-xl tabular text-accent">
+                  <strong className="font-heading text-xl tabular text-highlight">
                     {formatPrice(order.total)} د.ل
                   </strong>
                 </div>
