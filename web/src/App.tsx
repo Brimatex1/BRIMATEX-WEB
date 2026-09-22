@@ -10,11 +10,11 @@ import { CartScreen } from '@/components/app/CartScreen';
 import { Catalogue } from '@/components/app/Catalogue';
 import { HomeScreen } from '@/components/app/HomeScreen';
 import { ProductScreen } from '@/components/app/ProductScreen';
+import { QuizScreen } from '@/components/app/QuizScreen';
 import { TabBar } from '@/components/app/TabBar';
 import { TopBar } from '@/components/app/TopBar';
 import { WishlistScreen } from '@/components/app/WishlistScreen';
 import { OrdersSection } from '@/components/OrdersSection';
-import { QuizSection } from '@/components/QuizSection';
 import { SocialLinks } from '@/components/SocialLinks';
 import { SupportWidget } from '@/components/SupportWidget';
 import { Toaster } from '@/components/ui/sonner';
@@ -37,7 +37,8 @@ const DEFAULT_TITLE = document.title;
  */
 const PHONE_TITLE: Partial<Record<SectionId, string>> = {
   product: 'تفاصيل المنتج',
-  quiz: 'ساعدني أختار',
+  // The app's quiz screen has no header title - its intro carries the question.
+  quiz: '',
   wishlist: 'المفضّلة',
   cart: 'السلة',
   auth: 'حسابي',
@@ -138,11 +139,6 @@ export default function App() {
     go({ section: 'product', productId: product.id });
   }
 
-  /** The quiz's "browse everything" - the catalogue, optionally filtered. */
-  function shopCategoryFrom(category: Category | 'all') {
-    go({ section: 'shop', category, query: '' });
-  }
-
   function handleAdd(product: Product) {
     const existing = cart.lines.find((l) => l.id === product.id);
     cart.add(product);
@@ -241,12 +237,7 @@ export default function App() {
         )}
 
         {section === 'quiz' && (
-          <QuizSection
-            products={catalogue.products}
-            onAdd={handleAdd}
-            onOpenProduct={openProduct}
-            onBrowseAll={() => shopCategoryFrom('all')}
-          />
+          <QuizScreen products={catalogue.products} productsReady={!catalogue.loading} onOpen={openProduct} />
         )}
 
         {section === 'shop' && (
@@ -383,13 +374,13 @@ export default function App() {
         </footer>
       )}
 
-      {/* Not on the dashboard. On a phone the round button stays off the two
+      {/* Not on the dashboard. On a phone the round button stays off the
           screens with a fixed bottom bar it would cover - the product page
-          (which has its own "ask about this product" card, as in the app)
-          and the cart. */}
+          (which has its own "ask about this product" card, as in the app),
+          the cart and the quiz. */}
       {section !== 'admin' && (
         <SupportWidget
-          launcher={!(isPhone && (section === 'product' || section === 'cart'))}
+          launcher={!(isPhone && (section === 'product' || section === 'cart' || section === 'quiz'))}
           user={auth.user}
           token={auth.token}
           // Phones: above the tab bar

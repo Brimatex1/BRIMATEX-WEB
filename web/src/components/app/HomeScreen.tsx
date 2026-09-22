@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { Catalogue } from '@/components/app/Catalogue';
 import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/app/ui';
+import { QUESTIONS } from '@/lib/mattressQuiz';
 import { openSupport } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import type { Category, Product, SectionId, User } from '@/types';
@@ -107,7 +108,7 @@ export function HomeScreen({
         <span className="flex-1">
           <span className="block text-[17px] font-bold text-app-text">شن المرتبة المناسبة ليك؟</span>
           <span className="mt-1 block text-sm leading-[21px] text-app-text">
-            4 أسئلة بسيطة ونقترح عليك الأقرب لنومك.
+            {QUESTIONS.length} أسئلة بسيطة ونقترح عليك الأقرب لنومك.
           </span>
         </span>
         <ArrowButton size={44} label="ابدأ الاختبار" />

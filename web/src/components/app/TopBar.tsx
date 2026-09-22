@@ -18,7 +18,8 @@ export function TopBar({ title, onBack }: { title: string; onBack?: () => void }
           <ChevronRight className="size-7" aria-hidden="true" />
         </button>
       )}
-      <h1 className={onBack ? 'text-xl font-bold text-app-text' : 'px-3 text-xl font-bold text-app-text'}>{title}</h1>
+      {/* No empty heading when the screen carries its own title (the quiz) */}
+      {title && <h1 className={onBack ? 'text-xl font-bold text-app-text' : 'px-3 text-xl font-bold text-app-text'}>{title}</h1>}
     </header>
   );
 }
