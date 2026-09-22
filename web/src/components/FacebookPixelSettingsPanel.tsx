@@ -19,6 +19,7 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
   const [pixelId, setPixelId] = useState('');
   const [rate, setRate] = useState('');
   const [capi, setCapi] = useState<ConversionsApiStatus | null>(null);
+  const [testing, setTesting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -52,6 +53,19 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
       toast.error(err instanceof Error ? err.message : 'تعذّر الحفظ');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true);
+    try {
+      const result = await api.adminTestConversionsApi(token);
+      if (result.ok) toast.success(`الاتصال بميتا سليم — «${result.datasetName ?? result.datasetId}»`);
+      else toast.error(`ميتا رفضت: ${result.error}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'تعذّر الاختبار');
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -174,6 +188,17 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
               آخر إرسال ({new Date(capi.lastResult.at).toLocaleString('ar-LY')}):{' '}
               {capi.lastResult.ok ? 'وصل إلى ميتا' : `رُفض — ${capi.lastResult.error}`}
             </p>
+          )}
+          {capi?.configured && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              loading={testing}
+              onClick={() => void testConnection()}
+            >
+              اختبار الاتصال بميتا
+            </Button>
           )}
         </div>
       </CardContent>

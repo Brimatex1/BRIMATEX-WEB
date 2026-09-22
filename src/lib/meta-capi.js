@@ -36,7 +36,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const { postRaw } = require('./http');
+const { postRaw, getRaw } = require('./http');
 const { toInternational } = require('./whatsapp-cloud');
 
 /** Latest Graph API version as of July 2026. */
@@ -256,4 +256,31 @@ async function send(datasetId, events) {
   }
 }
 
-module.exports = { isConfigured, status, buildPurchase, send, hashedPhone };
+/**
+ * Checks the setup without sending any event: asks Meta for the dataset with
+ * the token. Success proves the token is valid and has access to that dataset
+ * - the two things a live purchase needs. Nothing reaches Events Manager.
+ */
+async function checkConnection(datasetId) {
+  if (!isConfigured()) return { ok: false, error: 'FACEBOOK_CAPI_TOKEN غير موجود في ملف .env على الخادم' };
+  if (!datasetId) return { ok: false, error: 'لا يوجد رقم بكسل محفوظ' };
+  try {
+    const res = await getRaw(
+      `${GRAPH_URL}/${GRAPH_VERSION}/${encodeURIComponent(datasetId)}?fields=id,name`,
+      // Bearer header, not a query parameter - the token stays out of any URL.
+      { headers: { Authorization: `Bearer ${TOKEN}` }, timeout: TIMEOUT_MS }
+    );
+    let json = null;
+    try {
+      json = JSON.parse(res.text);
+    } catch {
+      /* non-JSON error page */
+    }
+    if (!res.ok) return { ok: false, error: json?.error?.message || `HTTP ${res.status}` };
+    return { ok: true, datasetId: json?.id, datasetName: json?.name };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+module.exports = { isConfigured, status, buildPurchase, send, checkConnection, hashedPhone };

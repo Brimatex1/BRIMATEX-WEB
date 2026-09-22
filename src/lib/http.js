@@ -25,6 +25,15 @@ const DEFAULT_TIMEOUT_MS = 20_000;
  * the same way they did with fetch.
  */
 function postRaw(url, { headers = {}, body = '', timeout = DEFAULT_TIMEOUT_MS } = {}) {
+  return sendRaw('POST', url, { headers, body, timeout });
+}
+
+/** GET counterpart of postRaw - same { status, ok, text } result. */
+function getRaw(url, { headers = {}, timeout = DEFAULT_TIMEOUT_MS } = {}) {
+  return sendRaw('GET', url, { headers, timeout });
+}
+
+function sendRaw(method, url, { headers = {}, body = '', timeout = DEFAULT_TIMEOUT_MS } = {}) {
   const target = new URL(url);
   const client = target.protocol === 'https:' ? https : http;
   const payload = Buffer.from(body);
@@ -33,8 +42,8 @@ function postRaw(url, { headers = {}, body = '', timeout = DEFAULT_TIMEOUT_MS } 
     const req = client.request(
       target,
       {
-        method: 'POST',
-        headers: { ...headers, 'Content-Length': payload.length },
+        method,
+        headers: method === 'GET' ? headers : { ...headers, 'Content-Length': payload.length },
         timeout,
       },
       (res) => {
@@ -55,7 +64,8 @@ function postRaw(url, { headers = {}, body = '', timeout = DEFAULT_TIMEOUT_MS } 
       req.destroy(new Error(`انتهت مهلة الاتصال بـ ${target.host}`));
     });
     req.on('error', reject);
-    req.end(payload);
+    if (method === 'GET') req.end();
+    else req.end(payload);
   });
 }
 
@@ -77,4 +87,4 @@ async function postJson(url, data, headers = {}) {
   }
 }
 
-module.exports = { postRaw, postJson };
+module.exports = { postRaw, getRaw, postJson };

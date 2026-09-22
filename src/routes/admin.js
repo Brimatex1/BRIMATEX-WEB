@@ -414,6 +414,13 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { facebookPixel: saved });
     }
 
+    // Verifies the Conversions API token against the saved dataset - no event sent.
+    if (req.method === 'POST' && url.pathname === '/api/admin/settings/facebook-pixel/test') {
+      if (!(await requireAdmin(req, res))) return;
+      const { pixelId } = settings.readPublicFacebookPixel();
+      return sendJson(res, 200, await metaCapi.checkConnection(pixelId));
+    }
+
     if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/facebook-pixel') {
       if (!(await requireAdmin(req, res))) return;
       const cleared = settings.clearFacebookPixel();

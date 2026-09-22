@@ -292,6 +292,13 @@ export const api = {
       body: JSON.stringify({ pixelId, lydPerUsd }),
     }),
 
+  /** Asks Meta whether the server's token can reach the saved dataset. Sends no event. */
+  adminTestConversionsApi: (token: string) =>
+    request<{ ok: boolean; datasetId?: string; datasetName?: string; error?: string }>(
+      '/api/admin/settings/facebook-pixel/test',
+      { method: 'POST', ...authHeaders(token) }
+    ),
+
   adminClearFacebookPixel: (token: string) =>
     request<{ facebookPixel: FacebookPixelSettings }>('/api/admin/settings/facebook-pixel', {
       method: 'DELETE',
