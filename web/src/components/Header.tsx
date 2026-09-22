@@ -27,7 +27,7 @@ const NAV: { id: SectionId; label: string; Icon: typeof Home }[] = [
 /** Screens pushed on top of a tab keep that tab lit, as in the app. */
 function tabFor(section: SectionId): SectionId {
   if (section === 'shop' || section === 'product' || section === 'quiz') return 'home';
-  if (section === 'orders') return 'auth';
+  if (section === 'orders' || section === 'vouchers' || section === 'points') return 'auth';
   return section;
 }
 

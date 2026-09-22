@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
+import { Heart, Star } from 'lucide-react';
 
 import { Catalogue } from '@/components/app/Catalogue';
 import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/app/ui';
 import { QUESTIONS } from '@/lib/mattressQuiz';
 import { openSupport } from '@/lib/support';
 import { cn } from '@/lib/utils';
-import type { Category, Product, SectionId, User } from '@/types';
+import type { Category, Perks, Product, SectionId, User } from '@/types';
 
-interface MobileHomeProps {
+interface HomeScreenProps {
   user: User | null;
   products: Product[];
   loading: boolean;
@@ -18,6 +19,26 @@ interface MobileHomeProps {
   onOpen: (product: Product) => void;
   onToggleWishlist: (product: Product) => void;
   onNavigate: (section: SectionId) => void;
+  /** Signed in: the points pill and a notice for a reward just unlocked. */
+  perks: Perks | null;
+}
+
+const SEEN_KEY = 'brimatex:rewards:seen';
+
+function readSeen(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function writeSeen(codes: string[]) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(codes));
+  } catch {
+    /* storage blocked - the notice simply shows again */
+  }
 }
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -46,11 +67,19 @@ export function HomeScreen({
   onOpen,
   onToggleWishlist,
   onNavigate,
-}: MobileHomeProps) {
+  perks,
+}: HomeScreenProps) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<Category | 'all'>('all');
 
   const firstName = user?.name?.trim().split(/\s+/)[0];
+  // A reward voucher earned in the last two weeks that this browser has not
+  // opened yet - shown until it is, as the app does (it keeps "seen" locally).
+  const [seen, setSeen] = useState<string[]>(readSeen);
+  const newReward =
+    perks?.vouchers.find(
+      (v) => v.unit === '%' && v.state === 'active' && !seen.includes(v.code) && Date.now() - new Date(v.unlockedAt).getTime() < 14 * 86_400_000
+    ) ?? null;
   // The newest products: the catalogue's order is Odoo's, highest ids last.
   const newest = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 8), [products]);
   const categories = useMemo(
@@ -85,6 +114,44 @@ export function HomeScreen({
       <p className="mt-5 text-[34px] font-bold leading-tight text-app-text md:text-[44px]">
         {firstName ? `مرحباً، ${firstName}!` : 'مرحباً بك!'}
       </p>
+
+      {/* ── Points, as in the app: under the greeting, for a signed-in customer ── */}
+      {user && perks && (
+        <button
+          type="button"
+          onClick={() => onNavigate('points')}
+          aria-label="نقاطي"
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-app-ocean px-4 py-2 text-sm font-bold text-white"
+        >
+          <Star className="size-4 fill-app-sun text-app-sun" aria-hidden="true" />
+          {perks.points.balance} نقطة
+          {perks.points.pending > 0 && <span className="font-normal text-app-tint">+{perks.points.pending} قيد الاعتماد</span>}
+        </button>
+      )}
+
+      {/* ── A reward just unlocked - once, then it lives under vouchers ── */}
+      {newReward && (
+        <button
+          type="button"
+          onClick={() => {
+            const next = [...seen, newReward.code];
+            setSeen(next);
+            writeSeen(next);
+            onNavigate('vouchers');
+          }}
+          className="mt-5 flex w-full items-center gap-4 text-start"
+        >
+          <span className="flex-1">
+            <span className="block text-[17px] font-bold text-app-text">حصلت على مكافأة</span>
+            <span className="mt-1 block text-sm leading-[21px] text-app-text">
+              {newReward.title}: {newReward.body}. اضغط لعرض قسيمتك.
+            </span>
+          </span>
+          <span className="relative grid size-[84px] shrink-0 place-items-center rounded-full border-[3px] border-app-ocean bg-white">
+            <Heart className="size-[30px] fill-app-ocean text-app-ocean" aria-hidden="true" />
+          </span>
+        </button>
+      )}
 
       {/* Side by side on larger screens, stacked on a phone as in the app */}
       <div className="mt-5 grid gap-3 md:grid-cols-2">

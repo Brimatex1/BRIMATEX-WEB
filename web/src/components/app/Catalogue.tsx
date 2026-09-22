@@ -9,7 +9,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
   bedding: 'مفروشات',
 };
 
-interface MobileCatalogueProps {
+interface CatalogueProps {
   products: Product[];
   loading: boolean;
   error: string | null;
@@ -44,7 +44,7 @@ export function Catalogue({
   wishlistPending,
   onOpen,
   onToggleWishlist,
-}: MobileCatalogueProps) {
+}: CatalogueProps) {
   const categories = useMemo(
     () => (Object.keys(CATEGORY_LABEL) as Category[]).filter((c) => products.some((p) => p.category === c)),
     [products]

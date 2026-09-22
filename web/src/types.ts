@@ -71,12 +71,70 @@ export interface Customer {
   email?: string;
 }
 
+/* ───────── Loyalty (server: src/lib/perks.js; the iOS app's rules) ───────── */
+
+export type RewardIcon = 'bag' | 'heart' | 'star' | 'cloud' | 'bed' | 'happy';
+
+export interface Voucher {
+  code: string;
+  title: string;
+  body: string;
+  /** A percentage when unit is '%', dinars when 'د.ل'. */
+  discount: number;
+  unit: '%' | 'د.ل';
+  icon: RewardIcon;
+  unlockedAt: string;
+  validUntil: string;
+  usedAt?: string;
+  state: 'active' | 'used' | 'expired';
+}
+
+export interface RewardProgress {
+  key: string;
+  title: string;
+  body: string;
+  icon: RewardIcon;
+  target: number;
+  value: number;
+  ratio: number;
+  complete: boolean;
+  discount: number;
+}
+
+export interface PointsLedgerEntry {
+  id: string;
+  label: string;
+  points: number;
+  at: string;
+  orderName?: string;
+}
+
+export interface PointsSummary {
+  earned: number;
+  pending: number;
+  redeemed: number;
+  balance: number;
+  ledger: PointsLedgerEntry[];
+  rules: { perDinar: number; stepPoints: number; stepValue: number; validDays: number };
+}
+
+export interface Perks {
+  points: PointsSummary;
+  progress: RewardProgress[];
+  vouchers: Voucher[];
+  /** Rewards unlocked by this very request - shown once as a notice. */
+  newlyUnlocked: string[];
+}
+
 export interface OrderResult {
   source: string;
   orderName: string;
   invoiceName?: string;
   invoiceStatus?: string;
   total: number;
+  /** Voucher discount taken off the total, in dinars. */
+  discount?: number;
+  voucherCode?: string | null;
   message?: string;
 }
 
@@ -253,6 +311,8 @@ export interface AdminProducts {
 }
 
 export type SectionId =
+  | 'vouchers'
+  | 'points'
   | 'home'
   | 'shop'
   | 'product'

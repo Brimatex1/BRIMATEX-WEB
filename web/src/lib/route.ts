@@ -8,7 +8,7 @@ import type { Category, SectionId } from '@/types';
  *   /                          home
  *   /shop?category=mattress&q= shop, optionally filtered
  *   /product/12                one product
- *   /quiz  /cart  /account  /wishlist  /orders  /admin
+ *   /quiz  /cart  /account  /wishlist  /orders  /admin  /vouchers  /points
  *
  * No router library: the server already answers every non-API path with the
  * app shell (serveStatic in src/server.js), so the History API is all it takes.
@@ -28,6 +28,8 @@ const PATHS: Record<Exclude<SectionId, 'home' | 'product'>, string> = {
   wishlist: '/wishlist',
   orders: '/orders',
   admin: '/admin',
+  vouchers: '/vouchers',
+  points: '/points',
 };
 
 const CATEGORIES: readonly (Category | 'all')[] = ['all', 'mattress', 'pillow', 'bedding'];

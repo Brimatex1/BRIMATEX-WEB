@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import { trackingContext } from '@/lib/pixel';
-import { phoneIsValid } from '@/lib/utils';
-import type { CartLine, Customer, OrderResult, User } from '@/types';
+import { discountLabel } from '@/components/app/perks';
+import { cn, formatPrice, phoneIsValid } from '@/lib/utils';
+import type { CartLine, Customer, OrderResult, User, Voucher } from '@/types';
 
 type FieldKey = 'name' | 'phone' | 'city' | 'address';
 
@@ -19,9 +20,21 @@ interface CheckoutFormProps {
   token: string | null;
   onSuccess: (result: OrderResult) => void;
   onCancel: () => void;
+  /** The signed-in customer's usable vouchers - one can go on the order. */
+  vouchers?: Voucher[];
 }
 
-export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: CheckoutFormProps) {
+/** What a voucher takes off - the server computes the same (src/lib/perks.js). */
+function estimateDiscount(v: Voucher, subtotal: number): number {
+  const amount = v.unit === '%' ? (subtotal * v.discount) / 100 : v.discount;
+  return Math.round(Math.min(subtotal, amount) * 100) / 100;
+}
+
+export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers = [] }: CheckoutFormProps) {
+  const [voucherCode, setVoucherCode] = useState<string | null>(null);
+  const subtotal = lines.reduce((n, l) => n + l.price * l.qty, 0);
+  const chosen = vouchers.find((v) => v.code === voucherCode) ?? null;
+  const discount = chosen ? estimateDiscount(chosen, subtotal) : 0;
   const [form, setForm] = useState<Customer & { note: string }>({
     name: user?.name ?? '',
     phone: user?.phone ?? '',
@@ -80,7 +93,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
         lines,
         form.note.trim(),
         token,
-        trackingContext()
+        trackingContext(),
+        chosen?.code ?? null
       );
       onSuccess(result);
     } catch (err) {
@@ -228,6 +242,49 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel }: Checko
               onChange={(e) => update('note', e.target.value)}
               placeholder="مثال: التوصيل مساءً"
             />
+          </div>
+
+          {/* Vouchers, as the app's checkout offers them: pick one, see the total */}
+          {vouchers.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">القسيمة</p>
+              <div className="flex flex-wrap gap-2">
+                {vouchers.map((v) => {
+                  const on = v.code === voucherCode;
+                  return (
+                    <button
+                      key={v.code}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setVoucherCode(on ? null : v.code)}
+                      className={cn(
+                        'rounded-full px-4 py-2.5 text-sm font-medium',
+                        on ? 'bg-app-ocean text-white' : 'bg-app-tint-soft text-app-ocean'
+                      )}
+                    >
+                      {v.title} · {discountLabel(v)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1 rounded-[14px] bg-app-input p-4 text-sm">
+            <div className="flex justify-between">
+              <span className="text-app-muted">المجموع</span>
+              <span className="tabular">{formatPrice(subtotal)} د.ل</span>
+            </div>
+            {chosen && (
+              <div className="flex justify-between text-app-success">
+                <span>{discountLabel(chosen)}</span>
+                <span className="tabular">- {formatPrice(discount)} د.ل</span>
+              </div>
+            )}
+            <div className="flex justify-between text-base font-bold">
+              <span>الإجمالي</span>
+              <span className="tabular">{formatPrice(subtotal - discount)} د.ل</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">

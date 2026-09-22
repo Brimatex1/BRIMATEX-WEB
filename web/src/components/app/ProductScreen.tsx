@@ -7,7 +7,7 @@ import { openSupport } from '@/lib/support';
 import { cn, formatPrice, isComingSoon } from '@/lib/utils';
 import type { Product } from '@/types';
 
-interface MobileProductProps {
+interface ProductScreenProps {
   product: Product;
   related: Product[];
   justAddedId: number | null;
@@ -44,7 +44,7 @@ export function ProductScreen({
   onBuyNow,
   onToggleWishlist,
   onOpenProduct,
-}: MobileProductProps) {
+}: ProductScreenProps) {
   // The picked size: what goes in the cart is the chosen variant's own id,
   // price and stock - that id is what Odoo needs to price and fulfil it.
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants?.[0]?.id ?? product.id);

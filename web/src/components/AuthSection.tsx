@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Package } from 'lucide-react';
+import { Heart, Package, Star, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AddressBook } from '@/components/AddressBook';
@@ -20,6 +20,10 @@ interface AuthSectionProps {
   onAddressesChange: (addresses: Address[]) => void;
   onGoToWishlist: () => void;
   onGoToOrders: () => void;
+  onGoToVouchers: () => void;
+  onGoToPoints: () => void;
+  /** Null until loyalty has loaded. */
+  pointsBalance: number | null;
 }
 
 const MIN_PASSWORD = 6;
@@ -71,6 +75,9 @@ export function AuthSection({
   onAddressesChange,
   onGoToWishlist,
   onGoToOrders,
+  onGoToVouchers,
+  onGoToPoints,
+  pointsBalance,
 }: AuthSectionProps) {
   const [step, setStep] = useState<Step>({ kind: 'login' });
   const [submitting, setSubmitting] = useState(false);
@@ -214,6 +221,15 @@ export function AuthSection({
                 {user.wishlist && user.wishlist.length > 0 && (
                   <span className="tabular"> ({user.wishlist.length})</span>
                 )}
+              </Button>
+              <Button variant="outline" onClick={onGoToVouchers}>
+                <Ticket aria-hidden="true" />
+                القسائم
+              </Button>
+              <Button variant="outline" onClick={onGoToPoints}>
+                <Star aria-hidden="true" />
+                نقاطي
+                {pointsBalance !== null && <span className="tabular"> ({pointsBalance})</span>}
               </Button>
             </div>
 

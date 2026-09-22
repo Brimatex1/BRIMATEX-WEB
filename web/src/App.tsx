@@ -10,7 +10,9 @@ import { CartScreen } from '@/components/app/CartScreen';
 import { Catalogue } from '@/components/app/Catalogue';
 import { HomeScreen } from '@/components/app/HomeScreen';
 import { ProductScreen } from '@/components/app/ProductScreen';
+import { PointsScreen } from '@/components/app/PointsScreen';
 import { QuizScreen } from '@/components/app/QuizScreen';
+import { VouchersScreen } from '@/components/app/VouchersScreen';
 import { TabBar } from '@/components/app/TabBar';
 import { TopBar } from '@/components/app/TopBar';
 import { WishlistScreen } from '@/components/app/WishlistScreen';
@@ -21,6 +23,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useIsPhone } from '@/hooks/useIsPhone';
+import { usePerks } from '@/hooks/usePerks';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
@@ -37,8 +40,10 @@ const DEFAULT_TITLE = document.title;
  */
 const PHONE_TITLE: Partial<Record<SectionId, string>> = {
   product: 'تفاصيل المنتج',
-  // The app's quiz screen has no header title - its intro carries the question.
+  // These screens carry their own title, as in the app.
   quiz: '',
+  vouchers: '',
+  points: '',
   wishlist: 'المفضّلة',
   cart: 'السلة',
   auth: 'حسابي',
@@ -46,7 +51,7 @@ const PHONE_TITLE: Partial<Record<SectionId, string>> = {
   admin: 'لوحة التحكم',
 };
 /** Screens pushed on top of a tab: they get a back arrow. */
-const PUSHED: SectionId[] = ['shop', 'product', 'quiz', 'orders', 'admin'];
+const PUSHED: SectionId[] = ['shop', 'product', 'quiz', 'orders', 'admin', 'vouchers', 'points'];
 
 export default function App() {
   // The first screen comes from the address, so a link from an ad lands on it.
@@ -67,6 +72,14 @@ export default function App() {
   const cart = useCart();
   const auth = useAuth();
   const wishlist = useWishlist(auth.token, auth.user);
+  const loyalty = usePerks(auth.token);
+
+  // Loyalty follows what the customer just did - an order, a saved product -
+  // so it is re-read on the screens that show it.
+  useEffect(() => {
+    if (['home', 'vouchers', 'points', 'cart', 'auth'].includes(section)) void loyalty.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
 
   // Loads the admin-configured Pixel ID (if any). The first PageView is queued
   // now, before the ViewContent of a product landing, so Meta receives them in
@@ -233,6 +246,27 @@ export default function App() {
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}
             onNavigate={navigate}
+            perks={loyalty.perks}
+          />
+        )}
+
+        {section === 'vouchers' && (
+          <VouchersScreen
+            user={auth.user}
+            perks={loyalty.perks}
+            onGoToPoints={() => navigate('points')}
+            onGoToAuth={() => navigate('auth')}
+          />
+        )}
+
+        {section === 'points' && (
+          <PointsScreen
+            user={auth.user}
+            token={auth.token}
+            perks={loyalty.perks}
+            onChanged={loyalty.refresh}
+            onGoToVouchers={() => navigate('vouchers')}
+            onGoToAuth={() => navigate('auth')}
           />
         )}
 
@@ -322,7 +356,11 @@ export default function App() {
               cart.remove(id);
               toast.success('تم حذف المنتج');
             }}
-            onClear={cart.clear}
+            onClear={() => {
+              cart.clear();
+              void loyalty.refresh();
+            }}
+            vouchers={loyalty.activeVouchers}
             onAdd={handleAdd}
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}
@@ -349,6 +387,9 @@ export default function App() {
             onAddressesChange={handleAddressesChange}
             onGoToWishlist={() => navigate('wishlist')}
             onGoToOrders={() => navigate('orders')}
+            onGoToVouchers={() => navigate('vouchers')}
+            onGoToPoints={() => navigate('points')}
+            pointsBalance={loyalty.perks?.points.balance ?? null}
           />
         )}
       </main>

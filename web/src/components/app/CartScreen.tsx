@@ -14,9 +14,9 @@ import {
 } from '@/components/app/ui';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/pixel';
 import { formatPrice } from '@/lib/utils';
-import type { CartLine, OrderResult, Product, User } from '@/types';
+import type { CartLine, OrderResult, Product, User, Voucher } from '@/types';
 
-interface MobileCartProps {
+interface CartScreenProps {
   lines: CartLine[];
   total: number;
   products: Product[];
@@ -26,6 +26,8 @@ interface MobileCartProps {
   onSetQty: (id: number, qty: number) => void;
   onRemove: (id: number) => void;
   onClear: () => void;
+  /** Usable vouchers, offered at checkout. */
+  vouchers: Voucher[];
   onAdd: (product: Product) => void;
   onOpen: (product: Product) => void;
   onToggleWishlist: (product: Product) => void;
@@ -53,12 +55,13 @@ export function CartScreen({
   onSetQty,
   onRemove,
   onClear,
+  vouchers,
   onAdd,
   onOpen,
   onToggleWishlist,
   onContinueShopping,
   onViewOrders,
-}: MobileCartProps) {
+}: CartScreenProps) {
   const [checkingOut, setCheckingOut] = useState(false);
   const [result, setResult] = useState<OrderResult | null>(null);
 
@@ -98,6 +101,9 @@ export function CartScreen({
             </p>
           )}
           <p className="mt-4 text-[26px] font-bold text-app-ocean">{formatPrice(result.total)} د.ل</p>
+          {Boolean(result.discount) && (
+            <p className="text-sm text-app-success">وفّرت {formatPrice(result.discount!)} د.ل بالقسيمة</p>
+          )}
           <p className="mt-3 text-sm text-app-muted">سنتواصل معك لتأكيد موعد التوصيل. الدفع عند الاستلام.</p>
           <div className="mt-6 space-y-3">
             <button
@@ -137,6 +143,7 @@ export function CartScreen({
           token={token}
           onSuccess={handleSuccess}
           onCancel={() => setCheckingOut(false)}
+          vouchers={vouchers}
         />
       </div>
     );

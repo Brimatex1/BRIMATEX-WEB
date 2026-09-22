@@ -11,7 +11,9 @@ import type {
   OrderResult,
   OrderSummary,
   OdooSettings,
+  Perks,
   Product,
+  Voucher,
   ProductOverrides,
   Role,
   SupportTicketInput,
@@ -96,7 +98,9 @@ export const api = {
     note: string,
     token?: string | null,
     /** Website only - lets the server report the purchase to Meta (lib/pixel.ts). */
-    tracking?: { eventSourceUrl: string; fbp?: string; fbc?: string }
+    tracking?: { eventSourceUrl: string; fbp?: string; fbc?: string },
+    /** One of the signed-in customer's vouchers; the server checks and applies it. */
+    voucherCode?: string | null
   ) =>
     request<OrderResult>(
       '/api/orders',
@@ -107,6 +111,7 @@ export const api = {
           note,
           channel: 'web',
           tracking,
+          ...(voucherCode ? { voucherCode } : {}),
         },
         token
       )
@@ -154,6 +159,14 @@ export const api = {
       method: 'POST',
       ...authHeaders(token),
     }),
+
+  /* Loyalty - one balance for the website and the app (src/lib/perks.js). */
+
+  getPerks: (token: string) => request<Perks>('/api/user/perks', authHeaders(token)),
+
+  /** Whole steps of 250 points only; the server re-checks the balance. */
+  redeemPoints: (token: string, points: number) =>
+    request<{ voucher: Voucher }>('/api/user/points/redeem', jsonBody({ points }, token)),
 
   getOrders: (token: string) =>
     request<{ orders: OrderSummary[] }>('/api/user/orders', authHeaders(token)),

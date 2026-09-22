@@ -3,7 +3,7 @@ import { Heart } from 'lucide-react';
 import { EmptyCircle, SectionHeader, WishRow } from '@/components/app/ui';
 import type { Product, User } from '@/types';
 
-interface MobileWishlistProps {
+interface WishlistScreenProps {
   user: User | null;
   products: Product[];
   savedIds: number[];
@@ -30,7 +30,7 @@ export function WishlistScreen({
   onToggleWishlist,
   onGoToAuth,
   onContinueShopping,
-}: MobileWishlistProps) {
+}: WishlistScreenProps) {
   const saved = products.filter((p) => savedIds.includes(p.id));
   const suggested = products.filter((p) => !savedIds.includes(p.id)).slice(0, 4);
   // A product with sizes needs its page to pick one first, as in the app.

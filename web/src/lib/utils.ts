@@ -30,7 +30,10 @@ export const LOCALE = 'ar-LY';
  * "1.450" and reads as one and a half dinars at a glance. On a price that
  * ambiguity is not worth the locale correctness.
  */
-const PRICE_FORMAT = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+// Up to two decimals, shown only when there are any: whole prices stay
+// "1,450", while a voucher's 5% of 1,450 reads 72.5 - the amount Odoo records
+// - not a rounded 73.
+const PRICE_FORMAT = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 
 export function formatPrice(value: number | string): string {
   return PRICE_FORMAT.format(Number(value) || 0);

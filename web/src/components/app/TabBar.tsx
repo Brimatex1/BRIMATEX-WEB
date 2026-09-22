@@ -3,7 +3,7 @@ import { Heart, Home, ShoppingBag, User as UserIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SectionId } from '@/types';
 
-interface MobileTabBarProps {
+interface TabBarProps {
   active: SectionId;
   cartCount: number;
   onNavigate: (section: SectionId) => void;
@@ -25,11 +25,11 @@ const TABS: { id: SectionId; label: string; Icon: typeof Home }[] = [
 /** Screens pushed on top of a tab keep that tab lit. */
 function tabFor(section: SectionId): SectionId {
   if (section === 'shop' || section === 'product' || section === 'quiz') return 'home';
-  if (section === 'orders' || section === 'admin') return 'auth';
+  if (section === 'orders' || section === 'admin' || section === 'vouchers' || section === 'points') return 'auth';
   return section;
 }
 
-export function TabBar({ active, cartCount, onNavigate }: MobileTabBarProps) {
+export function TabBar({ active, cartCount, onNavigate }: TabBarProps) {
   const current = tabFor(active);
 
   return (
