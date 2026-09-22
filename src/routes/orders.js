@@ -19,6 +19,7 @@ const orders = require('../lib/orders');
 const push = require('../lib/push');
 const whatsapp = require('../lib/whatsapp');
 const metaCapi = require('../lib/meta-capi');
+const perks = require('../lib/perks');
 const settings = require('../lib/settings');
 const { getProducts, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
@@ -127,8 +128,50 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       const orderToken = req.headers.authorization?.split(' ')[1];
       const orderSession = orderToken ? await auth.verifySession(orderToken) : null;
 
+      // Catalogue prices by product (and size) id - the subtotal a voucher
+      // discounts, and the demo order's total.
+      const priceById = new Map(
+        [...productLookup(result.products)].map(([id, p]) => [id, Number(p.price) || 0])
+      );
+      const subtotal = order.items.reduce(
+        (sum, i) => sum + (priceById.get(i.productId) || 0) * (i.quantity || 0),
+        0
+      );
+
+      // Voucher (src/lib/perks.js). Checked against the customer's own
+      // vouchers, then claimed before the order exists - two orders at once
+      // cannot both spend it. It becomes one discount line on the Odoo order,
+      // and the note says which voucher, for the team reading the order.
+      let voucher = null;
+      let discount = null;
+      let note = String(order.note || '');
+      if (order.voucherCode) {
+        if (!orderSession) return sendJson(res, 401, { error: 'سجّل الدخول لاستخدام القسيمة' });
+        const found = await perks.findActiveVoucher(orderSession.userId, order.voucherCode);
+        if (found.error) return sendJson(res, 400, { error: found.error });
+        if (!(await perks.claimVoucher(orderSession.userId, found.voucher.code))) {
+          return sendJson(res, 409, { error: 'استُخدمت هذه القسيمة من قبل' });
+        }
+        voucher = found.voucher;
+        const amount = perks.discountAmount(voucher, subtotal);
+        discount = { amount, label: `قسيمة ${voucher.code} — ${perks.discountLabel(voucher)}` };
+        note = [note.trim(), `قسيمة: ${voucher.code} (${perks.discountLabel(voucher)}) — خصم ${amount} د.ل`]
+          .filter(Boolean)
+          .join('\n');
+      }
+      /** Gives the voucher back when the order could not be created. */
+      const releaseVoucher = () =>
+        voucher ? perks.releaseVoucher(orderSession.userId, voucher.code).catch(() => {}) : null;
+
       if (odoo.isConfigured()) {
-        const odooResult = await odoo.createSaleOrder(order.customer, order.items, order.note);
+        let odooResult;
+        try {
+          odooResult = await odoo.createSaleOrder(order.customer, order.items, note, discount);
+        } catch (err) {
+          await releaseVoucher();
+          throw err;
+        }
+        if (voucher) await perks.attachVoucherToOrder(orderSession.userId, voucher.code, odooResult.name);
 
         // Persisted locally too — this used to return without saving anything,
         // so "my orders" and the admin dashboard never showed Odoo-backed orders.
@@ -141,7 +184,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           source: 'odoo',
           customer: order.customer,
           items: order.items,
-          note: order.note || '',
+          note,
           total: odooResult.total,
           invoiceStatus: odooResult.invoiceStatus,
           paymentStatus: 'unpaid',
@@ -176,6 +219,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           invoiceDate: odooResult.invoiceDate,
           invoiceStatus: odooResult.invoiceStatus,
           total: odooResult.total,
+          discount: discount?.amount || 0,
+          voucherCode: voucher?.code || null,
           message: `تم إنشاء الطلب ${odooResult.name} والفاتورة ${odooResult.invoiceName}`,
         });
       }
@@ -183,14 +228,9 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       // Demo mode: log the order locally with invoice simulation
       const orderName = `DEMO-${Date.now().toString().slice(-6)}`;
       const invoiceName = `INV-${Date.now().toString().slice(-6)}`;
-      const priceById = new Map(
-        [...productLookup(result.products)].map(([id, p]) => [id, Number(p.price) || 0])
-      );
-      const total = order.items.reduce(
-        (sum, i) => sum + (priceById.get(i.productId) || 0) * (i.quantity || 0),
-        0
-      );
+      const total = Math.round((subtotal - (discount?.amount || 0)) * 100) / 100;
 
+      try {
       await orders.createOrder({
         orderName,
         invoiceName,
@@ -200,13 +240,18 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         source: 'demo',
         customer: order.customer,
         items: order.items,
-        note: order.note || '',
+        note,
         invoiceStatus: 'draft',
         paymentStatus: 'unpaid',
         // Persisted so the invoice lookup can report a real amount.
         total,
         placedAt: new Date().toISOString(),
       });
+      } catch (err) {
+        await releaseVoucher();
+        throw err;
+      }
+      if (voucher) await perks.attachVoucherToOrder(orderSession.userId, voucher.code, orderName);
 
       reportPurchase(req, order, { channel, orderName, total, userId: orderSession?.userId, products: result.products });
 
@@ -225,6 +270,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         invoiceName,
         invoiceStatus: 'draft',
         total: total,
+        discount: discount?.amount || 0,
+        voucherCode: voucher?.code || null,
         message: `تم إنشاء الطلب ${orderName} والفاتورة ${invoiceName}`,
       });
     }

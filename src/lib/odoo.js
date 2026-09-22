@@ -233,7 +233,41 @@ async function findOrCreatePartner(customer) {
   ]);
 }
 
-async function createSaleOrder(customer, items, note) {
+/** default_code of the service product every voucher discount line uses. */
+const DISCOUNT_CODE = 'BRX-DISCOUNT';
+let discountProductId = null;
+
+/**
+ * The "voucher discount" product, created on first use. A sale order line
+ * needs a product; a dedicated service product keeps discounts readable on
+ * the order and the invoice, and out of stock and purchasing. No taxes: none
+ * of the shop's sale lines carry any.
+ */
+async function getDiscountProductId() {
+  if (discountProductId) return discountProductId;
+  const found = await call('product.product', 'search', [[['default_code', '=', DISCOUNT_CODE]]], { limit: 1 });
+  discountProductId = found[0]
+    ? found[0]
+    : await call('product.product', 'create', [
+        {
+          name: 'خصم قسيمة',
+          default_code: DISCOUNT_CODE,
+          type: 'service',
+          sale_ok: true,
+          purchase_ok: false,
+          list_price: 0,
+          taxes_id: [[6, 0, []]],
+        },
+      ]);
+  return discountProductId;
+}
+
+/**
+ * Creates the sale order. `discount` ({ amount, label }) adds one negative
+ * line for a voucher - in the same create call as the products, so an order
+ * never exists without the discount it was placed with.
+ */
+async function createSaleOrder(customer, items, note, discount = null) {
   const partnerId = await findOrCreatePartner(customer);
 
   // Odoo one2many syntax: one [0, 0, values] tuple per line. These used to be
@@ -243,6 +277,19 @@ async function createSaleOrder(customer, items, note) {
     0,
     { product_id: item.productId, product_uom_qty: item.quantity },
   ]);
+  if (discount && discount.amount > 0) {
+    orderLines.push([
+      0,
+      0,
+      {
+        product_id: await getDiscountProductId(),
+        name: discount.label,
+        product_uom_qty: 1,
+        price_unit: -discount.amount,
+        tax_ids: [[6, 0, []]], // Odoo 19's field name (was tax_id); shop lines carry no taxes
+      },
+    ]);
+  }
 
   const orderId = await call('sale.order', 'create', [
     {

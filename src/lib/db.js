@@ -198,6 +198,43 @@ do $$ begin
   end if;
 end $$;
 drop table if exists product_icon_features;
+
+-- Loyalty (src/lib/perks.js), shared by the website and the app.
+-- A reward's unlock date: its voucher's validity counts from it.
+create table if not exists perk_unlocks (
+  user_id uuid not null references users(id) on delete cascade,
+  reward_key text not null,
+  unlocked_at timestamptz not null default now(),
+  primary key (user_id, reward_key)
+);
+-- Points turned into dinar vouchers. Balance = points earned - sum(points).
+create table if not exists point_redemptions (
+  code text primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  points integer not null,
+  value numeric(12, 2) not null,
+  created_at timestamptz not null default now()
+);
+-- One row per voucher spent. The primary key is what makes a voucher
+-- single-use: a second order claiming it fails on the insert.
+create table if not exists voucher_uses (
+  user_id uuid not null references users(id) on delete cascade,
+  code text not null,
+  order_name text,
+  used_at timestamptz not null default now(),
+  primary key (user_id, code)
+);
+-- One review per product per order.
+create table if not exists reviews (
+  id uuid primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  product_id integer not null,
+  order_name text not null,
+  rating integer not null,
+  comment text not null default '',
+  created_at timestamptz not null default now(),
+  unique (user_id, product_id, order_name)
+);
 `;
 
 let migrated = false;

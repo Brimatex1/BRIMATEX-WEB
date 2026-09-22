@@ -1,5 +1,6 @@
 /**
- * Customer profile - addresses, orders and wishlist.
+ * Customer profile - addresses, orders, wishlist, and loyalty (vouchers,
+ * points, reviews).
  *
  * Five routes sharing one condition: nothing is read or written without a
  * valid session token, and ownership is derived from the session rather than
@@ -12,7 +13,32 @@
 
 const auth = require('../lib/auth');
 const orders = require('../lib/orders');
+const perks = require('../lib/perks');
 const { sendJson, readBody } = require('../lib/respond');
+
+/** The session's user id, or null after answering 401. */
+async function sessionUser(req, res) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    sendJson(res, 401, { error: 'غير مصرح' });
+    return null;
+  }
+  const session = await auth.verifySession(token);
+  if (!session) {
+    sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
+    return null;
+  }
+  return session.userId;
+}
+
+async function jsonBody(req, res) {
+  try {
+    return JSON.parse((await readBody(req)) || '{}');
+  } catch {
+    sendJson(res, 400, { error: 'JSON غير صالح' });
+    return null;
+  }
+}
 
 /** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('user-route-not-handled');
@@ -124,6 +150,61 @@ async function handleUserRoutes(req, res, url) {
     await auth.removeWishlistItem(session.userId, productId);
 
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
+  }
+
+  /* --- Loyalty (src/lib/perks.js) ---
+     One balance per customer for the website and the app. The paths and
+     shapes are the ones the app already calls (brimatex-ios/src/api.ts). */
+
+  // Everything the loyalty screens show, in one call.
+  if (req.method === 'GET' && url.pathname === '/api/user/perks') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    return sendJson(res, 200, await perks.summaryFor(userId));
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/user/vouchers') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const { vouchers } = await perks.summaryFor(userId);
+    return sendJson(res, 200, { vouchers });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/user/points') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const { points } = await perks.summaryFor(userId);
+    return sendJson(res, 200, points);
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/user/points/redeem') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const payload = await jsonBody(req, res);
+    if (!payload) return;
+    const result = await perks.redeemPoints(userId, payload.points);
+    if (result.error) return sendJson(res, 400, { error: result.error });
+    const { vouchers, points } = await perks.summaryFor(userId);
+    return sendJson(res, 201, {
+      voucher: vouchers.find((v) => v.code === result.redemption.code),
+      points,
+    });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/user/reviews') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    return sendJson(res, 200, { reviews: await perks.listReviews(userId) });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/user/reviews') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const payload = await jsonBody(req, res);
+    if (!payload) return;
+    const result = await perks.addReview(userId, payload);
+    if (result.error) return sendJson(res, 400, { error: result.error });
+    return sendJson(res, 201, { review: result.review });
   }
 
   return NOT_HANDLED;
