@@ -25,6 +25,7 @@ const push = require('../lib/push');
 const db = require('../lib/db');
 const odooStatus = require('../lib/odooStatus');
 const catalogue = require('../lib/catalogue');
+const banners = require('../lib/banners');
 const { getProducts } = catalogue;
 const { sendJson, readBody } = require('../lib/respond');
 
@@ -318,6 +319,44 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       const imageUrl = `/uploads/products/${filename}`;
       const saved = await productOverrides.setOverridesForProduct(productId, { imageUrl });
       return sendJson(res, 200, { productId, ...saved });
+    }
+
+    // ---- Home banners (src/lib/banners.js) ----
+
+    if (url.pathname === '/api/admin/banners' || url.pathname.startsWith('/api/admin/banners/')) {
+      if (!(await requireAdmin(req, res))) return;
+      const readJson = async (limit) => {
+        try {
+          return JSON.parse(await readBody(req, limit));
+        } catch (err) {
+          return { __error: err.message };
+        }
+      };
+      const reply = (result) =>
+        result.error ? sendJson(res, result.status, { error: result.error }) : sendJson(res, 200, result);
+
+      if (req.method === 'GET' && url.pathname === '/api/admin/banners') {
+        return sendJson(res, 200, { banners: banners.list(), max: banners.MAX_BANNERS });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/admin/banners') {
+        // A 3 MB picture is about 4 MB as base64.
+        const payload = await readJson(4_500_000);
+        if (payload.__error) return sendJson(res, 413, { error: 'حجم الصورة كبير جداً' });
+        return reply(banners.add(payload.imageDataUrl, payload.link));
+      }
+      if (req.method === 'PUT' && url.pathname === '/api/admin/banners/order') {
+        const payload = await readJson();
+        if (payload.__error) return sendJson(res, 400, { error: 'JSON غير صالح' });
+        return reply(banners.reorder(payload.ids));
+      }
+      const one = url.pathname.match(/^\/api\/admin\/banners\/([a-f0-9]{16})$/);
+      if (one && req.method === 'PATCH') {
+        const payload = await readJson();
+        if (payload.__error) return sendJson(res, 400, { error: 'JSON غير صالح' });
+        return reply(banners.setLink(one[1], payload.link));
+      }
+      if (one && req.method === 'DELETE') return reply(banners.remove(one[1]));
+      return sendJson(res, 404, { error: 'غير موجود' });
     }
 
     // ---- Odoo settings ----

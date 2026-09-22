@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BarChart3,
   Boxes,
+  Images,
   Package,
   Plug,
   RefreshCw,
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { BannersPanel } from '@/components/BannersPanel';
 import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
 import { OdooSettingsPanel } from '@/components/OdooSettingsPanel';
 import { ProductOverridesEditor } from '@/components/ProductOverridesEditor';
@@ -33,13 +35,14 @@ import type {
   User,
 } from '@/types';
 
-type Tab = 'overview' | 'orders' | 'products' | 'stock' | 'customers' | 'roles' | 'settings';
+type Tab = 'overview' | 'orders' | 'products' | 'stock' | 'banners' | 'customers' | 'roles' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'overview', label: 'نظرة عامة', Icon: BarChart3 },
   { id: 'orders', label: 'الطلبات', Icon: Package },
   { id: 'products', label: 'المنتجات', Icon: Boxes },
   { id: 'stock', label: 'المخزون', Icon: AlertTriangle },
+  { id: 'banners', label: 'الإعلانات', Icon: Images },
   { id: 'customers', label: 'العملاء', Icon: Users },
   { id: 'roles', label: 'الصلاحيات', Icon: ShieldCheck },
   { id: 'settings', label: 'الإعدادات', Icon: Plug },
@@ -699,6 +702,9 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
           ))}
         </div>
       )}
+
+      {/* ---------------- صور الإعلانات ---------------- */}
+      {!error && tab === 'banners' && token && <BannersPanel token={token} />}
 
       {/* ---------------- الإعدادات ---------------- */}
       {!error && tab === 'settings' && token && (

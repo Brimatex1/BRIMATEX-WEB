@@ -248,6 +248,8 @@ export default function App() {
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}
             onNavigate={navigate}
+            // A banner's link is a shop path, read the way an address is.
+            onOpenLink={(path) => go(parseRoute(new URL(path, window.location.origin)))}
             perks={loyalty.perks}
           />
         )}

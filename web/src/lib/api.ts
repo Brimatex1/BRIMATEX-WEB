@@ -1,5 +1,6 @@
 import type {
   Address,
+  Banner,
   AdminCustomer,
   AdminOrder,
   AdminOverview,
@@ -74,6 +75,23 @@ function authHeaders(token: string): RequestInit {
 export const api = {
   getProducts: () =>
     request<{ source: string; products: Product[] }>('/api/products'),
+
+  /** The home page's sliding banners. */
+  getBanners: () => request<{ banners: Banner[] }>('/api/banners'),
+
+  adminBanners: (token: string) => request<{ banners: Banner[]; max: number }>('/api/admin/banners', authHeaders(token)),
+
+  adminAddBanner: (token: string, imageDataUrl: string, link: string) =>
+    request<{ banner: Banner }>('/api/admin/banners', jsonBody({ imageDataUrl, link }, token)),
+
+  adminSetBannerLink: (token: string, id: string, link: string) =>
+    request<{ banner: Banner }>(`/api/admin/banners/${id}`, { ...jsonBody({ link }, token), method: 'PATCH' }),
+
+  adminReorderBanners: (token: string, ids: string[]) =>
+    request<{ banners: Banner[] }>('/api/admin/banners/order', { ...jsonBody({ ids }, token), method: 'PUT' }),
+
+  adminDeleteBanner: (token: string, id: string) =>
+    request<{ banners: Banner[] }>(`/api/admin/banners/${id}`, { method: 'DELETE', ...authHeaders(token) }),
 
   getPixelConfig: () => request<{ pixelId: string | null; lydPerUsd: number | null }>('/api/pixel-config'),
 

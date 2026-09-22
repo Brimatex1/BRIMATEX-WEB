@@ -57,4 +57,4 @@ function remove(url) {
   fs.unlink(path.join(DIR, name), () => {});
 }
 
-module.exports = { save, remove, MAX_BYTES };
+module.exports = { save, remove, sniff, MAX_BYTES };

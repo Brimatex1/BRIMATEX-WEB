@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Heart, Star } from 'lucide-react';
 
+import { BannerCarousel } from '@/components/app/BannerCarousel';
 import { Catalogue } from '@/components/app/Catalogue';
 import { Avatar } from '@/components/app/AvatarPicker';
 import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/app/ui';
+import { api } from '@/lib/api';
 import { QUESTIONS } from '@/lib/mattressQuiz';
 import { openSupport } from '@/lib/support';
 import { ALL_TIERS, tiersOf, type TierFilter } from '@/lib/tiers';
 import { cn } from '@/lib/utils';
-import type { Perks, Product, SectionId, User } from '@/types';
+import type { Banner, Perks, Product, SectionId, User } from '@/types';
 
 interface HomeScreenProps {
   user: User | null;
@@ -21,6 +23,8 @@ interface HomeScreenProps {
   onOpen: (product: Product) => void;
   onToggleWishlist: (product: Product) => void;
   onNavigate: (section: SectionId) => void;
+  /** Follows a banner's link - a path inside the shop. */
+  onOpenLink: (path: string) => void;
   /** Signed in: the points pill and a notice for a reward just unlocked. */
   perks: Perks | null;
 }
@@ -63,8 +67,18 @@ export function HomeScreen({
   onOpen,
   onToggleWishlist,
   onNavigate,
+  onOpenLink,
   perks,
 }: HomeScreenProps) {
+  // The sliding banners from the dashboard; none, and the text announcement shows.
+  const [banners, setBanners] = useState<Banner[]>([]);
+  useEffect(() => {
+    api
+      .getBanners()
+      .then((r) => setBanners(r.banners))
+      .catch(() => {});
+  }, []);
+
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<TierFilter>(ALL_TIERS);
 
@@ -146,7 +160,10 @@ export function HomeScreen({
 
       {/* Side by side on larger screens, stacked on a phone as in the app */}
       <div className="mt-5 grid gap-3 md:grid-cols-2">
-      {/* ── Announcement ── */}
+      {/* ── Announcement: the dashboard's sliding pictures, or the text ── */}
+      {banners.length > 0 ? (
+        <BannerCarousel banners={banners} onOpen={onOpenLink} />
+      ) : (
       <div className="flex items-center gap-4 rounded-[20px] bg-app-tint-soft p-5">
         <div className="flex-1">
           <p className="text-[17px] font-bold text-app-text">إعلان</p>
@@ -156,6 +173,7 @@ export function HomeScreen({
         </div>
         <ArrowButton size={40} label="تواصل مع خدمة العملاء" onClick={() => openSupport()} />
       </div>
+      )}
 
       {/* ── Mattress quiz - same shape as the card above ── */}
       <button

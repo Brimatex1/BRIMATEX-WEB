@@ -27,6 +27,14 @@ export interface ProductVariant {
   inStock?: boolean;
 }
 
+/** A picture in the home page's sliding banner - set from the dashboard (src/lib/banners.js). */
+export interface Banner {
+  id: string;
+  imageUrl: string;
+  /** A path inside the shop (/product/5852, /shop?category=premium), or '' for none. */
+  link: string;
+}
+
 /** A subcategory of Mattresses in Odoo - see web/src/lib/tiers.ts. */
 export interface Tier {
   /** Odoo's name, lower-cased: economy, comfort, premium, elite. */

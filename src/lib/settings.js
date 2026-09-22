@@ -184,7 +184,25 @@ function clearWhatsappSupport() {
   return readPublicWhatsappSupport();
 }
 
+/**
+ * The home page's sliding banners (src/lib/banners.js owns the rules) - kept
+ * here because this file survives deploys, as the Pixel and WhatsApp settings
+ * do. Public: every visitor sees them.
+ */
+function readBanners() {
+  const list = readFile().banners;
+  return Array.isArray(list) ? list : [];
+}
+
+function writeBanners(list) {
+  const data = readFile();
+  data.banners = list;
+  writeFile(data);
+}
+
 module.exports = {
+  readBanners,
+  writeBanners,
   getOdoo,
   readPublicOdoo,
   saveOdoo,

@@ -16,6 +16,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const odoo = require('./lib/odoo');
+const banners = require('./lib/banners');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
 const otp = require('./lib/otp');
@@ -224,6 +225,11 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
     return sendJson(res, 200, { ...result, products: visibleOnly(result.products) });
+  }
+
+  // The home page's sliding banners - set from the dashboard (src/lib/banners.js).
+  if (req.method === 'GET' && url.pathname === '/api/banners') {
+    return sendJson(res, 200, { banners: banners.list() });
   }
 
   const imageMatch = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
