@@ -32,6 +32,9 @@ export function ProductCard({
   // send the customer to the product page to pick one first.
   const hasVariants = (product.variants?.length ?? 0) > 1;
 
+  // Phones show cards two to a row (max-sm): the name, the price and one
+  // button - the description, badges and feature icons wait on the product
+  // page, one tap away.
   return (
     <Card
       className={cn(
@@ -52,9 +55,9 @@ export function ProductCard({
         />
       </button>
 
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3">
-          <CardTitle className="text-xl">
+      <CardHeader className="max-sm:space-y-1 max-sm:p-3">
+        <div className="flex items-start justify-between gap-1 sm:gap-3">
+          <CardTitle className="text-sm leading-snug sm:text-xl">
             <button
               type="button"
               onClick={() => onOpen(product)}
@@ -67,7 +70,7 @@ export function ProductCard({
           <Button
             variant="ghost"
             size="icon"
-            className={cn('shrink-0', saved && 'text-destructive')}
+            className={cn('shrink-0 max-sm:-me-1.5 max-sm:-mt-1.5 max-sm:size-9', saved && 'text-destructive')}
             onClick={() => onToggleWishlist(product)}
             disabled={wishlistPending}
             aria-pressed={saved}
@@ -77,7 +80,7 @@ export function ProductCard({
           </Button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-sm:hidden">
           {product.sku && (
             <Badge variant="secondary" className="w-fit tabular">
               {product.sku}
@@ -87,8 +90,8 @@ export function ProductCard({
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1">
-        <p className="text-sm text-muted-foreground">
+      <CardContent className="flex-1 max-sm:px-3 max-sm:pb-3">
+        <p className="text-sm text-muted-foreground max-sm:hidden">
           {product.tagline ?? product.description ?? 'جودة عالية · خامات مختارة بعناية'}
         </p>
 
@@ -100,26 +103,26 @@ export function ProductCard({
           )
         )}
 
-        <FeatureIcons keys={product.iconFeatures} compact className="mt-3" />
+        <FeatureIcons keys={product.iconFeatures} compact className="mt-3 max-sm:hidden" />
 
-        <p className="mt-4">
-          <span className="font-heading text-3xl font-semibold tabular text-primary">
+        <p className="mt-2 sm:mt-4">
+          <span className="font-heading text-xl font-semibold tabular text-primary sm:text-3xl">
             {formatPrice(product.price)}
           </span>
           <span className="ms-1 text-sm text-muted-foreground">د.ل</span>
         </p>
-        <p className="mt-2 text-xs text-success">بدون تسجيل · ادفع عند الاستلام</p>
+        <p className="mt-2 text-xs text-success max-sm:hidden">بدون تسجيل · ادفع عند الاستلام</p>
       </CardContent>
 
-      <CardFooter className="flex-col gap-2">
+      <CardFooter className="flex-col gap-2 max-sm:p-3 max-sm:pt-0">
         {hasVariants ? (
-          <Button className="w-full" onClick={() => onOpen(product)}>
+          <Button className="w-full max-sm:h-10 max-sm:px-2 max-sm:text-sm" onClick={() => onOpen(product)}>
             اختر المقاس
           </Button>
         ) : (
           <>
             <Button
-              className="w-full"
+              className="w-full max-sm:h-10 max-sm:px-2 max-sm:text-sm"
               onClick={() => onAdd(product)}
               disabled={justAdded || comingSoon}
             >
@@ -134,7 +137,8 @@ export function ProductCard({
                 'إضافة للسلة'
               )}
             </Button>
-            <Button variant="outline" className="w-full" onClick={() => onOpen(product)}>
+            {/* On phones the picture and the name open the product already */}
+            <Button variant="outline" className="w-full max-sm:hidden" onClick={() => onOpen(product)}>
               التفاصيل
             </Button>
           </>

@@ -8,6 +8,7 @@ import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { CartSection } from '@/components/CartSection';
 import { Header } from '@/components/Header';
 import { HomeSection } from '@/components/HomeSection';
+import { MobileTabBar } from '@/components/MobileTabBar';
 import { OrdersSection } from '@/components/OrdersSection';
 import { ProductDetail } from '@/components/ProductDetail';
 import { QuizSection } from '@/components/QuizSection';
@@ -308,7 +309,8 @@ export default function App() {
         )}
       </main>
 
-      <footer className="bg-primary pt-12 text-center text-sm text-primary-foreground/80">
+      {/* Bottom padding on phones: the tab bar covers the last 4rem of the page */}
+      <footer className="bg-primary pt-12 text-center text-sm text-primary-foreground/80 max-md:pb-[calc(4rem+env(safe-area-inset-bottom))]">
         <div className="container flex flex-col items-center pb-8">
           {/* currentColor puts the mark in Cloud Dancer here, not the navy it ships as */}
           <BrimatexLogo className="mb-4 h-16 w-auto text-primary-foreground" />
@@ -328,7 +330,25 @@ export default function App() {
 
       {/* Customer care on every store page — a customer asking about an order is
           on "my orders", not the homepage. Only the admin dashboard goes without. */}
-      {section !== 'admin' && <SupportWidget user={auth.user} token={auth.token} />}
+      {section !== 'admin' && (
+        <SupportWidget
+          user={auth.user}
+          token={auth.token}
+          // Phones: above the tab bar, and above the product page's buy bar too
+          className={
+            section === 'product'
+              ? 'max-md:bottom-[calc(9.5rem+env(safe-area-inset-bottom))]'
+              : 'max-md:bottom-[calc(5rem+env(safe-area-inset-bottom))]'
+          }
+        />
+      )}
+
+      <MobileTabBar
+        active={section}
+        cartCount={cart.count}
+        wishlistCount={wishlist.ids.length}
+        onNavigate={navigate}
+      />
 
       <Toaster />
     </>

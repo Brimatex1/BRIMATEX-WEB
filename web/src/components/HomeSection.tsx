@@ -97,27 +97,22 @@ export function HomeSection({
       <section className="border-b bg-secondary/40">
         {/* Splits at lg, not md: at 768 the two columns squeezed the search
             field to ~330px and truncated its placeholder. */}
-        <div className="container grid items-center gap-10 py-10 sm:py-14 lg:grid-cols-2 lg:py-20">
+        <div className="container grid items-center gap-10 py-6 sm:py-14 lg:grid-cols-2 lg:py-20">
           <div>
-            {/* The header only has room for the full trade name from `sm` up,
-                so phones get it here, at the top of the first thing they see. */}
-            <p className="mb-3 text-base font-semibold leading-snug text-primary sm:hidden">
-              بريماتكس لصناعة الإسفنج الصناعي والمراتب
-            </p>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-accent">
               مجموعة 2026
             </p>
-            <h1 className="font-heading text-4xl font-semibold leading-[1.15] tracking-tight text-primary sm:text-5xl lg:text-6xl">
+            <h1 className="font-heading text-3xl font-semibold leading-[1.15] tracking-tight text-primary sm:text-5xl lg:text-6xl">
               نوم أعمق يبدأ من مرتبة مصنوعة بعناية
             </h1>
-            <p className="mt-5 max-w-[52ch] text-lg text-muted-foreground">
+            <p className="mt-3 max-w-[52ch] text-base text-muted-foreground sm:mt-5 sm:text-lg">
               مراتب مصمّمة ومختبَرة لتناسب طريقة نومك. اطلب مباشرة دون تسجيل،
               وجرّبها 30 ليلة في بيتك، وادفع عند الاستلام.
             </p>
 
             {/* Search lives here now — the homepage is the way into the catalogue */}
             <form
-              className="mt-8"
+              className="mt-5 sm:mt-8"
               onSubmit={(e) => {
                 e.preventDefault();
                 onSearch(draft);
@@ -187,8 +182,10 @@ export function HomeSection({
             </div>
           </div>
 
+          {/* Phones go straight from the search to the products - the large
+              visual would push them a whole screen further down. */}
           {featured && (
-            <div className="relative">
+            <div className="relative max-md:hidden">
               <ProductVisual product={featured} variant="hero" className="shadow-2xl" />
               <div className="absolute bottom-4 rounded-xl border bg-card/95 p-4 shadow-lg backdrop-blur start-4">
                 <p className="text-xs text-muted-foreground">يبدأ من</p>
@@ -203,15 +200,17 @@ export function HomeSection({
       </section>
 
       {/* ---------- Promises ---------- */}
+      {/* Phones: one row of three - icon and title only - instead of three
+          stacked blocks that took a whole screen before any product. */}
       <section className="border-b">
-        <div className="container grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="container grid grid-cols-3 gap-3 py-5 text-center sm:grid-cols-2 sm:gap-8 sm:py-12 sm:text-start lg:grid-cols-4">
           {PROMISES.map(({ Icon, title, body }, i) => (
             <Reveal key={title} delay={i * 80}>
-              <div className="group/promise mb-3 grid size-11 place-items-center rounded-full bg-accent/15 text-accent motion-safe:transition-transform motion-safe:duration-300 hover:scale-110">
+              <div className="group/promise mx-auto mb-2 grid size-10 place-items-center rounded-full bg-accent/15 text-accent motion-safe:transition-transform motion-safe:duration-300 hover:scale-110 sm:mx-0 sm:mb-3 sm:size-11">
                 <Icon className="size-5" aria-hidden="true" />
               </div>
-              <h2 className="font-heading text-lg font-semibold text-primary">{title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+              <h2 className="font-heading text-sm font-semibold leading-snug text-primary sm:text-lg">{title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground max-sm:hidden">{body}</p>
             </Reveal>
           ))}
         </div>
@@ -219,10 +218,10 @@ export function HomeSection({
 
       {/* ---------- Quiz ---------- */}
       <section className="border-b bg-primary text-primary-foreground">
-        <div className="container flex flex-wrap items-center justify-between gap-6 py-12">
+        <div className="container flex flex-wrap items-center justify-between gap-4 py-8 sm:gap-6 sm:py-12">
           <div className="max-w-[54ch]">
-            <h2 className="font-heading text-3xl font-semibold">ما الذي يقلق نومك؟</h2>
-            <p className="mt-2 text-primary-foreground/80">
+            <h2 className="font-heading text-2xl font-semibold sm:text-3xl">ما الذي يقلق نومك؟</h2>
+            <p className="mt-2 text-sm text-primary-foreground/80 sm:text-base">
               ألم في الظهر، حرارة أثناء النوم، أو شريك كثير الحركة — أجب عن أربعة
               أسئلة سريعة ونرشّح لك المرتبة الأنسب من المجموعة.
             </p>
@@ -235,18 +234,19 @@ export function HomeSection({
       </section>
 
       {/* ---------- Categories ---------- */}
-      <section className="container py-14">
+      <section className="container py-8 sm:py-14">
         <h2 className="font-heading text-3xl font-semibold text-primary">تصفّح المجموعة</h2>
         <p className="mt-2 text-muted-foreground">كل ما تحتاجه غرفة نومك.</p>
 
         {loading ? (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-8 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-72 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
         ) : (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-3">
+          // Phones: two cards to a row, name and price only
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-8 lg:grid-cols-3">
             {groups.map((group, i) => (
               <Reveal key={group.category} delay={i * 90} className="flex">
               <Card className="group/cat flex flex-1 flex-col overflow-hidden motion-safe:transition-shadow motion-safe:duration-300 hover:shadow-xl">
@@ -254,19 +254,19 @@ export function HomeSection({
                   product={group.visualProduct}
                   className="rounded-none motion-safe:transition-transform motion-safe:duration-500 motion-safe:group-hover/cat:scale-[1.04]"
                 />
-                <CardContent className="flex flex-1 flex-col pt-6">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-heading text-2xl font-semibold text-primary">
+                <CardContent className="flex flex-1 flex-col pt-6 max-sm:p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-heading text-lg font-semibold text-primary sm:text-2xl">
                       {group.title}
                     </h3>
                     {isComingSoon(group.category) && <Badge variant="outline">قريباً</Badge>}
                   </div>
                   {group.items.length > 0 && (
                     <>
-                      <p className="mt-2 flex-1 text-sm text-muted-foreground">{group.body}</p>
-                      <p className="mt-4 text-sm text-muted-foreground">
+                      <p className="mt-2 flex-1 text-sm text-muted-foreground max-sm:hidden">{group.body}</p>
+                      <p className="mt-1 flex-1 text-xs text-muted-foreground sm:mt-4 sm:flex-none sm:text-sm">
                         يبدأ من{' '}
-                        <span className="font-heading text-xl font-semibold tabular text-primary">
+                        <span className="font-heading text-base font-semibold tabular text-primary sm:text-xl">
                           {formatPrice(group.from)}
                         </span>{' '}
                         د.ل
@@ -275,7 +275,7 @@ export function HomeSection({
                   )}
                   <Button
                     variant="outline"
-                    className="mt-5 w-full"
+                    className="mt-3 w-full max-sm:h-10 max-sm:text-sm sm:mt-5"
                     onClick={() => onShopCategory(group.category)}
                   >
                     تصفّح {group.title}
@@ -291,7 +291,7 @@ export function HomeSection({
       {/* ---------- Best sellers ---------- */}
       {!loading && products.length > 0 && (
         <section className="border-t bg-secondary/30">
-          <div className="container py-14">
+          <div className="container py-8 sm:py-14">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h2 className="font-heading text-3xl font-semibold text-primary">
@@ -305,7 +305,7 @@ export function HomeSection({
               </Button>
             </div>
 
-            <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-8 lg:grid-cols-4">
               {products
                 .filter((p) => p.category === 'mattress')
                 .slice(0, 4)

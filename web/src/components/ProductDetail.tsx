@@ -73,9 +73,23 @@ export function ProductDetail({
       }
     : product;
 
+  const addLabel = comingSoon ? (
+    'قريباً'
+  ) : justAdded ? (
+    <>
+      <BadgeCheck aria-hidden="true" />
+      تمت الإضافة
+    </>
+  ) : !effectiveInStock ? (
+    'غير متوفر'
+  ) : (
+    'إضافة للسلة'
+  );
+
   return (
-    <div className="animate-fade-up">
-      <div className="container pt-6">
+    // Bottom padding on phones keeps the page end clear of the fixed buy bar
+    <div className="animate-fade-up max-md:pb-20">
+      <div className="container pt-6 max-sm:pt-3">
         <Button variant="ghost" onClick={onBack} className="px-2">
           <ArrowRight aria-hidden="true" />
           رجوع
@@ -171,23 +185,15 @@ export function ProductDetail({
             </div>
           )}
 
-          <div className="mt-7 space-y-3">
+          {/* On phones these two live in the fixed buy bar at the bottom */}
+          <div className="mt-7 space-y-3 max-md:hidden">
             <Button
               size="lg"
               className="w-full"
               onClick={() => onAdd(cartProduct)}
               disabled={justAdded || !effectiveInStock || comingSoon}
             >
-              {comingSoon ? (
-                'قريباً'
-              ) : justAdded ? (
-                <>
-                  <BadgeCheck aria-hidden="true" />
-                  تمت الإضافة
-                </>
-              ) : (
-                'إضافة للسلة'
-              )}
+              {addLabel}
             </Button>
             <Button
               variant="outline"
@@ -300,6 +306,37 @@ export function ProductDetail({
           </div>
         </section>
       )}
+
+      {/* Phones: price and "add to cart" stay under the thumb, just above the
+          tab bar, wherever the customer has scrolled to. */}
+      <div className="fixed inset-x-0 z-20 border-t bg-background/95 backdrop-blur-md md:hidden bottom-[calc(4rem+env(safe-area-inset-bottom))]">
+        <div className="container flex items-center gap-3 py-3">
+          <div className="min-w-0">
+            <p className="font-heading text-xl font-semibold leading-none tabular text-primary">
+              {formatPrice(effectivePrice)} <span className="text-sm font-normal text-muted-foreground">د.ل</span>
+            </p>
+            <p className="mt-1 truncate text-xs text-success">توصيل مجاني · الدفع عند الاستلام</p>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className={cn('ms-auto shrink-0', saved && 'text-destructive')}
+            onClick={() => onToggleWishlist(product)}
+            disabled={wishlistPending}
+            aria-pressed={saved}
+            aria-label={saved ? 'إزالة من المفضلة' : 'أضف للمفضلة'}
+          >
+            <Heart className={cn(saved && 'fill-current')} aria-hidden="true" />
+          </Button>
+          <Button
+            className="shrink-0 px-6"
+            onClick={() => onAdd(cartProduct)}
+            disabled={justAdded || !effectiveInStock || comingSoon}
+          >
+            {addLabel}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
