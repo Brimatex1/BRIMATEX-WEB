@@ -228,7 +228,7 @@
   }
 }
 
-/* Sideways rows in the phone layout scroll without a visible bar, as in the app. */
+/* Sideways rows scroll without a visible bar, as in the app. */
 @layer utilities {
   .no-scrollbar {
     scrollbar-width: none;
@@ -239,9 +239,9 @@
 }
 
 /*
- * The app skin: on phones (App.tsx puts .app-skin on <main>) the website's own
- * pages - sign-in, checkout, orders, the quiz, the dashboard - take the iOS
- * app's look through the shared primitives, without touching their logic:
+ * The app skin (App.tsx puts .app-skin on the page root, at every size): the
+ * pages built from the shared primitives - sign-in, checkout, orders, the quiz,
+ * the dashboard - take the iOS app's look without touching their logic:
  * white screens, 20px cards with the app's hairline border and Dark Ocean
  * shadow, borderless grey fields, Plex everywhere.
  */

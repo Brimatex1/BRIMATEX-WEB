@@ -29,7 +29,7 @@ function tabFor(section: SectionId): SectionId {
   return section;
 }
 
-export function MobileTabBar({ active, cartCount, onNavigate }: MobileTabBarProps) {
+export function TabBar({ active, cartCount, onNavigate }: MobileTabBarProps) {
   const current = tabFor(active);
 
   return (

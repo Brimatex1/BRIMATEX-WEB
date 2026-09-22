@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 
-import { MobileCatalogue } from '@/components/mobile/MobileCatalogue';
-import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/mobile/ui';
+import { Catalogue } from '@/components/app/Catalogue';
+import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/app/ui';
 import { openSupport } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import type { Category, Product, SectionId, User } from '@/types';
@@ -26,7 +26,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
 };
 
 /**
- * Home on a phone - the iOS app's home screen (brimatex-ios/src/screens/
+ * Home - the iOS app's home screen (brimatex-ios/src/screens/
  * HomeScreen.tsx), section for section: the account photo and "my activity",
  * the greeting, the announcement and quiz cards, new arrivals, categories, and
  * the whole catalogue with search and chips.
@@ -34,7 +34,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
  * Left out, because the website has no such data: the app's vouchers,
  * warranty scanner and settings icons, points, and "recently viewed".
  */
-export function MobileHome({
+export function HomeScreen({
   user,
   products,
   loading,
@@ -61,7 +61,7 @@ export function MobileHome({
   );
 
   return (
-    <div className="px-5 pb-10 pt-3">
+    <div className="mx-auto max-w-6xl px-5 pb-10 pt-3 md:px-8 md:pb-16 md:pt-10">
       {/* ── Header: photo and "my activity" ── */}
       <div className="flex items-center gap-3">
         <button
@@ -81,12 +81,14 @@ export function MobileHome({
         </button>
       </div>
 
-      <p className="mt-5 text-[34px] font-bold leading-tight text-app-text">
+      <p className="mt-5 text-[34px] font-bold leading-tight text-app-text md:text-[44px]">
         {firstName ? `مرحباً، ${firstName}!` : 'مرحباً بك!'}
       </p>
 
+      {/* Side by side on larger screens, stacked on a phone as in the app */}
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
       {/* ── Announcement ── */}
-      <div className="mt-5 flex items-center gap-4 rounded-[20px] bg-app-tint-soft p-5">
+      <div className="flex items-center gap-4 rounded-[20px] bg-app-tint-soft p-5">
         <div className="flex-1">
           <p className="text-[17px] font-bold text-app-text">إعلان</p>
           <p className="mt-1 text-sm leading-[21px] text-app-text">
@@ -100,7 +102,7 @@ export function MobileHome({
       <button
         type="button"
         onClick={() => onNavigate('quiz')}
-        className="mt-3 flex w-full items-center gap-4 rounded-[20px] bg-app-tint-soft p-5 text-start active:opacity-85"
+        className="flex w-full items-center gap-4 rounded-[20px] bg-app-tint-soft p-5 text-start active:opacity-85"
       >
         <span className="flex-1">
           <span className="block text-[17px] font-bold text-app-text">شن المرتبة المناسبة ليك؟</span>
@@ -110,12 +112,13 @@ export function MobileHome({
         </span>
         <ArrowButton size={44} label="ابدأ الاختبار" />
       </button>
+      </div>
 
       {/* ── New arrivals ── */}
       {newest.length > 0 && (
         <section className="mt-7">
           <SectionHeader title="وصل حديثاً" />
-          <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 py-2">
+          <div className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 py-2 md:-mx-8 md:gap-4 md:px-8">
             {newest.map((p) => (
               <NewItemCard key={p.id} product={p} onOpen={onOpen} />
             ))}
@@ -127,7 +130,7 @@ export function MobileHome({
       {categories.length > 0 && (
         <section className="mt-7">
           <SectionHeader title="التصنيفات" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {categories.map(({ key, items }) => (
               <button
                 key={key}
@@ -161,7 +164,7 @@ export function MobileHome({
       {/* ── The whole catalogue ── */}
       <section className="mt-7">
         <SectionHeader title="كل المنتجات" />
-        <MobileCatalogue
+        <Catalogue
           products={products}
           loading={loading}
           error={error}

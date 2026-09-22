@@ -5,9 +5,9 @@ import { cn, formatPrice } from '@/lib/utils';
 import type { Product } from '@/types';
 
 /*
- * The phone layout's building blocks - each one mirrors its twin in the iOS app
- * (brimatex-ios/src/ui/index.tsx and src/components), so a customer moving
- * between the app and the site on the same phone sees the same shop.
+ * The site's building blocks - each one mirrors its twin in the iOS app
+ * (brimatex-ios/src/ui/index.tsx and src/components), so the website, on any
+ * screen, and the app are one shop with one look.
  */
 
 /** White card on white: a hairline border and a faint Dark Ocean shadow (ui Card). */
@@ -166,7 +166,7 @@ export function Pill({ tone, children }: { tone: 'success' | 'danger'; children:
 }
 
 /** The catalogue card (components/ProductCard): the whole card opens the product. */
-export function MobileProductCard({
+export function CatalogueCard({
   product,
   saved,
   wishlistPending,
@@ -187,7 +187,7 @@ export function MobileProductCard({
       onClick={() => onOpen(product)}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen(product))}
       aria-label={`${product.name}، ${formatPrice(priceFrom(product))} د.ل`}
-      className="mb-4 cursor-pointer overflow-hidden rounded-[20px] border border-app-border bg-white shadow-app-card transition-transform active:scale-[0.995] active:opacity-90"
+      className="cursor-pointer overflow-hidden rounded-[20px] border border-app-border bg-white shadow-app-card transition-transform active:scale-[0.995] active:opacity-90"
     >
       <div className="relative">
         <ProductImage product={product} className="aspect-[4/3]" />
@@ -311,10 +311,14 @@ export function EmptyCircle({ Icon = ShoppingBag, text, children }: { Icon?: Luc
   );
 }
 
-/** The fixed bar above the tab bar (ui StickyBar): white, hairline top border, upward shadow. */
+/**
+ * The fixed bar above the tab bar (ui StickyBar): white, hairline top border,
+ * upward shadow. Larger screens have no tab bar and room to spare, so there
+ * it is an ordinary card in the page.
+ */
 export function StickyBar({ children }: { children: ReactNode }) {
   return (
-    <div className="fixed inset-x-0 z-20 border-t border-app-border bg-white px-4 py-3 shadow-app-bar bottom-[calc(72px+env(safe-area-inset-bottom))]">
+    <div className="fixed inset-x-0 z-20 border-t border-app-border bg-white px-4 py-3 shadow-app-bar bottom-[calc(72px+env(safe-area-inset-bottom))] md:static md:mt-6 md:rounded-[20px] md:border md:px-5 md:py-4 md:shadow-app-card">
       {children}
     </div>
   );

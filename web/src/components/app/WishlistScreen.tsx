@@ -1,6 +1,6 @@
 import { Heart } from 'lucide-react';
 
-import { EmptyCircle, SectionHeader, WishRow } from '@/components/mobile/ui';
+import { EmptyCircle, SectionHeader, WishRow } from '@/components/app/ui';
 import type { Product, User } from '@/types';
 
 interface MobileWishlistProps {
@@ -15,13 +15,13 @@ interface MobileWishlistProps {
 }
 
 /**
- * The wishlist on a phone - the iOS app's wishlist screen: one row per saved
+ * The wishlist - the iOS app's wishlist screen: one row per saved
  * product (WishRow), each with delete and "add to cart"; "you may like" below.
  *
  * The website keeps the wishlist on the account, so a signed-out visitor is
  * asked to sign in first - the app keeps it on the device instead.
  */
-export function MobileWishlist({
+export function WishlistScreen({
   user,
   products,
   savedIds,
@@ -38,7 +38,7 @@ export function MobileWishlist({
 
   if (!user) {
     return (
-      <div className="px-5 pt-4">
+      <div className="mx-auto max-w-3xl px-5 pt-4 md:pt-10">
         <EmptyCircle Icon={Heart} text="سجّل الدخول لتحفظ منتجاتك المفضّلة وتجدها في كل مرة">
           <button
             type="button"
@@ -53,7 +53,7 @@ export function MobileWishlist({
   }
 
   return (
-    <div className="px-5 pb-10 pt-4">
+    <div className="mx-auto max-w-3xl px-5 pb-10 pt-4 md:px-8 md:pb-16 md:pt-10">
       {saved.length === 0 ? (
         <EmptyCircle Icon={Heart} text="لا منتجات في مفضّلتك بعد — اضغط القلب على أي منتج">
           <button

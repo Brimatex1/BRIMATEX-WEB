@@ -11,7 +11,7 @@ import {
   Stepper,
   StickyBar,
   WishRow,
-} from '@/components/mobile/ui';
+} from '@/components/app/ui';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/pixel';
 import { formatPrice } from '@/lib/utils';
 import type { CartLine, OrderResult, Product, User } from '@/types';
@@ -34,16 +34,16 @@ interface MobileCartProps {
 }
 
 /**
- * The cart on a phone - the iOS app's cart screen (brimatex-ios/src/screens/
+ * The cart - the iOS app's cart screen (brimatex-ios/src/screens/
  * CartScreen.tsx): each line as a framed picture with a delete button, the
  * name, a quantity stepper and the line total; "from your wishlist" under
  * it; the total and "checkout" in a bar at the bottom.
  *
  * Checkout itself is the website's form (components/CheckoutForm.tsx), dressed
- * by the app skin - the ordering logic, validation and tracking stay in one
- * place. Purchase tracking mirrors CartSection exactly.
+ * by the app skin - the ordering logic and validation stay in one place.
+ * Purchase is tracked here, with the lines read before the cart is emptied.
  */
-export function MobileCart({
+export function CartScreen({
   lines,
   total,
   products,
@@ -83,7 +83,7 @@ export function MobileCart({
 
   if (result) {
     return (
-      <div className="px-5 py-8">
+      <div className="mx-auto max-w-xl px-5 py-8 md:py-14">
         <AppCard className="text-center">
           <span className="mx-auto mb-4 grid size-16 place-items-center rounded-full bg-app-success-bg">
             <Check className="size-8 text-app-success" aria-hidden="true" />
@@ -130,7 +130,7 @@ export function MobileCart({
 
   if (checkingOut) {
     return (
-      <div className="px-4 pb-10 pt-2">
+      <div className="mx-auto max-w-3xl px-4 pb-10 pt-2 md:px-8 md:pt-8">
         <CheckoutForm
           lines={lines}
           user={user}
@@ -143,8 +143,8 @@ export function MobileCart({
   }
 
   return (
-    // Bottom padding keeps the last line clear of the fixed total bar
-    <div className="px-5 pb-32 pt-4">
+    // Bottom padding keeps the last line clear of the fixed total bar (phones)
+    <div className="mx-auto max-w-3xl px-5 pb-32 pt-4 md:px-8 md:pb-16 md:pt-10">
       <p className="mb-5 text-sm text-app-muted">{count > 0 ? `${count} قطعة · الدفع عند الاستلام` : ''}</p>
 
       {lines.length === 0 ? (

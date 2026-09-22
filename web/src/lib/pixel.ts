@@ -4,7 +4,7 @@ import { CURRENCY_ISO } from './utils';
 // Meta (Facebook) Pixel — admin-configurable from the dashboard, applies to
 // every page and product automatically because every call here reads real
 // product/order data already in hand at the call site (see App.tsx /
-// CartSection.tsx), never a hardcoded list. A product added in Odoo tomorrow
+// components/app/CartScreen.tsx), never a hardcoded list. A product added in Odoo tomorrow
 // is tracked correctly with zero changes here.
 
 declare global {

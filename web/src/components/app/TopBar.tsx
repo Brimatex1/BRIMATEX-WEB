@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react';
  * The header of a pushed screen, as in the app's native stack: a back chevron
  * and a bold title on white, no shadow. Home draws its own header instead.
  */
-export function MobileTopBar({ title, onBack }: { title: string; onBack?: () => void }) {
+export function TopBar({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
     <header className="sticky top-0 z-20 flex h-14 font-app items-center gap-1 border-b border-app-divider bg-white/95 px-2 backdrop-blur-md">
       {onBack && (

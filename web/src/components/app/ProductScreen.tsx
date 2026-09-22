@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BadgeCheck, Check } from 'lucide-react';
 
-import { AppCard, HeartButton, NewItemCard, Pill, ProductImage, SectionTitle } from '@/components/mobile/ui';
+import { AppCard, HeartButton, NewItemCard, Pill, ProductImage, SectionTitle } from '@/components/app/ui';
 import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
 import { openSupport } from '@/lib/support';
 import { cn, formatPrice, isComingSoon } from '@/lib/utils';
@@ -28,13 +28,13 @@ const TRUST = [
 ];
 
 /**
- * The product page on a phone - the iOS app's product screen (brimatex-ios/
+ * The product page - the iOS app's product screen (brimatex-ios/
  * src/screens/ProductScreen.tsx): the picture with its heart, then one card
  * each for the name and price, the size, the description, the specs, "why
  * Brimatex" and "have a question?", then "you may like"; and at the bottom
  * the app's buy bar - "buy now", "add to cart", and the heart.
  */
-export function MobileProduct({
+export function ProductScreen({
   product,
   related,
   justAddedId,
@@ -45,8 +45,8 @@ export function MobileProduct({
   onToggleWishlist,
   onOpenProduct,
 }: MobileProductProps) {
-  // The picked size, as on the desktop page (components/ProductDetail.tsx):
-  // what goes in the cart is the chosen variant's id, price and stock.
+  // The picked size: what goes in the cart is the chosen variant's own id,
+  // price and stock - that id is what Odoo needs to price and fulfil it.
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants?.[0]?.id ?? product.id);
   useEffect(() => {
     setSelectedVariantId(product.variants?.[0]?.id ?? product.id);
@@ -70,9 +70,10 @@ export function MobileProduct({
   }
 
   return (
-    // Bottom padding keeps the last card clear of the fixed buy bar
-    <div className="px-4 pb-32 pt-4">
-      <div className="relative mb-4 overflow-hidden rounded-[20px]">
+    // Phone: one column, bottom padding clear of the fixed buy bar. Larger
+    // screens: the picture beside the cards, and it stays in view on scroll.
+    <div className="mx-auto max-w-6xl px-4 pb-32 pt-4 md:grid md:grid-cols-[1.1fr_1fr] md:items-start md:gap-8 md:px-8 md:pb-16 md:pt-10">
+      <div className="relative mb-4 overflow-hidden rounded-[20px] md:sticky md:top-24">
         <ProductImage product={product} letterSize={88} className="aspect-[4/3]" />
         <HeartButton
           saved={saved}
@@ -83,6 +84,7 @@ export function MobileProduct({
         />
       </div>
 
+      <div>
       <AppCard className="mb-4">
         <h1 className="text-xl font-bold leading-[30px] text-app-ocean">{product.name}</h1>
         <div className="mt-3 flex items-center justify-between">
@@ -95,6 +97,45 @@ export function MobileProduct({
         </div>
         {sku && <p className="mt-2 text-xs text-app-muted">رمز المنتج: {sku}</p>}
       </AppCard>
+
+        {/* ── The app's buy bar: "buy now", "add to cart", heart. Fixed above the
+            tab bar on a phone; on larger screens it sits under the price. ── */}
+        <div className="fixed inset-x-0 z-20 border-t border-app-border bg-white px-4 pb-3 pt-3 shadow-app-bar bottom-[calc(72px+env(safe-area-inset-bottom))] md:static md:mb-4 md:border-0 md:p-0 md:shadow-none">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onBuyNow(cartProduct)}
+            disabled={!inStock}
+            className="flex-1 rounded-full bg-app-sun py-4 text-[17px] font-semibold text-app-ocean disabled:opacity-45"
+          >
+            {inStock ? 'اشترِ الآن' : 'نفد المخزون'}
+          </button>
+          <button
+            type="button"
+            onClick={() => onAdd(cartProduct)}
+            disabled={!inStock || justAdded}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-app-ocean py-4 text-[17px] font-semibold text-white disabled:opacity-45"
+          >
+            {justAdded ? (
+              <>
+                <BadgeCheck className="size-5" aria-hidden="true" />
+                تمت الإضافة
+              </>
+            ) : (
+              'أضف للسلة'
+            )}
+          </button>
+          <span className="grid size-14 shrink-0 place-items-center rounded-[14px] bg-app-input">
+            <HeartButton
+              saved={saved}
+              disabled={wishlistPending}
+              size={44}
+              onClick={() => onToggleWishlist(product)}
+              className="shadow-none"
+            />
+          </span>
+        </div>
+      </div>
 
       {variants.length > 1 && (
         <AppCard className="mb-4">
@@ -168,10 +209,12 @@ export function MobileProduct({
         </button>
       </AppCard>
 
+      </div>
+
       {related.length > 0 && (
-        <section className="mb-4">
+        <section className="mb-4 md:col-span-2 md:mt-6">
           <SectionTitle>قد يعجبك</SectionTitle>
-          <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 py-2">
+          <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 py-2 md:mx-0 md:gap-4 md:px-0">
             {related.slice(0, 10).map((p) => (
               <NewItemCard key={p.id} product={p} onOpen={onOpenProduct} />
             ))}
@@ -179,43 +222,6 @@ export function MobileProduct({
         </section>
       )}
 
-      {/* ── The app's buy bar: "buy now", "add to cart", heart - above the tab bar ── */}
-      <div className="fixed inset-x-0 z-20 border-t border-app-border bg-white px-4 pb-3 pt-3 shadow-app-bar bottom-[calc(72px+env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onBuyNow(cartProduct)}
-            disabled={!inStock}
-            className="flex-1 rounded-full bg-app-sun py-4 text-[17px] font-semibold text-app-ocean disabled:opacity-45"
-          >
-            {inStock ? 'اشترِ الآن' : 'نفد المخزون'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onAdd(cartProduct)}
-            disabled={!inStock || justAdded}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-app-ocean py-4 text-[17px] font-semibold text-white disabled:opacity-45"
-          >
-            {justAdded ? (
-              <>
-                <BadgeCheck className="size-5" aria-hidden="true" />
-                تمت الإضافة
-              </>
-            ) : (
-              'أضف للسلة'
-            )}
-          </button>
-          <span className="grid size-14 shrink-0 place-items-center rounded-[14px] bg-app-input">
-            <HeartButton
-              saved={saved}
-              disabled={wishlistPending}
-              size={44}
-              onClick={() => onToggleWishlist(product)}
-              className="shadow-none"
-            />
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

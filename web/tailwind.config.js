@@ -17,7 +17,7 @@ export default {
         // had under Iwanzaza, which only ever had Arabic glyphs.
         heading: ['IBM Plex Sans Arabic', 'Cormorant', 'Georgia', 'serif'],
         sans: ['Montserrat', 'Segoe UI', 'Tahoma', 'sans-serif'],
-        // The phone layout (components/mobile) - IBM Plex Sans Arabic for every
+        // The site's font (components/app) - IBM Plex Sans Arabic for every
         // character, digits and Latin included, exactly as in the iOS app.
         app: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
       },
@@ -30,8 +30,8 @@ export default {
       },
       colors: {
         // The iOS app's palette, one-to-one with brimatex-ios/src/theme/index.ts.
-        // Used by the phone layout only, which mirrors the app; the app is
-        // light-only, so these do not follow dark mode either.
+        // The whole site mirrors the app with these; the app is light-only,
+        // so they do not follow dark mode either.
         app: {
           ocean: '#282868',
           'ocean-dark': '#1d1d4d',

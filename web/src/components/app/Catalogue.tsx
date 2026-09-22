@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { Chip, MobileProductCard } from '@/components/mobile/ui';
+import { Chip, CatalogueCard } from '@/components/app/ui';
 import type { Category, Product } from '@/types';
 
 const CATEGORY_LABEL: Record<Category, string> = {
@@ -31,7 +31,7 @@ interface MobileCatalogueProps {
  * Only categories that have products get a chip - an empty chip would lead to
  * an empty list.
  */
-export function MobileCatalogue({
+export function Catalogue({
   products,
   loading,
   error,
@@ -75,7 +75,7 @@ export function MobileCatalogue({
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="ابحث باسم المنتج أو رمزه"
         enterKeyHint="search"
-        className="w-full rounded-[28px] bg-app-input px-5 py-3.5 text-base text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-ocean/30"
+        className="w-full rounded-[28px] bg-app-input md:max-w-md px-5 py-3.5 text-base text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-ocean/30"
       />
 
       {categories.length > 1 && (
@@ -93,10 +93,11 @@ export function MobileCatalogue({
         </p>
       )}
 
-      <div className="mt-3">
+      {/* One card per row on a phone, as in the app; two or three side by side on larger screens */}
+      <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading &&
           [0, 1].map((i) => (
-            <div key={i} className="mb-4 overflow-hidden rounded-[20px] border border-app-border bg-white">
+            <div key={i} className="overflow-hidden rounded-[20px] border border-app-border bg-white">
               <div className="aspect-[4/3] animate-pulse bg-app-nebula" />
               <div className="space-y-2 p-4">
                 <div className="h-4 w-3/4 animate-pulse rounded bg-app-divider" />
@@ -106,7 +107,7 @@ export function MobileCatalogue({
           ))}
 
         {!loading && error && (
-          <div className="py-12 text-center">
+          <div className="col-span-full py-12 text-center">
             <p className="font-bold text-app-text">تعذّر تحميل المنتجات</p>
             <p className="mt-1 text-sm text-app-muted">{error}</p>
             <button type="button" onClick={onReload} className="mt-4 rounded-full bg-app-ocean px-6 py-3 font-semibold text-white">
@@ -116,7 +117,7 @@ export function MobileCatalogue({
         )}
 
         {!loading && !error && visible.length === 0 && (
-          <div className="py-12 text-center">
+          <div className="col-span-full py-12 text-center">
             <p className="font-bold text-app-text">{query.trim() ? 'لا نتائج' : 'لا توجد منتجات في هذا التصنيف'}</p>
             <p className="mt-1 text-sm text-app-muted">
               {query.trim() ? `لا منتج يطابق «${query.trim()}»` : 'جرّب تصنيفاً آخر'}
@@ -127,7 +128,7 @@ export function MobileCatalogue({
         {!loading &&
           !error &&
           visible.map((product) => (
-            <MobileProductCard
+            <CatalogueCard
               key={product.id}
               product={product}
               saved={isSaved(product.id)}

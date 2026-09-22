@@ -5,23 +5,18 @@ import { toast } from 'sonner';
 import { AdminSection } from '@/components/AdminSection';
 import { AuthSection } from '@/components/AuthSection';
 import { BrimatexLogo } from '@/components/BrimatexLogo';
-import { CartSection } from '@/components/CartSection';
 import { Header } from '@/components/Header';
-import { HomeSection } from '@/components/HomeSection';
-import { MobileCart } from '@/components/mobile/MobileCart';
-import { MobileCatalogue } from '@/components/mobile/MobileCatalogue';
-import { MobileHome } from '@/components/mobile/MobileHome';
-import { MobileProduct } from '@/components/mobile/MobileProduct';
-import { MobileTabBar } from '@/components/mobile/MobileTabBar';
-import { MobileTopBar } from '@/components/mobile/MobileTopBar';
-import { MobileWishlist } from '@/components/mobile/MobileWishlist';
+import { CartScreen } from '@/components/app/CartScreen';
+import { Catalogue } from '@/components/app/Catalogue';
+import { HomeScreen } from '@/components/app/HomeScreen';
+import { ProductScreen } from '@/components/app/ProductScreen';
+import { TabBar } from '@/components/app/TabBar';
+import { TopBar } from '@/components/app/TopBar';
+import { WishlistScreen } from '@/components/app/WishlistScreen';
 import { OrdersSection } from '@/components/OrdersSection';
-import { ProductDetail } from '@/components/ProductDetail';
 import { QuizSection } from '@/components/QuizSection';
-import { ShopSection } from '@/components/ShopSection';
 import { SocialLinks } from '@/components/SocialLinks';
 import { SupportWidget } from '@/components/SupportWidget';
-import { WishlistSection } from '@/components/WishlistSection';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
@@ -60,10 +55,9 @@ export default function App() {
   const [justAddedId, setJustAddedId] = useState<number | null>(null);
   const [shopCategory, setShopCategory] = useState<Category | 'all'>(landing.category ?? 'all');
   const [shopQuery, setShopQuery] = useState(landing.query ?? '');
-  const [cameFromShop, setCameFromShop] = useState(false);
 
-  // Phones get the iOS app's design (components/mobile); larger screens keep
-  // the website's own.
+  // One design at every size - the iOS app's (components/app). Phones also
+  // get the app's navigation chrome: a top bar per screen and the tab bar.
   const isPhone = useIsPhone();
   /** Screens opened inside the site this visit - "back" leaves it only at zero. */
   const depth = useRef(0);
@@ -141,20 +135,12 @@ export default function App() {
   }, [section, shopCategory, shopQuery]);
 
   function openProduct(product: Product) {
-    // Remembered so "back" returns where the visitor actually came from —
-    // the shop listing, or the homepage when opened from a card there.
-    setCameFromShop(section === 'shop');
     go({ section: 'product', productId: product.id });
   }
 
-  /** Home category cards jump into the shop with that filter already applied. */
+  /** The quiz's "browse everything" - the catalogue, optionally filtered. */
   function shopCategoryFrom(category: Category | 'all') {
     go({ section: 'shop', category, query: '' });
-  }
-
-  /** The homepage search box is the main way into the catalogue. */
-  function searchFromHome(query: string) {
-    go({ section: 'shop', category: 'all', query });
   }
 
   function handleAdd(product: Product) {
@@ -200,8 +186,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewedId]);
 
+  const productRelated = selected
+    ? catalogue.products.filter((p) => p.id !== selected.id && p.category === selected.category)
+    : [];
+
   return (
-    <>
+    // The app's look everywhere: white screens, Plex, and .app-skin for the
+    // pages built from the shared primitives (index.css).
+    <div className="app-skin min-h-[100svh] bg-white font-app">
       {/* start-0/top-0 even while hidden: sr-only is absolute but without an
           inset it keeps its static position, which in RTL lands past the right
           edge and adds ~20px of horizontal scroll on narrow screens. */}
@@ -214,7 +206,7 @@ export default function App() {
 
       {isPhone ? (
         section !== 'home' && (
-          <MobileTopBar
+          <TopBar
             title={section === 'shop' ? (shopQuery.trim() ? 'نتائج البحث' : 'كل المنتجات') : (PHONE_TITLE[section] ?? '')}
             onBack={PUSHED.includes(section) ? back : undefined}
           />
@@ -223,7 +215,6 @@ export default function App() {
         <Header
           active={section}
           cartCount={cart.count}
-          wishlistCount={wishlist.ids.length}
           isAdmin={auth.user?.role === 'admin'}
           onNavigate={navigate}
         />
@@ -231,16 +222,11 @@ export default function App() {
 
       <main
         id="main"
-        className={
-          isPhone
-            ? // White like the app's screens; clear of the tab bar at the bottom.
-              // app-skin dresses the pages that have no phone twin (index.css).
-              'app-skin min-h-[100svh] bg-white font-app pb-[calc(72px+env(safe-area-inset-bottom))]'
-            : 'min-h-[60vh]'
-        }
+        // Phones: clear of the tab bar at the bottom
+        className={isPhone ? 'min-h-[100svh] pb-[calc(72px+env(safe-area-inset-bottom))]' : 'min-h-[70vh]'}
       >
-        {section === 'home' && isPhone && (
-          <MobileHome
+        {section === 'home' && (
+          <HomeScreen
             user={auth.user}
             products={catalogue.products}
             loading={catalogue.loading}
@@ -254,22 +240,6 @@ export default function App() {
           />
         )}
 
-        {section === 'home' && !isPhone && (
-          <HomeSection
-            products={catalogue.products}
-            loading={catalogue.loading}
-            onShopCategory={shopCategoryFrom}
-            onOpenProduct={openProduct}
-            onStartQuiz={() => navigate('quiz')}
-            onSearch={searchFromHome}
-            onAdd={handleAdd}
-            onToggleWishlist={handleToggleWishlist}
-            isSaved={wishlist.has}
-            wishlistPending={wishlist.pending}
-            justAddedId={justAddedId}
-          />
-        )}
-
         {section === 'quiz' && (
           <QuizSection
             products={catalogue.products}
@@ -279,9 +249,14 @@ export default function App() {
           />
         )}
 
-        {section === 'shop' && isPhone && (
-          <div className="px-5 pb-10 pt-4">
-            <MobileCatalogue
+        {section === 'shop' && (
+          <div className="mx-auto max-w-6xl px-5 pb-10 pt-4 md:px-8 md:pb-16 md:pt-10">
+            {!isPhone && (
+              <h1 className="mb-5 text-[34px] font-bold text-app-text">
+                {shopQuery.trim() ? 'نتائج البحث' : 'كل المنتجات'}
+              </h1>
+            )}
+            <Catalogue
               products={catalogue.products}
               loading={catalogue.loading}
               error={catalogue.error}
@@ -298,33 +273,11 @@ export default function App() {
           </div>
         )}
 
-        {section === 'shop' && !isPhone && (
-          <ShopSection
-            products={catalogue.products}
-            category={shopCategory}
-            onCategoryChange={setShopCategory}
-            query={shopQuery}
-            onQueryChange={setShopQuery}
-            onBackHome={() => navigate('home')}
-            loading={catalogue.loading}
-            error={catalogue.error}
-            onReload={catalogue.reload}
-            onAdd={handleAdd}
-            onOpen={openProduct}
-            onToggleWishlist={handleToggleWishlist}
-            isSaved={wishlist.has}
-            wishlistPending={wishlist.pending}
-            justAddedId={justAddedId}
-          />
-        )}
-
         {section === 'product' &&
-          (selected && isPhone ? (
-            <MobileProduct
+          (selected ? (
+            <ProductScreen
               product={selected}
-              related={catalogue.products.filter(
-                (p) => p.id !== selected.id && p.category === selected.category
-              )}
+              related={productRelated}
               justAddedId={justAddedId}
               saved={wishlist.has(selected.id)}
               wishlistPending={wishlist.pending === selected.id}
@@ -336,30 +289,14 @@ export default function App() {
               onToggleWishlist={handleToggleWishlist}
               onOpenProduct={openProduct}
             />
-          ) : selected ? (
-            <ProductDetail
-              product={selected}
-              related={catalogue.products.filter(
-                (p) => p.id !== selected.id && p.category === selected.category
-              )}
-              justAddedId={justAddedId}
-              saved={wishlist.has(selected.id)}
-              wishlistPending={wishlist.pending === selected.id}
-              onAdd={handleAdd}
-              onBack={() => navigate(cameFromShop ? 'shop' : 'home')}
-              onToggleWishlist={handleToggleWishlist}
-              onOpenProduct={openProduct}
-            />
           ) : (
-            <section className="container max-w-2xl py-24 text-center">
-              <p className="text-muted-foreground">
-                {catalogue.loading ? 'جارٍ التحميل…' : 'المنتج غير موجود'}
-              </p>
-            </section>
+            <p className="px-5 py-24 text-center text-app-muted">
+              {catalogue.loading ? 'جارٍ التحميل…' : 'المنتج غير موجود'}
+            </p>
           ))}
 
-        {section === 'wishlist' && isPhone && (
-          <MobileWishlist
+        {section === 'wishlist' && (
+          <WishlistScreen
             user={auth.user}
             products={catalogue.products}
             savedIds={wishlist.ids}
@@ -371,33 +308,18 @@ export default function App() {
           />
         )}
 
-        {section === 'wishlist' && !isPhone && (
-          <WishlistSection
-            user={auth.user}
-            products={catalogue.products}
-            savedIds={wishlist.ids}
-            wishlistPending={wishlist.pending}
-            justAddedId={justAddedId}
-            onAdd={handleAdd}
-            onOpen={openProduct}
-            onToggleWishlist={handleToggleWishlist}
-            onGoToAuth={() => navigate('auth')}
-            onContinueShopping={() => navigate('shop')}
-          />
-        )}
-
         {section === 'orders' && (
           <OrdersSection
             user={auth.user}
             token={auth.token}
             products={catalogue.products}
             onGoToAuth={() => navigate('auth')}
-            onContinueShopping={() => navigate('shop')}
+            onContinueShopping={() => navigate('home')}
           />
         )}
 
-        {section === 'cart' && isPhone && (
-          <MobileCart
+        {section === 'cart' && (
+          <CartScreen
             lines={cart.lines}
             total={cart.total}
             products={catalogue.products}
@@ -414,23 +336,6 @@ export default function App() {
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}
             onContinueShopping={() => navigate('home')}
-            onViewOrders={() => navigate('orders')}
-          />
-        )}
-
-        {section === 'cart' && !isPhone && (
-          <CartSection
-            lines={cart.lines}
-            total={cart.total}
-            user={auth.user}
-            token={auth.token}
-            onSetQty={cart.setQty}
-            onRemove={(id) => {
-              cart.remove(id);
-              toast.success('تم حذف المنتج');
-            }}
-            onClear={cart.clear}
-            onContinueShopping={() => navigate('shop')}
             onViewOrders={() => navigate('orders')}
           />
         )}
@@ -459,27 +364,25 @@ export default function App() {
 
       {/* The app has no footer; on phones the tab bar ends the page */}
       {!isPhone && (
-      <footer className="bg-primary pt-12 text-center text-sm text-primary-foreground/80">
-        <div className="container flex flex-col items-center pb-8">
-          {/* currentColor puts the mark in Cloud Dancer here, not the navy it ships as */}
-          <BrimatexLogo className="mb-4 h-16 w-auto text-primary-foreground" />
-          <p>تجربة 30 ليلة · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات</p>
-          <p className="mt-2 flex items-center gap-1.5 text-primary-foreground/70">
-            <MapPin className="size-4" aria-hidden="true" />
-            طرابلس، ليبيا
-          </p>
-          <SocialLinks className="mt-5" />
-        </div>
-        <div className="border-t border-primary-foreground/10 py-4">
-          <p className="text-xs text-primary-foreground/60">
-            © 2026 بريماتكس لصناعة الإسفنج الصناعي والمراتب. جميع الحقوق محفوظة.
-          </p>
-        </div>
-      </footer>
+        <footer className="bg-app-ocean pt-12 text-center text-sm text-white/80">
+          <div className="mx-auto flex max-w-6xl flex-col items-center px-8 pb-8">
+            {/* currentColor puts the mark in white here, not the navy it ships as */}
+            <BrimatexLogo className="mb-4 h-16 w-auto text-white" />
+            <p>تجربة 30 ليلة · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات</p>
+            <p className="mt-2 flex items-center gap-1.5 text-white/70">
+              <MapPin className="size-4" aria-hidden="true" />
+              طرابلس، ليبيا
+            </p>
+            <SocialLinks className="mt-5" />
+          </div>
+          <div className="border-t border-white/10 py-4">
+            <p className="text-xs text-white/60">
+              © 2026 بريماتكس لصناعة الإسفنج الصناعي والمراتب. جميع الحقوق محفوظة.
+            </p>
+          </div>
+        </footer>
       )}
 
-      {/* Customer care on every store page — a customer asking about an order is
-          on "my orders", not the homepage. Only the admin dashboard goes without. */}
       {/* Not on the dashboard. On a phone the round button stays off the two
           screens with a fixed bottom bar it would cover - the product page
           (which has its own "ask about this product" card, as in the app)
@@ -494,9 +397,9 @@ export default function App() {
         />
       )}
 
-      {isPhone && <MobileTabBar active={section} cartCount={cart.count} onNavigate={navigate} />}
+      {isPhone && <TabBar active={section} cartCount={cart.count} onNavigate={navigate} />}
 
       <Toaster />
-    </>
+    </div>
   );
 }

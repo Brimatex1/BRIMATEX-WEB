@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-/** Below Tailwind's md breakpoint - where the phone layout (components/mobile) takes over. */
+/** Below Tailwind's md breakpoint - where the app's phone chrome (top bar, tab bar) takes over. */
 const PHONE_QUERY = '(max-width: 767px)';
 
 /**

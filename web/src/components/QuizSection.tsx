@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowRight, RotateCcw, Sparkles } from 'lucide-react';
 
-import { ProductVisual } from '@/components/ProductVisual';
+import { ProductImage } from '@/components/app/ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn, formatPrice } from '@/lib/utils';
@@ -168,7 +168,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
         </h1>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
-          <ProductVisual product={best.product} variant="hero" />
+          <ProductImage product={best.product} letterSize={88} className="aspect-[4/3] rounded-[20px]" />
 
           <div>
             {best.product.tagline && <p className="text-highlight">{best.product.tagline}</p>}
@@ -223,7 +223,7 @@ export function QuizSection({ products, onAdd, onOpenProduct, onBrowseAll }: Qui
                   onClick={() => onOpenProduct(product)}
                   className="group flex gap-4 rounded-xl border p-4 text-start transition-colors hover:border-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <ProductVisual product={product} className="w-28 shrink-0" />
+                  <ProductImage product={product} letterSize={40} className="aspect-square w-28 shrink-0 rounded-[14px]" />
                   <div className="min-w-0">
                     <p className="font-semibold text-primary group-hover:text-highlight">
                       {product.name}
