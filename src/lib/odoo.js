@@ -93,7 +93,7 @@ async function testConnection() {
     ? await jsonRpc('call', {
         service: 'object',
         method: 'execute_kw',
-        args: [c.db, uid, c.apiKey, 'product.template', 'search_count', [[['categ_id', 'child_of', shop.rootId]]]],
+        args: [c.db, uid, c.apiKey, 'product.template', 'search_count', [shopDomain(shop)]],
       })
     : 0;
 
@@ -145,7 +145,14 @@ const TIERS = {
 };
 
 /**
- * The Mattresses category and its children, as { rootId, tierByCategoryId }.
+ * Tiers that stay in Odoo but are not sold online - the owner's decision:
+ * Economy is sold at the factory only, on neither the website nor the app.
+ */
+const NOT_SOLD_ONLINE_TIERS = ['economy'];
+
+/**
+ * The Mattresses category and its children, as { rootId, tierByCategoryId,
+ * excludedIds } - excludedIds being the tiers not sold online.
  * Null when Odoo has no such category - the shop then shows nothing rather
  * than every sellable record in the ERP (chemicals and labour included).
  */
@@ -158,12 +165,23 @@ async function fetchShopCategories() {
   const rootId = roots[0].id;
   const children = await call('product.category', 'search_read', [[['parent_id', '=', rootId]]], { fields: ['id', 'name'] });
   const tierByCategoryId = new Map();
+  const excludedIds = [];
   for (const c of children) {
     const key = String(c.name).trim().toLowerCase();
+    if (NOT_SOLD_ONLINE_TIERS.includes(key)) excludedIds.push(c.id);
     const known = TIERS[key];
     tierByCategoryId.set(c.id, { key, name: known ? known.name : String(c.name).trim(), rank: known ? known.rank : 99 });
   }
-  return { rootId, tierByCategoryId };
+  return { rootId, tierByCategoryId, excludedIds };
+}
+
+/**
+ * The products the shop lists: under Mattresses, and in none of the tiers not
+ * sold online (a subcategory of those included - hence child_of). Odoo has no
+ * "not child_of" operator, so it is "!" before child_of.
+ */
+function shopDomain(shop) {
+  return [['categ_id', 'child_of', shop.rootId], ...shop.excludedIds.flatMap((id) => ['!', ['categ_id', 'child_of', id]])];
 }
 
 /**
@@ -186,7 +204,7 @@ async function fetchProducts() {
   if (!shop) return [];
   const templates = await searchReadAll(
     'product.template',
-    [['categ_id', 'child_of', shop.rootId]],
+    shopDomain(shop),
     { fields: ['id', 'name', 'categ_id', 'product_variant_ids'] }
   );
   if (templates.length === 0) return [];
