@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "odoo": {
+      "type": "http",
+      "url": "https://brimatex.odoo.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${ODOO_MCP_TOKEN}"
+      }
+    }
+  }
+}
