@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Heart, Star } from 'lucide-react';
 
 import { Catalogue } from '@/components/app/Catalogue';
+import { Avatar } from '@/components/app/AvatarPicker';
 import { ArrowButton, NewItemCard, ProductImage, SectionHeader } from '@/components/app/ui';
 import { QUESTIONS } from '@/lib/mattressQuiz';
 import { openSupport } from '@/lib/support';
@@ -98,9 +99,9 @@ export function HomeScreen({
           type="button"
           onClick={() => onNavigate('auth')}
           aria-label="الحساب"
-          className="grid size-[52px] shrink-0 place-items-center rounded-full border-2 border-app-tint bg-app-tint-soft text-xl font-bold text-app-ocean"
+          className="shrink-0 rounded-full"
         >
-          {firstName?.charAt(0) ?? '؟'}
+          <Avatar user={user} size={52} />
         </button>
         <button
           type="button"

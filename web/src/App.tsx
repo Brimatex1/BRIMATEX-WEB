@@ -389,6 +389,7 @@ export default function App() {
             onGoToOrders={() => navigate('orders')}
             onGoToVouchers={() => navigate('vouchers')}
             onGoToPoints={() => navigate('points')}
+            onAvatarChange={(avatarUrl) => auth.patchUser({ avatarUrl })}
             pointsBalance={loyalty.perks?.points.balance ?? null}
           />
         )}

@@ -184,6 +184,8 @@ export interface User {
   phone: string | null;
   email?: string;
   role?: Role;
+  /** The profile photo's path on the server - shared with the app. */
+  avatarUrl?: string | null;
   /** Returned by /api/auth/me; the login and register payloads omit them. */
   addresses?: Address[];
   wishlist?: WishlistEntry[];

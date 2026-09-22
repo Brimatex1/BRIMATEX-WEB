@@ -3,6 +3,7 @@ import { Heart, Package, Star, Ticket } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AddressBook } from '@/components/AddressBook';
+import { AvatarPicker } from '@/components/app/AvatarPicker';
 import { OtpCodeStep } from '@/components/OtpCodeStep';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +23,7 @@ interface AuthSectionProps {
   onGoToOrders: () => void;
   onGoToVouchers: () => void;
   onGoToPoints: () => void;
+  onAvatarChange: (avatarUrl: string | null) => void;
   /** Null until loyalty has loaded. */
   pointsBalance: number | null;
 }
@@ -77,6 +79,7 @@ export function AuthSection({
   onGoToOrders,
   onGoToVouchers,
   onGoToPoints,
+  onAvatarChange,
   pointsBalance,
 }: AuthSectionProps) {
   const [step, setStep] = useState<Step>({ kind: 'login' });
@@ -204,7 +207,8 @@ export function AuthSection({
       <section className="container max-w-2xl animate-fade-up py-12">
         <Card>
           <CardHeader>
-            <CardTitle>{user.name || 'مرحباً بك'}</CardTitle>
+            {token && <AvatarPicker user={user} token={token} onChange={onAvatarChange} />}
+            <CardTitle className="pt-2">{user.name || 'مرحباً بك'}</CardTitle>
             <CardDescription className="tabular">
               رقم الهاتف: {user.phone ?? '—'}
             </CardDescription>

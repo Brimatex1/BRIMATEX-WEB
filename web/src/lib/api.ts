@@ -160,6 +160,13 @@ export const api = {
       ...authHeaders(token),
     }),
 
+  /** The profile photo, as a JPEG/PNG/WebP data URL (the server checks the bytes). */
+  uploadAvatar: (token: string, imageDataUrl: string) =>
+    request<{ avatarUrl: string }>('/api/user/avatar', jsonBody({ imageDataUrl }, token)),
+
+  removeAvatar: (token: string) =>
+    request<{ avatarUrl: null }>('/api/user/avatar', { method: 'DELETE', ...authHeaders(token) }),
+
   /* Loyalty - one balance for the website and the app (src/lib/perks.js). */
 
   getPerks: (token: string) => request<Perks>('/api/user/perks', authHeaders(token)),
