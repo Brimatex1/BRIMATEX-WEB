@@ -14,6 +14,7 @@
 const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const perks = require('../lib/perks');
+const avatar = require('../lib/avatar');
 const { sendJson, readBody } = require('../lib/respond');
 
 /** The session's user id, or null after answering 401. */
@@ -150,6 +151,42 @@ async function handleUserRoutes(req, res, url) {
     await auth.removeWishlistItem(session.userId, productId);
 
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
+  }
+
+  /* --- Profile photo (src/lib/avatar.js) ---
+     One per customer, shown by the website and the app alike. */
+
+  if (req.method === 'POST' && url.pathname === '/api/user/avatar') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    let body;
+    try {
+      // Base64 adds a third: ~2.8MB of JSON carries the 2MB image limit.
+      body = await readBody(req, 2_800_000);
+    } catch (err) {
+      return sendJson(res, 413, { error: err.message });
+    }
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch {
+      return sendJson(res, 400, { error: 'JSON غير صالح' });
+    }
+    const saved = avatar.save(payload.imageDataUrl);
+    if (saved.error) return sendJson(res, saved.status, { error: saved.error });
+    const previous = (await auth.getUser(userId))?.avatarUrl;
+    await auth.updateUser(userId, { avatarUrl: saved.url });
+    avatar.remove(previous);
+    return sendJson(res, 200, { avatarUrl: saved.url });
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/api/user/avatar') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const previous = (await auth.getUser(userId))?.avatarUrl;
+    await auth.updateUser(userId, { avatarUrl: null });
+    avatar.remove(previous);
+    return sendJson(res, 200, { avatarUrl: null });
   }
 
   /* --- Loyalty (src/lib/perks.js) ---

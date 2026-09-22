@@ -16,6 +16,7 @@ function toUser(row) {
     phone: row.phone,
     role: row.role,
     odooPartnerId: row.odoo_partner_id,
+    avatarUrl: row.avatar_url || null,
     createdAt: row.created_at,
   };
 }
@@ -68,7 +69,12 @@ async function findByPhone(phone) {
   return toUser(rows[0]);
 }
 
-const UPDATABLE_COLUMNS = { role: 'role', passwordHash: 'password_hash', odooPartnerId: 'odoo_partner_id' };
+const UPDATABLE_COLUMNS = {
+  role: 'role',
+  passwordHash: 'password_hash',
+  odooPartnerId: 'odoo_partner_id',
+  avatarUrl: 'avatar_url',
+};
 
 async function updateUser(userId, updates) {
   const sets = [];

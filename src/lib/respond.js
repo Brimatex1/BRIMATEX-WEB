@@ -22,16 +22,22 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+/**
+ * Reads a request body up to `maxBytes`. Past the limit nothing more is kept -
+ * the rest is drained and discarded, so memory stays bounded - and the promise
+ * rejects, letting the route answer 413. Destroying the socket instead meant
+ * the 413 never reached the client, which saw a dropped connection.
+ */
 function readBody(req, maxBytes = 100_000) {
   return new Promise((resolve, reject) => {
     let data = '';
     const onData = (chunk) => {
       data += chunk;
       if (data.length > maxBytes) {
+        data = '';
         req.removeListener('data', onData);
         req.removeListener('end', onEnd);
-        req.removeListener('error', onError);
-        req.destroy();
+        req.resume();
         reject(new Error('حجم الطلب كبير جداً'));
       }
     };

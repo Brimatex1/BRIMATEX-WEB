@@ -199,6 +199,16 @@ do $$ begin
 end $$;
 drop table if exists product_icon_features;
 
+-- The profile photo's public path (src/lib/avatar.js); null without one.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'users' and column_name = 'avatar_url'
+  ) then
+    alter table users add column avatar_url text;
+  end if;
+end $$;
+
 -- Loyalty (src/lib/perks.js), shared by the website and the app.
 -- A reward's unlock date: its voucher's validity counts from it.
 create table if not exists perk_unlocks (

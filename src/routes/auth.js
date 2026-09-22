@@ -14,6 +14,7 @@
 const auth = require('../lib/auth');
 const otp = require('../lib/otp');
 const orders = require('../lib/orders');
+const avatar = require('../lib/avatar');
 const { sendJson, readBody } = require('../lib/respond');
 
 /**
@@ -103,7 +104,7 @@ function createAuthRoutes({ isValidPhone }) {
       return sendJson(res, 200, {
         message: 'تم الدخول بنجاح',
         token,
-        user: { id: user.id, phone: user.phone, name: user.name },
+        user: { id: user.id, phone: user.phone, name: user.name, avatarUrl: user.avatarUrl || null },
       });
     }
 
@@ -299,6 +300,7 @@ function createAuthRoutes({ isValidPhone }) {
           email: user.email,
           name: user.name,
           phone: user.phone || null,
+          avatarUrl: user.avatarUrl || null,
           // Effective role, so the UI knows whether to offer the dashboard.
           role: auth.roleOf(user),
           addresses,
@@ -330,7 +332,10 @@ function createAuthRoutes({ isValidPhone }) {
       // Unlink before delete so the orders survive on both backends, not only
       // where the foreign key happens to be `on delete set null`.
       await orders.unlinkUser(session.userId);
+      const leaving = await auth.getUser(session.userId);
       const deleted = await auth.deleteUser(session.userId);
+      // Their photo goes with the account.
+      if (deleted && leaving?.avatarUrl) avatar.remove(leaving.avatarUrl);
       if (!deleted) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
       return sendJson(res, 200, { message: 'تم حذف الحساب نهائياً' });
