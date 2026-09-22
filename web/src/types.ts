@@ -145,12 +145,25 @@ export interface AdminOrder {
   placedAt: string;
   paidAt: string | null;
   userId: string | null;
+  /** Null for orders placed before the channel was recorded. */
+  channel: OrderChannel | null;
+}
+
+/** Where an order was placed: the website or the iOS/Android app. */
+export type OrderChannel = 'web' | 'app';
+
+export interface ChannelStats {
+  count: number;
+  sales: number;
+  monthCount: number;
+  monthSales: number;
 }
 
 export interface AdminOverview {
   sales: { today: number; month: number; total: number };
   counts: { today: number; month: number; total: number };
   byStatus: Record<string, number>;
+  byChannel: Record<OrderChannel | 'unknown', ChannelStats>;
   customers: number;
   recent: {
     orderName: string;

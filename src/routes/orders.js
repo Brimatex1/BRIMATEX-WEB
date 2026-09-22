@@ -27,25 +27,37 @@ const { sendJson, readBody } = require('../lib/respond');
 const NOT_HANDLED = Symbol('order-route-not-handled');
 
 /**
- * Reports a website purchase to Meta's Conversions API, in the background.
- *
- * Only orders that carry `tracking` are reported: the website's checkout sends
- * it, the iOS/Android app does not. App orders are not website events, and
- * reporting them as such would credit web ads with app sales.
- *
- * Started before the reply goes out, so the server's copy - the one with the
- * hashed phone and name - usually reaches Meta ahead of the browser's, and
- * that is the copy Meta keeps when it deduplicates.
+ * Where an order was placed. Both clients now say so; for app builds shipped
+ * before the field existed, the requestId only the app sends gives it away.
+ * Null when neither is known.
  */
-function reportPurchase(req, order, { orderName, total, userId, products }) {
-  const tracking = order.tracking;
-  if (!tracking || typeof tracking !== 'object' || !metaCapi.isConfigured()) return;
+function orderChannel(order) {
+  if (order.channel === 'web' || order.channel === 'app') return order.channel;
+  if (order.tracking && typeof order.tracking === 'object') return 'web';
+  if (typeof order.requestId === 'string' && order.requestId.trim()) return 'app';
+  return null;
+}
+
+/**
+ * Reports a purchase to Meta's Conversions API, in the background - website
+ * and app orders each under their own action_source, so web ads and app ads
+ * are credited with their own sales only.
+ *
+ * Started before the reply goes out, so for the website the server's copy -
+ * the one with the hashed phone and name - usually reaches Meta ahead of the
+ * browser's, and that is the copy Meta keeps when it deduplicates.
+ */
+function reportPurchase(req, order, { channel, orderName, total, userId, products }) {
+  if (!channel || !metaCapi.isConfigured()) return;
   const { pixelId, lydPerUsd } = settings.readPublicFacebookPixel();
   if (!pixelId) return;
 
+  const tracking = order.tracking && typeof order.tracking === 'object' ? order.tracking : {};
   const prices = new Map([...productLookup(products)].map(([id, p]) => [id, Number(p.price) || 0]));
   const event = metaCapi.buildPurchase({
     req,
+    channel,
+    app: order.app,
     orderName,
     customer: order.customer,
     items: order.items,
@@ -59,6 +71,9 @@ function reportPurchase(req, order, { orderName, total, userId, products }) {
       fbc: typeof tracking.fbc === 'string' ? tracking.fbc.slice(0, 500) : undefined,
     },
   });
+  // An app order from a build that sends no device details cannot be a valid
+  // app event - skipped rather than rejected by Meta.
+  if (!event) return;
   // send() never throws; the catch only guards against a bug in it.
   metaCapi.send(pixelId, [event]).catch((err) => console.error('[Meta CAPI]', err.message));
 }
@@ -109,6 +124,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
 
       // Orders are accepted without an account, but stamp the owner when the
       // request carries a valid session so "my orders" can find them later.
+      const channel = orderChannel(order);
+
       const orderToken = req.headers.authorization?.split(' ')[1];
       const orderSession = orderToken ? await auth.verifySession(orderToken) : null;
 
@@ -122,6 +139,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           invoiceName: odooResult.invoiceName,
           userId: orderSession?.userId,
           requestId,
+          channel,
           source: 'odoo',
           customer: order.customer,
           items: order.items,
@@ -135,6 +153,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         });
 
         reportPurchase(req, order, {
+          channel,
           orderName: odooResult.name,
           total: odooResult.total,
           userId: orderSession?.userId,
@@ -179,6 +198,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         invoiceName,
         userId: orderSession?.userId,
         requestId,
+        channel,
         source: 'demo',
         customer: order.customer,
         items: order.items,
@@ -190,7 +210,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         placedAt: new Date().toISOString(),
       });
 
-      reportPurchase(req, order, { orderName, total, userId: orderSession?.userId, products: result.products });
+      reportPurchase(req, order, { channel, orderName, total, userId: orderSession?.userId, products: result.products });
 
       // Send invoice via WhatsApp (non-blocking, fire-and-forget)
       whatsapp.sendInvoiceViaWhatsApp(

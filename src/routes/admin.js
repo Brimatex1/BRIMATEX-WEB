@@ -55,10 +55,26 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
         byStatus[key] = (byStatus[key] || 0) + 1;
       }
 
+      // Website vs app, this month and all time. 'unknown' holds orders placed
+      // before the channel was recorded.
+      const channelOf = (o) => (o.channel === 'web' || o.channel === 'app' ? o.channel : 'unknown');
+      const byChannel = {};
+      for (const key of ['web', 'app', 'unknown']) {
+        const all = allOrders.filter((o) => channelOf(o) === key);
+        const inMonth = all.filter((o) => at(o) >= startOfMonth);
+        byChannel[key] = {
+          count: all.length,
+          sales: sum(all),
+          monthCount: inMonth.length,
+          monthSales: sum(inMonth),
+        };
+      }
+
       return sendJson(res, 200, {
         sales: { today: sum(today), month: sum(month), total: sum(allOrders) },
         counts: { today: today.length, month: month.length, total: allOrders.length },
         byStatus,
+        byChannel,
         customers: (await auth.listUsers()).length,
         recent: allOrders.slice(0, 8).map((o) => ({
           orderName: o.orderName,
@@ -66,6 +82,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
           city: o.customer?.city || '',
           total: Number(o.total) || 0,
           paymentStatus: o.paymentStatus || 'unpaid',
+          channel: o.channel || null,
           placedAt: o.placedAt,
         })),
       });
@@ -77,7 +94,11 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       const status = url.searchParams.get('status');
       const search = (url.searchParams.get('q') || '').trim().toLowerCase();
 
-      const matching = await orders.listOrders({ status, search });
+      const channel = url.searchParams.get('channel');
+      let matching = await orders.listOrders({ status, search });
+      if (channel === 'web' || channel === 'app') {
+        matching = matching.filter((o) => o.channel === channel);
+      }
 
       return sendJson(res, 200, {
         orders: matching.slice(0, 200).map((o) => ({
@@ -92,6 +113,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
           placedAt: o.placedAt,
           paidAt: o.paidAt || null,
           userId: o.userId || null,
+          channel: o.channel || null,
         })),
         totalMatching: matching.length,
       });

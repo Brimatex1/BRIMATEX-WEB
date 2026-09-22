@@ -127,6 +127,17 @@ do $$ begin
   end if;
 end $$;
 
+-- Where the order was placed: 'web' (the website) or 'app' (iOS/Android).
+-- Nullable: orders placed before this column existed have no channel.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'orders' and column_name = 'channel'
+  ) then
+    alter table orders add column channel text;
+  end if;
+end $$;
+
 -- Push-notification devices. One row per Expo token; re-registering replaces
 -- it. last_order lets a guest who ordered without an account still be told
 -- when that one order moves.

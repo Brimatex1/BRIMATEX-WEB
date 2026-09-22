@@ -7,8 +7,10 @@
 // 2. End to end: a hermetic server reports to a local mock of graph.facebook.com
 //    (FACEBOOK_GRAPH_URL), so nothing reaches the real Meta.
 //    - a website order (with `tracking`) is reported once, token in the body
-//    - an app order (no `tracking`) is not reported
+//    - an app order with device details is reported as an app event
+//    - an app order from an older build (no device details) is not reported
 //    - Meta rejecting the event does not fail the order
+// 3. The dashboard keeps website and app orders apart.
 //
 // Runs with the rest: npm test
 
@@ -137,6 +139,49 @@ async function main() {
   ok('لا رقم هاتف خام في الحدث', !/0912345678|218912345678|091-234/.test(raw));
   ok('لا اسم خام في الحدث', !raw.includes('محمد'));
 
+  const APP = {
+    platform: 'ios',
+    osVersion: '26.0',
+    appVersion: '1.0.0',
+    buildVersion: '12',
+    packageName: 'ly.brimatex.shop',
+    deviceModel: 'iPhone17,1',
+    locale: 'ar-LY',
+    timezoneAbbr: 'EET',
+    timezone: 'Africa/Tripoli',
+    screenWidth: 402,
+    screenHeight: 874,
+    screenDensity: 3,
+  };
+  const appEv = capi.buildPurchase({
+    req: fakeReq,
+    channel: 'app',
+    app: APP,
+    orderName: 'S00043',
+    customer: { name: 'زبون', phone: '0912345678', city: 'طرابلس' },
+    items: [{ productId: 7747, quantity: 1 }],
+    total: 53,
+    lydPerUsd: 8,
+    prices: new Map([[7747, 53]]),
+  });
+  ok('تطبيق: action_source = app', appEv.action_source === 'app');
+  ok('تطبيق: extinfo بـ16 خانة تبدأ بـ i2', appEv.app_data.extinfo.length === 16 && appEv.app_data.extinfo[0] === 'i2');
+  ok('تطبيق: إصدار النظام في الخانة 4', appEv.app_data.extinfo[4] === '26.0');
+  ok('تطبيق: اللغة بصيغة ar_LY', appEv.app_data.extinfo[6] === 'ar_LY');
+  ok('آيفون بلا إذن تتبّع: advertiser_tracking_enabled = 0', appEv.app_data.advertiser_tracking_enabled === 0);
+  ok('تطبيق: بلا رابط صفحة وبلا fbp', !('event_source_url' in appEv) && !appEv.user_data.fbp);
+  const android = capi.buildPurchase({
+    req: fakeReq, channel: 'app', app: { ...APP, platform: 'android', osVersion: '16' },
+    orderName: 'S00044', customer: { name: 'x', phone: '0912345678', city: 'y' },
+    items: [{ productId: 1, quantity: 1 }], total: 10,
+  });
+  ok('أندرويد: a2 والتتبّع = 1', android.app_data.extinfo[0] === 'a2' && android.app_data.advertiser_tracking_enabled === 1);
+  const noDevice = capi.buildPurchase({
+    req: fakeReq, channel: 'app', app: undefined, orderName: 'S00045',
+    customer: { name: 'x', phone: '0912345678', city: 'y' }, items: [{ productId: 1, quantity: 1 }], total: 10,
+  });
+  ok('تطبيق قديم بلا تفاصيل الجهاز: لا حدث', noDevice === null);
+
   /* ----------------------------------------------------------- 2. end to end */
   await new Promise((r) => mock.listen(MOCK_PORT, '127.0.0.1', r));
   const { server } = await startTestServer({
@@ -180,13 +225,39 @@ async function main() {
     ok('لوحة الإدارة: مفعّل وآخر إرسال ناجح', st.json?.conversionsApi?.configured && st.json.conversionsApi.lastResult?.ok === true, JSON.stringify(st.json?.conversionsApi));
     ok('المفتاح لا يظهر في لوحة الإدارة', !JSON.stringify(st.json).includes(TOKEN));
 
-    section('3. طلب من التطبيق (بدون tracking)');
-    const app = await req('POST', '/api/orders', { customer: { ...customer, phone: uniq() }, items, note: '' });
+    section('3. طلب من التطبيق');
+    const app = await req('POST', '/api/orders', {
+      customer: { ...customer, phone: uniq() },
+      items,
+      note: '',
+      channel: 'app',
+      requestId: 'test-' + Date.now(),
+      app: { platform: 'ios', osVersion: '26.0', appVersion: '1.0.0', locale: 'ar-LY' },
+    });
     ok('الطلب ينجح (201)', app.status === 201, 'status ' + app.status);
     await wait(500);
-    ok('لا يُرسل لميتا', received.length === 1, 'received ' + received.length);
+    ok('يُرسل لميتا كحدث تطبيق', received.length === 2 && received[1].body.data[0].action_source === 'app', 'received ' + received.length);
+    ok('بنفس رقم الطلب', received[1]?.body.data[0].event_id === `purchase-${app.json.orderName}`);
 
-    section('4. ميتا ترفض الحدث');
+    const oldApp = await req('POST', '/api/orders', {
+      customer: { ...customer, phone: uniq() },
+      items,
+      note: '',
+      requestId: 'old-build-' + Date.now(),
+    });
+    ok('تطبيق قديم: الطلب ينجح (201)', oldApp.status === 201, 'status ' + oldApp.status);
+    await wait(500);
+    ok('تطبيق قديم: لا يُرسل لميتا', received.length === 2, 'received ' + received.length);
+
+    section('4. لوحة الإدارة تفصل الموقع عن التطبيق');
+    const ov = (await req('GET', '/api/admin/overview', null, auth)).json;
+    ok('نظرة عامة فيها byChannel', ov?.byChannel?.web && ov?.byChannel?.app, JSON.stringify(ov?.byChannel));
+    const webList = (await req('GET', '/api/admin/orders?channel=web', null, auth)).json.orders;
+    const appList = (await req('GET', '/api/admin/orders?channel=app', null, auth)).json.orders;
+    ok('فلتر الموقع يرجّع طلب الموقع فقط', webList.some((o) => o.orderName === web.json.orderName) && webList.every((o) => o.channel === 'web'));
+    ok('فلتر التطبيق فيه طلب التطبيق والقديم', [app.json.orderName, oldApp.json.orderName].every((n) => appList.some((o) => o.orderName === n)) && appList.every((o) => o.channel === 'app'));
+
+    section('5. ميتا ترفض الحدث');
     mockStatus = 400;
     const rejected = await req('POST', '/api/orders', {
       customer: { ...customer, phone: uniq() },

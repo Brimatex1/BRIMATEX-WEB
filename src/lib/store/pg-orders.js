@@ -22,6 +22,7 @@ function toOrder(row) {
     placedAt: row.placed_at,
     paidAt: row.paid_at,
     requestId: row.request_id,
+    channel: row.channel || null,
   };
 }
 
@@ -41,14 +42,15 @@ async function createOrder(record) {
     record.odooInvoiceId || null,
     record.placedAt || record.receivedAt || new Date().toISOString(),
     record.requestId || null,
+    record.channel || null,
   ];
   try {
     const { rows } = await db.query(
       `insert into orders
          (order_name, invoice_name, user_id, source, customer, items, note, total,
           invoice_status, payment_status, odoo_order_id, odoo_invoice_id, placed_at,
-          request_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          request_id, channel)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        returning *`,
       params
     );

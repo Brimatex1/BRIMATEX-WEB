@@ -28,6 +28,7 @@ import type {
   AdminOrder,
   AdminOverview,
   AdminProducts,
+  OrderChannel,
   Role,
   User,
 } from '@/types';
@@ -59,6 +60,8 @@ function money(n: number) {
   return `${formatPrice(n)} ${CURRENCY}`;
 }
 
+const CHANNEL_LABEL: Record<OrderChannel, string> = { web: 'الموقع', app: 'التطبيق' };
+
 function shortDate(iso: string | null) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -81,6 +84,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orderFilter, setOrderFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [channelFilter, setChannelFilter] = useState<'all' | OrderChannel>('all');
   const [orderQuery, setOrderQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
@@ -92,7 +96,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
     try {
       const [ov, ord, cus, prod] = await Promise.all([
         api.adminOverview(token),
-        api.adminOrders(token, { status: orderFilter, q: orderQuery }),
+        api.adminOrders(token, { status: orderFilter, q: orderQuery, channel: channelFilter }),
         api.adminCustomers(token),
         api.adminProducts(token),
       ]);
@@ -105,7 +109,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
     } finally {
       setLoading(false);
     }
-  }, [token, orderFilter, orderQuery]);
+  }, [token, orderFilter, orderQuery, channelFilter]);
 
   useEffect(() => {
     void load();
@@ -269,6 +273,33 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-lg">الموقع والتطبيق</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              {(['web', 'app'] as const).map((ch) => {
+                const s = overview.byChannel[ch];
+                return (
+                  <div key={ch} className="rounded-xl border px-4 py-3">
+                    <p className="text-sm font-medium">{CHANNEL_LABEL[ch]}</p>
+                    <p className="mt-1 font-heading text-xl font-semibold tabular text-primary">
+                      {money(s.monthSales)}
+                    </p>
+                    <p className="text-xs text-muted-foreground tabular">
+                      هذا الشهر: {s.monthCount} طلب · الإجمالي: {money(s.sales)} ({s.count} طلب)
+                    </p>
+                  </div>
+                );
+              })}
+              {overview.byChannel.unknown.count > 0 && (
+                <p className="text-xs text-muted-foreground sm:col-span-2 tabular">
+                  {overview.byChannel.unknown.count} طلب قديم بلا مصدر مسجّل — قبل بدء التسجيل.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-lg">الطلبات حسب الحالة</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-3">
@@ -359,6 +390,25 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
                 </button>
               ))}
             </div>
+            <div className="flex gap-1">
+              {(['all', 'web', 'app'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setChannelFilter(f)}
+                  aria-pressed={channelFilter === f}
+                  className={cn(
+                    'min-h-10 rounded-full border px-4 text-sm transition-colors',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                    channelFilter === f
+                      ? 'border-accent bg-accent/10 font-semibold text-accent'
+                      : 'text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  {f === 'all' ? 'كل المصادر' : CHANNEL_LABEL[f]}
+                </button>
+              ))}
+            </div>
           </div>
 
           {orders.length === 0 ? (
@@ -370,7 +420,10 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
                   <CardContent className="pt-6">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <p className="font-semibold tabular">{o.orderName}</p>
+                        <p className="flex items-center gap-2 font-semibold tabular">
+                          {o.orderName}
+                          {o.channel && <Badge variant="outline">{CHANNEL_LABEL[o.channel]}</Badge>}
+                        </p>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {o.customer?.name} · {o.customer?.phone}
                         </p>

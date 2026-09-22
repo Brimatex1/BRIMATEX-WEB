@@ -105,6 +105,7 @@ export const api = {
           customer,
           items: lines.map((l) => ({ productId: l.id, quantity: l.qty })),
           note,
+          channel: 'web',
           tracking,
         },
         token
@@ -180,9 +181,10 @@ export const api = {
   adminOverview: (token: string) =>
     request<AdminOverview>('/api/admin/overview', authHeaders(token)),
 
-  adminOrders: (token: string, params?: { status?: string; q?: string }) => {
+  adminOrders: (token: string, params?: { status?: string; q?: string; channel?: string }) => {
     const qs = new URLSearchParams();
     if (params?.status && params.status !== 'all') qs.set('status', params.status);
+    if (params?.channel && params.channel !== 'all') qs.set('channel', params.channel);
     if (params?.q?.trim()) qs.set('q', params.q.trim());
     const suffix = qs.toString() ? `?${qs}` : '';
     return request<{ orders: AdminOrder[]; totalMatching: number }>(
