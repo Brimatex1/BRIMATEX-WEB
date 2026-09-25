@@ -1,17 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import { BrimatexLogo } from '@/components/BrimatexLogo';
-import { Header } from '@/components/Header';
 import { CartScreen } from '@/components/app/CartScreen';
-import { Catalogue } from '@/components/app/Catalogue';
-import { HomeScreen } from '@/components/app/HomeScreen';
-import { ProductScreen } from '@/components/app/ProductScreen';
-import { TabBar } from '@/components/app/TabBar';
-import { TopBar } from '@/components/app/TopBar';
 import { WishlistScreen } from '@/components/app/WishlistScreen';
-import { SocialLinks } from '@/components/SocialLinks';
+import { CartSheet } from '@/components/store/CartSheet';
+import { HomePage } from '@/components/store/HomePage';
+import { ProductPage } from '@/components/store/ProductPage';
+import { ShopPage } from '@/components/store/ShopPage';
+import { SiteFooter } from '@/components/store/SiteFooter';
+import { SiteHeader } from '@/components/store/SiteHeader';
 import { SupportWidget } from '@/components/SupportWidget';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,7 +21,7 @@ import { api } from '@/lib/api';
 import { captureClickId, disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
 import { titleFor } from '@/lib/pageTitle';
 import { parseRoute, routePath, type Route } from '@/lib/route';
-import type { TierFilter } from '@/lib/tiers';
+import { tiersOf, type TierFilter } from '@/lib/tiers';
 import type { Address, Product, SectionId } from '@/types';
 
 /*
@@ -44,31 +41,11 @@ const PointsScreen = lazy(() => import('@/components/app/PointsScreen').then((m)
 function ScreenLoading() {
   return (
     <div className="grid min-h-[50vh] place-items-center" role="status" aria-label="جارٍ التحميل">
-      <span className="size-8 animate-spin rounded-full border-[3px] border-app-tint border-t-app-ocean" />
+      <span className="size-8 animate-spin rounded-full border-[3px] border-muted border-t-primary" />
     </div>
   );
 }
 
-
-/**
- * Phone screen titles, as the iOS app's headers show them. Home has none - it
- * draws its own header, as in the app. Sections not listed here are tabs,
- * which get a title but no back arrow.
- */
-const PHONE_TITLE: Partial<Record<SectionId, string>> = {
-  product: 'تفاصيل المنتج',
-  // These screens carry their own title, as in the app.
-  quiz: '',
-  vouchers: '',
-  points: '',
-  wishlist: 'المفضّلة',
-  cart: 'السلة',
-  auth: 'حسابي',
-  orders: 'طلباتي',
-  admin: 'لوحة التحكم',
-};
-/** Screens pushed on top of a tab: they get a back arrow. */
-const PUSHED: SectionId[] = ['shop', 'product', 'quiz', 'orders', 'admin', 'vouchers', 'points'];
 
 export default function App() {
   // The first screen comes from the address, so a link from an ad lands on it.
@@ -79,9 +56,9 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<TierFilter>(landing.category ?? 'all');
   const [shopQuery, setShopQuery] = useState(landing.query ?? '');
 
-  // One design at every size - the iOS app's (components/app). Phones also
-  // get the app's navigation chrome: a top bar per screen and the tab bar.
   const isPhone = useIsPhone();
+  /** The cart drawer, opened from the header's bag and after adding a mattress. */
+  const [cartOpen, setCartOpen] = useState(false);
   /** Screens opened inside the site this visit - "back" leaves it only at zero. */
   const depth = useRef(0);
 
@@ -131,16 +108,6 @@ export default function App() {
     show(route);
   }
 
-  /**
-   * The top bar's back arrow. Within the visit it is the browser's back; a
-   * visitor who landed straight on this page (an ad, a shared link) has
-   * nothing behind it on this site, so it goes home instead of leaving.
-   */
-  function back() {
-    if (depth.current > 0) window.history.back();
-    else navigate('home');
-  }
-
   function navigate(next: SectionId) {
     go({ section: next });
   }
@@ -165,6 +132,10 @@ export default function App() {
     }
   }, [section, shopCategory, shopQuery]);
 
+  function openTier(key?: string) {
+    go({ section: 'shop', category: key ?? 'all', query: '' });
+  }
+
   function openProduct(product: Product) {
     go({ section: 'product', productId: product.id });
   }
@@ -172,8 +143,10 @@ export default function App() {
   function handleAdd(product: Product) {
     const existing = cart.lines.find((l) => l.id === product.id);
     cart.add(product);
-    toast.success(existing ? `تم تحديث الكمية: ${product.name}` : `تمت إضافة: ${product.name}`);
     trackAddToCart(product);
+    // The drawer shows what was added, and the way to checkout, without leaving the page.
+    if (existing) toast.success(`تم تحديث الكمية: ${product.name}`);
+    else setCartOpen(true);
 
     setJustAddedId(product.id);
     window.setTimeout(() => setJustAddedId((id) => (id === product.id ? null : id)), 1200);
@@ -217,11 +190,11 @@ export default function App() {
     ? // "You may also like": the same Odoo tier, so an Elite mattress suggests Elite ones.
       catalogue.products.filter((p) => p.id !== selected.id && (p.tier?.key ?? null) === (selected.tier?.key ?? null))
     : [];
+  const tiers = useMemo(() => tiersOf(catalogue.products).map((t) => t.tier), [catalogue.products]);
 
   return (
-    // The app's look everywhere: white screens, Plex, and .app-skin for the
-    // pages built from the shared primitives (index.css).
-    <div className="app-skin min-h-[100svh] bg-white font-app">
+    // shadcn/ui's look in Brimatex colours (index.css, components/store).
+    <div className="flex min-h-[100svh] flex-col bg-background font-sans text-foreground">
       {/* start-0/top-0 even while hidden: sr-only is absolute but without an
           inset it keeps its static position, which in RTL lands past the right
           edge and adds ~20px of horizontal scroll on narrow screens. */}
@@ -232,30 +205,35 @@ export default function App() {
         تخطّي إلى المحتوى
       </a>
 
-      {isPhone ? (
-        section !== 'home' && (
-          <TopBar
-            title={section === 'shop' ? (shopQuery.trim() ? 'نتائج البحث' : 'كل المراتب') : (PHONE_TITLE[section] ?? '')}
-            onBack={PUSHED.includes(section) ? back : undefined}
-          />
-        )
-      ) : (
-        <Header
-          active={section}
-          cartCount={cart.count}
-          isAdmin={auth.user?.role === 'admin'}
-          onNavigate={navigate}
-        />
-      )}
+      <SiteHeader
+        section={section}
+        user={auth.user}
+        cartCount={cart.count}
+        tiers={tiers}
+        onNavigate={navigate}
+        onOpenTier={openTier}
+        onSearch={(q) => go({ section: 'shop', category: 'all', query: q })}
+        onOpenCart={() => setCartOpen(true)}
+      />
 
-      <main
-        id="main"
-        // Phones: clear of the tab bar at the bottom
-        className={isPhone ? 'min-h-[100svh] pb-[calc(72px+env(safe-area-inset-bottom))]' : 'min-h-[70vh]'}
-      >
+      <CartSheet
+        open={cartOpen}
+        onOpenChange={setCartOpen}
+        lines={cart.lines}
+        total={cart.total}
+        products={catalogue.products}
+        onSetQty={cart.setQty}
+        onRemove={cart.remove}
+        onCheckout={() => {
+          setCartOpen(false);
+          navigate('cart');
+        }}
+      />
+
+      <main id="main" className="flex-1">
         <Suspense fallback={<ScreenLoading />}>
         {section === 'home' && (
-          <HomeScreen
+          <HomePage
             user={auth.user}
             products={catalogue.products}
             loading={catalogue.loading}
@@ -266,6 +244,7 @@ export default function App() {
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}
             onNavigate={navigate}
+            onOpenTier={openTier}
             // A banner's link is a shop path, read the way an address is.
             onOpenLink={(path) => go(parseRoute(new URL(path, window.location.origin)))}
             perks={loyalty.perks}
@@ -297,13 +276,7 @@ export default function App() {
         )}
 
         {section === 'shop' && (
-          <div className="mx-auto max-w-6xl px-5 pb-10 pt-4 md:px-8 md:pb-16 md:pt-10">
-            {!isPhone && (
-              <h1 className="mb-5 text-[34px] font-bold text-app-text">
-                {shopQuery.trim() ? 'نتائج البحث' : 'كل المراتب'}
-              </h1>
-            )}
-            <Catalogue
+            <ShopPage
               products={catalogue.products}
               loading={catalogue.loading}
               error={catalogue.error}
@@ -316,18 +289,22 @@ export default function App() {
               wishlistPending={wishlist.pending}
               onOpen={openProduct}
               onToggleWishlist={handleToggleWishlist}
+              onGoHome={() => navigate('home')}
             />
-          </div>
         )}
 
         {section === 'product' &&
           (selected ? (
-            <ProductScreen
+            <ProductPage
               product={selected}
               related={productRelated}
               justAddedId={justAddedId}
               saved={wishlist.has(selected.id)}
               wishlistPending={wishlist.pending === selected.id}
+              isSaved={wishlist.has}
+              wishlistPendingId={wishlist.pending}
+              onGoHome={() => navigate('home')}
+              onOpenShop={openTier}
               onAdd={handleAdd}
               onBuyNow={(p) => {
                 handleAdd(p);
@@ -337,7 +314,7 @@ export default function App() {
               onOpenProduct={openProduct}
             />
           ) : (
-            <p className="px-5 py-24 text-center text-app-muted">
+            <p className="px-5 py-24 text-center text-muted-foreground">
               {catalogue.loading ? 'جارٍ التحميل…' : 'المنتج غير موجود'}
             </p>
           ))}
@@ -418,42 +395,18 @@ export default function App() {
         </Suspense>
       </main>
 
-      {/* The app has no footer; on phones the tab bar ends the page */}
-      {!isPhone && (
-        <footer className="bg-app-ocean pt-12 text-center text-sm text-white/80">
-          <div className="mx-auto flex max-w-6xl flex-col items-center px-8 pb-8">
-            {/* currentColor puts the mark in white here, not the navy it ships as */}
-            <BrimatexLogo className="mb-4 h-16 w-auto text-white" />
-            <p>الدفع عند الاستلام · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات</p>
-            <p className="mt-2 flex items-center gap-1.5 text-white/70">
-              <MapPin className="size-4" aria-hidden="true" />
-              طرابلس، ليبيا
-            </p>
-            <SocialLinks className="mt-5" />
-          </div>
-          <div className="border-t border-white/10 py-4">
-            <p className="text-xs text-white/60">
-              © 2026 بريماتكس لصناعة الإسفنج الصناعي والمراتب. جميع الحقوق محفوظة.
-            </p>
-          </div>
-        </footer>
-      )}
+      {section !== 'admin' && <SiteFooter tiers={tiers} onNavigate={navigate} onOpenTier={openTier} />}
 
       {/* Not on the dashboard. On a phone the round button stays off the
           screens with a fixed bottom bar it would cover - the product page
-          (which has its own "ask about this product" card, as in the app),
-          the cart and the quiz. */}
+          (which has its own "ask about this mattress" button) and the cart. */}
       {section !== 'admin' && (
         <SupportWidget
-          launcher={!(isPhone && (section === 'product' || section === 'cart' || section === 'quiz'))}
+          launcher={!(isPhone && (section === 'product' || section === 'cart'))}
           user={auth.user}
           token={auth.token}
-          // Phones: above the tab bar
-          className={isPhone ? 'bottom-[calc(88px+env(safe-area-inset-bottom))]' : undefined}
         />
       )}
-
-      {isPhone && <TabBar active={section} cartCount={cart.count} onNavigate={navigate} />}
 
       <Toaster />
     </div>

@@ -15,8 +15,10 @@ export default {
         // @font-face rules in index.css carry an Arabic-only unicode-range,
         // so the browser falls through per character — the split headings
         // had under Iwanzaza, which only ever had Arabic glyphs.
-        heading: ['IBM Plex Sans Arabic', 'Cormorant', 'Georgia', 'serif'],
-        sans: ['Montserrat', 'Segoe UI', 'Tahoma', 'sans-serif'],
+        // One font everywhere: IBM Plex Sans Arabic (as "Brimatex Plex", the
+        // WOFF2 files in public/fonts) for Arabic, Latin and digits alike.
+        heading: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
+        sans: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
         // The site's font (components/app) - IBM Plex Sans Arabic for every
         // character, digits and Latin included, exactly as in the iOS app.
         app: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
