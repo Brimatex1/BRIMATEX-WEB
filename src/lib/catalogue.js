@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const odoo = require('./odoo');
 const productOverrides = require('./productOverrides');
+const { photoFor } = require('./productPhotos');
 const odooStatus = require('./odooStatus');
 const { isOfferable } = require('./sellable');
 
@@ -48,13 +49,14 @@ async function withOverrides(products) {
   const all = await productOverrides.getAllOverrides();
   return products.map((p) => {
     const o = all[String(p.id)];
-    if (!o) return { ...p, iconFeatures: [], enabled: true };
+    // A dashboard upload first, then the photo shipped with the site (src/lib/productPhotos.js).
+    if (!o) return { ...p, iconFeatures: [], enabled: true, image: photoFor(p.name) || p.image };
     return {
       ...p,
       iconFeatures: o.iconKeys,
       description: o.description || p.description,
       enabled: o.enabled,
-      image: o.imageUrl || p.image,
+      image: o.imageUrl || photoFor(p.name) || p.image,
     };
   });
 }

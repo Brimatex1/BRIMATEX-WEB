@@ -33,6 +33,7 @@ const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
 const { getProducts, visibleOnly, productLookup } = require('./lib/catalogue');
+const { PHOTO_PREFIX } = require('./lib/productPhotos');
 const { sendJson, readBody } = require('./lib/respond');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
@@ -249,14 +250,15 @@ async function handleApi(req, res, url) {
   }
 
   const imageMatch = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
-  // A product's photo - the one uploaded from the dashboard, never Odoo's (the
-  // owner turned Odoo's pictures off). The app asks here for every picture, so
+  // A product's photo - the one uploaded from the dashboard, else the one shipped
+  // with the site (src/lib/productPhotos.js), never Odoo's (the owner turned
+  // Odoo's pictures off). The app asks here for every picture, so
   // an upload shows in it at once, with no app release; a size's id finds its
   // product's photo. No upload: 404, and the app draws the name's letter.
   if (req.method === 'GET' && imageMatch) {
     const { products } = await getProducts();
     const product = productLookup(products).get(Number(imageMatch[1]));
-    if (!product?.image || !product.image.startsWith('/uploads/')) {
+    if (!product?.image || !(product.image.startsWith('/uploads/') || product.image.startsWith(PHOTO_PREFIX))) {
       res.writeHead(404, { 'Cache-Control': 'no-cache' });
       return res.end();
     }
