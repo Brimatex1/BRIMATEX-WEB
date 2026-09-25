@@ -317,6 +317,32 @@ function structuredData(page, context, url) {
 }
 
 /**
+ * The product's details as Meta's Pixel reads them from the page. A catalogue
+ * whose data source is the Pixel builds each item from these: the Pixel's
+ * ViewContent names the id, and the tags on the page supply the rest. So the
+ * id is the one the Pixel reports (the card's), and the price is in dollars at
+ * the dashboard's rate, like the Pixel and the feed (src/lib/metaFeed.js) -
+ * Meta does not accept dinars. With no rate set, dinars are written as they are.
+ * The app writes the same tags when a visitor moves to another product
+ * (web/src/lib/pixel.ts): keep the two in step.
+ */
+function productTags(page, lydPerUsd) {
+  const p = page.product;
+  const usd = lydPerUsd > 0;
+  const amount = usd ? (page.price / lydPerUsd).toFixed(2) : String(page.price);
+  return [
+    `<meta property="product:retailer_item_id" content="${p.id}" />`,
+    p.variants ? `<meta property="product:item_group_id" content="${p.id}" />` : '',
+    `<meta property="product:brand" content="Brimatex" />`,
+    `<meta property="product:condition" content="new" />`,
+    `<meta property="product:price:amount" content="${amount}" />`,
+    `<meta property="product:price:currency" content="${usd ? 'USD' : 'LYD'}" />`,
+    `<meta property="product:availability" content="${page.inStock ? 'in stock' : 'out of stock'}" />`,
+    p.tier ? `<meta property="product:category" content="${escapeHtml(`مراتب > ${p.tier.name}`)}" />` : '',
+  ];
+}
+
+/**
  * The shell with this address's tags: its <title> and description replaced,
  * the Open Graph / Twitter tags added before </head>.
  */
@@ -338,12 +364,7 @@ function render(shell, pathname, search, context) {
     `<meta name="twitter:title" content="${escapeHtml(page.title)}" />`,
     `<meta name="twitter:description" content="${escapeHtml(page.description)}" />`,
     page.image ? `<meta name="twitter:image" content="${escapeHtml(page.image)}" />` : '',
-    // Read by Facebook for product links; dinars here - this is what a person sees.
-    page.type === 'product' ? `<meta property="product:price:amount" content="${page.price}" />` : '',
-    page.type === 'product' ? `<meta property="product:price:currency" content="LYD" />` : '',
-    page.type === 'product'
-      ? `<meta property="product:availability" content="${page.inStock ? 'in stock' : 'out of stock'}" />`
-      : '',
+    ...(page.type === 'product' ? productTags(page, context.lydPerUsd) : []),
   ].filter(Boolean);
   for (const data of structuredData(page, context, url)) {
     tags.push(`<script type="application/ld+json">${jsonForScript(data)}</script>`);

@@ -165,6 +165,14 @@ function unitPart() {
     ok('صفحة المنتج: h1 باسمه', page.text.includes('<h1>' + p.name.replace(/&/g, '&amp;') + '</h1>'));
     ok('صفحة المنتج: og:type product', meta(page.text, 'og:type') === 'product');
     ok('صفحة المنتج: السعر بالدينار', meta(page.text, 'product:price:amount') === String(p.price) && meta(page.text, 'product:price:currency') === 'LYD');
+    // A catalogue fed by the Pixel builds its items from these tags.
+    ok(
+      'صفحة المنتج: وسوم كتالوج ميتا (المعرّف، العلامة، الحالة)',
+      meta(page.text, 'product:retailer_item_id') === String(p.id) &&
+        meta(page.text, 'product:brand') === 'Brimatex' &&
+        meta(page.text, 'product:condition') === 'new' &&
+        meta(page.text, 'product:availability') === 'in stock'
+    );
     ok('صفحة المنتج: الرابط الأساسي', page.text.includes(`<link rel="canonical" href="http://127.0.0.1:${PORT}/product/${p.id}" />`));
     ok('منتج غير موجود: الوسوم العامة', meta((await req('GET', '/product/999999')).text, 'og:type') === 'website');
     ok('الملفات تُخدم كما هي', /image\/svg/.test((await req('GET', '/favicon.svg')).type));
@@ -224,6 +232,13 @@ function unitPart() {
     const row = feed.text.trim().split('\n')[1] || '';
     ok('الكتالوج: المنتج بصورته', row.startsWith(`"${p.id}","${p.id}"`) && row.includes(uploaded), row);
     ok('الكتالوج: بالدولار', row.includes(`"${(p.price / 8).toFixed(2)} USD"`), row);
+    const priced = (await req('GET', `/product/${p.id}`)).text;
+    const from = Math.min(...(p.variants ?? [p]).map((v) => v.price));
+    ok(
+      'صفحة المنتج: السعر لميتا بالدولار، كالكتالوج',
+      meta(priced, 'product:price:amount') === (from / 8).toFixed(2) && meta(priced, 'product:price:currency') === 'USD',
+      meta(priced, 'product:price:amount')
+    );
     ok('صفحة المنتج: og:image', meta((await req('GET', `/product/${p.id}`)).text, 'og:image') === `http://127.0.0.1:${PORT}${uploaded}`);
     await req('DELETE', `/api/admin/products/${p.id}/image`, null, admin);
   } finally {

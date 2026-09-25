@@ -493,6 +493,7 @@ async function serveShell(req, res, url) {
     banners: banners.list(),
     origin: originOf(req),
     reviews,
+    lydPerUsd: Number(settings.readPublicFacebookPixel().lydPerUsd) || 0,
   });
   // A real 404 for an address the app lacks or a product no longer sold -
   // still the app (it shows its home), but not indexed as a page.

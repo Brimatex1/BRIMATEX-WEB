@@ -39,6 +39,7 @@ export function initPixel(pixelId: string, rate?: number | null) {
   if (initialized || !pixelId || typeof window === 'undefined') return;
   initialized = true;
   lydPerUsd = rate && rate > 0 ? rate : null;
+  describe(described);
 
   // Meta's standard bootstrap snippet, unmodified apart from formatting.
   (function (f: Window, b: Document, e: string, v: string) {
@@ -88,7 +89,59 @@ export function trackPageView() {
   track('PageView');
 }
 
+/**
+ * Writes the product's Open Graph / product:* tags into <head>. A catalogue
+ * fed by the Pixel builds its items from these, read off the page. The server
+ * writes them for the address a visitor lands on (productTags in
+ * src/lib/share.js - keep the two in step), but moving to another product
+ * inside the app leaves the first page's tags behind: without this, the
+ * second product would be described as the first, or not at all.
+ */
+function describeProduct(product: Product) {
+  const set = (property: string, content: string | null) => {
+    let tag = document.head.querySelector<HTMLMetaElement>(`meta[property="${property}"]`);
+    if (content === null) return tag?.remove();
+    if (!tag) {
+      tag = document.createElement('meta');
+      tag.setAttribute('property', property);
+      document.head.appendChild(tag);
+    }
+    tag.content = content;
+  };
+  // The lowest size's price - what the server writes, and "يبدأ من" on the card.
+  const prices = (product.variants ?? [product]).map((v) => v.price).filter((n) => n > 0);
+  const from = prices.length ? Math.min(...prices) : product.price;
+  const url = `${window.location.origin}/product/${product.id}`;
+  set('og:type', 'product');
+  set('og:url', url);
+  set('og:title', product.name);
+  if (product.description) set('og:description', product.description);
+  if (product.image) set('og:image', new URL(product.image, window.location.origin).href);
+  set('product:retailer_item_id', String(product.id));
+  set('product:item_group_id', product.variants ? String(product.id) : null);
+  set('product:brand', 'Brimatex');
+  set('product:condition', 'new');
+  set('product:price:amount', lydPerUsd ? (from / lydPerUsd).toFixed(2) : String(from));
+  set('product:price:currency', lydPerUsd ? 'USD' : CURRENCY_ISO);
+  set('product:availability', product.inStock === false ? 'out of stock' : 'in stock');
+  set('product:category', product.tier ? `مراتب > ${product.tier.name}` : null);
+}
+
+/** The product on screen, re-described once the dashboard's dollar rate arrives. */
+let described: Product | null = null;
+
+function describe(product: Product | null) {
+  described = product;
+  if (!product) return;
+  try {
+    describeProduct(product);
+  } catch {
+    /* the tags are for Meta's catalogue; the event itself still goes out */
+  }
+}
+
 export function trackViewContent(product: Product) {
+  describe(product);
   track('ViewContent', {
     content_ids: [product.id],
     content_type: 'product',
