@@ -1,10 +1,13 @@
 import { useEffect, useId, useState } from 'react';
-import { CheckCircle2, Headset, Send, X } from 'lucide-react';
+import { CheckCircle2, MessageCircle, Send } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useIsPhone } from '@/hooks/useIsPhone';
 import { api, ApiError } from '@/lib/api';
 import { onOpenSupport } from '@/lib/support';
 import { trackContact } from '@/lib/pixel';
@@ -24,8 +27,8 @@ interface SupportWidgetProps {
   token: string | null;
   className?: string;
   /**
-   * False hides the round launcher while the window is closed - for pages
-   * that open it from a button of their own (lib/support.ts).
+   * False hides the floating button - for pages that open the form from a
+   * button of their own (lib/support.ts), or where a bar sits at the bottom.
    */
   launcher?: boolean;
 }
@@ -42,6 +45,7 @@ type Fields = { name: string; phone: string; topic: SupportTopic | ''; orderName
  */
 export function SupportWidget({ user, token, className, launcher = true }: SupportWidgetProps) {
   const id = useId();
+  const isPhone = useIsPhone();
   const [open, setOpen] = useState(false);
   const [fields, setFields] = useState<Fields>({
     name: user?.name ?? '',
@@ -71,13 +75,6 @@ export function SupportWidget({ user, token, className, launcher = true }: Suppo
       }),
     []
   );
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
 
   const errors = {
     name: fields.name.trim() ? null : 'الاسم مطلوب',
@@ -129,45 +126,44 @@ export function SupportWidget({ user, token, className, launcher = true }: Suppo
   const fieldId = (key: string) => `${id}-${key}`;
 
   return (
-    <div className={cn('fixed bottom-5 end-5 z-40 flex flex-col items-end gap-3', className)}>
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="false"
-          aria-labelledby={fieldId('title')}
-          className="w-[22rem] max-w-[calc(100vw-2.5rem)] animate-fade-up overflow-hidden rounded-2xl border border-border bg-card shadow-xl"
+    <>
+      {/* The floating button: an icon with its name on larger screens, the icon alone on a phone */}
+      {launcher && !open && (
+        <Button
+          onClick={() => setOpen(true)}
+          aria-label="تواصل مع خدمة العملاء"
+          className={cn('fixed bottom-5 end-5 z-40 h-12 gap-2 rounded-full px-4 shadow-lg sm:px-5', className)}
         >
-          <div className="flex items-center justify-between gap-2 bg-primary px-4 py-3 text-primary-foreground">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                <Headset className="size-5" aria-hidden="true" />
-              </span>
-              <div>
-                <p id={fieldId('title')} className="text-sm font-semibold">
-                  خدمة عملاء بريماتكس
-                </p>
-                <p className="text-xs text-primary-foreground/75">نومك يهمّنا، وسنتصل بك في أقرب وقت</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="إغلاق"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <X className="size-4" aria-hidden="true" />
-            </button>
-          </div>
+          <MessageCircle className="!size-5" aria-hidden="true" />
+          <span className="hidden sm:inline">تواصل معنا</span>
+        </Button>
+      )}
+
+      {/* The form: a drawer from the bottom on a phone, from the side on larger screens - as the cart */}
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side={isPhone ? 'bottom' : 'left'}
+          className={cn('flex flex-col gap-0 p-0', isPhone ? 'max-h-[92svh] rounded-t-xl' : 'w-full sm:max-w-md')}
+        >
+          <SheetHeader className="border-b p-5 text-start">
+            <SheetTitle className="flex items-center gap-2">
+              <MessageCircle className="size-5 text-primary" aria-hidden="true" />
+              خدمة عملاء بريماتكس
+            </SheetTitle>
+            <SheetDescription>اكتب لنا، ويتصل بك فريق خدمة العملاء في أقرب وقت.</SheetDescription>
+          </SheetHeader>
 
           {ref ? (
-            <div className="space-y-3 p-5 text-center" role="status">
-              <CheckCircle2 className="mx-auto size-12 text-primary" aria-hidden="true" />
+            <div className="space-y-3 p-6 text-center" role="status">
+              <span className="mx-auto grid size-14 place-items-center rounded-full bg-success/10">
+                <CheckCircle2 className="size-7 text-success" aria-hidden="true" />
+              </span>
               <p className="font-semibold">وصلت رسالتك</p>
               <p className="text-sm text-muted-foreground">
                 رقم تذكرتك <span className="font-semibold text-foreground" dir="ltr">#{ref}</span>. سيتصل بك فريق خدمة
                 العملاء على الرقم الذي كتبته.
               </p>
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={startOver}>
                   رسالة أخرى
                 </Button>
@@ -177,146 +173,127 @@ export function SupportWidget({ user, token, className, launcher = true }: Suppo
               </div>
             </div>
           ) : (
-            <form onSubmit={submit} noValidate className="max-h-[70vh] space-y-3 overflow-y-auto p-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor={fieldId('name')} className="text-xs">
-                    الاسم
-                  </Label>
-                  <Input
-                    id={fieldId('name')}
-                    value={fields.name}
-                    onChange={(e) => set('name', e.target.value)}
-                    autoComplete="name"
-                    aria-invalid={Boolean(show('name'))}
-                    aria-describedby={show('name') ? fieldId('name-error') : undefined}
-                  />
-                  {show('name') && (
-                    <p id={fieldId('name-error')} className="text-xs text-destructive">
-                      {show('name')}
-                    </p>
-                  )}
+            <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 space-y-4 overflow-y-auto p-5">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={fieldId('name')}>الاسم</Label>
+                    <Input
+                      id={fieldId('name')}
+                      value={fields.name}
+                      onChange={(e) => set('name', e.target.value)}
+                      autoComplete="name"
+                      aria-invalid={Boolean(show('name'))}
+                      aria-describedby={show('name') ? fieldId('name-error') : undefined}
+                    />
+                    {show('name') && (
+                      <p id={fieldId('name-error')} className="text-xs text-destructive">
+                        {show('name')}
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={fieldId('phone')}>رقم الهاتف</Label>
+                    <Input
+                      id={fieldId('phone')}
+                      type="tel"
+                      dir="ltr"
+                      placeholder="09xxxxxxxx"
+                      value={fields.phone}
+                      onChange={(e) => set('phone', e.target.value)}
+                      autoComplete="tel"
+                      aria-invalid={Boolean(show('phone'))}
+                      aria-describedby={show('phone') ? fieldId('phone-error') : undefined}
+                    />
+                    {show('phone') && (
+                      <p id={fieldId('phone-error')} className="text-xs text-destructive">
+                        {show('phone')}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor={fieldId('phone')} className="text-xs">
-                    رقم الهاتف
-                  </Label>
-                  <Input
-                    id={fieldId('phone')}
-                    type="tel"
-                    dir="ltr"
-                    placeholder="09xxxxxxxx"
-                    value={fields.phone}
-                    onChange={(e) => set('phone', e.target.value)}
-                    autoComplete="tel"
-                    aria-invalid={Boolean(show('phone'))}
-                    aria-describedby={show('phone') ? fieldId('phone-error') : undefined}
-                  />
-                  {show('phone') && (
-                    <p id={fieldId('phone-error')} className="text-xs text-destructive">
-                      {show('phone')}
-                    </p>
-                  )}
-                </div>
-              </div>
 
-              <div className="space-y-1">
-                <Label htmlFor={fieldId('topic')} className="text-xs">
-                  الموضوع
-                </Label>
-                {/* Native: the phone's own picker, and no dropdown library in every page's download */}
-                <select
-                  id={fieldId('topic')}
-                  value={fields.topic}
-                  onChange={(e) => set('topic', e.target.value as SupportTopic)}
-                  aria-invalid={Boolean(show('topic'))}
-                  aria-describedby={show('topic') ? fieldId('topic-error') : undefined}
-                  className={cn(
-                    'flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors',
-                    'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20',
-                    'aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/20',
-                    !fields.topic && 'text-muted-foreground/70'
+                <div className="space-y-1.5">
+                  <Label id={fieldId('topic-label')}>الموضوع</Label>
+                  {/* Buttons rather than a dropdown: one tap each, all visible */}
+                  <ToggleGroup
+                    type="single"
+                    dir="rtl"
+                    value={fields.topic}
+                    onValueChange={(v) => v && set('topic', v as SupportTopic)}
+                    aria-labelledby={fieldId('topic-label')}
+                    aria-describedby={show('topic') ? fieldId('topic-error') : undefined}
+                    className="flex-wrap justify-start gap-2"
+                  >
+                    {TOPICS.map((t) => (
+                      <ToggleGroupItem
+                        key={t.value}
+                        value={t.value}
+                        className="h-9 rounded-md border px-3 data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                      >
+                        {t.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                  {show('topic') && (
+                    <p id={fieldId('topic-error')} className="text-xs text-destructive">
+                      {show('topic')}
+                    </p>
                   )}
-                >
-                  <option value="" disabled>
-                    اختر الموضوع
-                  </option>
-                  {TOPICS.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-                {show('topic') && (
-                  <p id={fieldId('topic-error')} className="text-xs text-destructive">
-                    {show('topic')}
+                </div>
+
+                {fields.topic === 'order' && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor={fieldId('order')}>
+                      رقم الطلب <span className="font-normal text-muted-foreground">(إن وُجد)</span>
+                    </Label>
+                    <Input
+                      id={fieldId('order')}
+                      dir="ltr"
+                      placeholder="S00123"
+                      value={fields.orderName}
+                      onChange={(e) => set('orderName', e.target.value)}
+                      maxLength={40}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <Label htmlFor={fieldId('message')}>رسالتك</Label>
+                  <Textarea
+                    id={fieldId('message')}
+                    rows={4}
+                    maxLength={2000}
+                    placeholder="اكتب ما تحتاجه وسنعود إليك"
+                    value={fields.message}
+                    onChange={(e) => set('message', e.target.value)}
+                    aria-invalid={Boolean(show('message'))}
+                    aria-describedby={show('message') ? fieldId('message-error') : undefined}
+                  />
+                  {show('message') && (
+                    <p id={fieldId('message-error')} className="text-xs text-destructive">
+                      {show('message')}
+                    </p>
+                  )}
+                </div>
+
+                {error && (
+                  <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {error}
                   </p>
                 )}
               </div>
 
-              {fields.topic === 'order' && (
-                <div className="space-y-1">
-                  <Label htmlFor={fieldId('order')} className="text-xs">
-                    رقم الطلب <span className="font-normal text-muted-foreground">(إن وُجد)</span>
-                  </Label>
-                  <Input
-                    id={fieldId('order')}
-                    dir="ltr"
-                    placeholder="S00123"
-                    value={fields.orderName}
-                    onChange={(e) => set('orderName', e.target.value)}
-                    maxLength={40}
-                  />
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <Label htmlFor={fieldId('message')} className="text-xs">
-                  رسالتك
-                </Label>
-                <Textarea
-                  id={fieldId('message')}
-                  rows={4}
-                  maxLength={2000}
-                  placeholder="اكتب ما تحتاجه وسنعود إليك"
-                  value={fields.message}
-                  onChange={(e) => set('message', e.target.value)}
-                  aria-invalid={Boolean(show('message'))}
-                  aria-describedby={show('message') ? fieldId('message-error') : undefined}
-                />
-                {show('message') && (
-                  <p id={fieldId('message-error')} className="text-xs text-destructive">
-                    {show('message')}
-                  </p>
-                )}
+              <div className="border-t p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+                <Button type="submit" size="lg" className="w-full" disabled={sending}>
+                  <Send aria-hidden="true" />
+                  {sending ? 'جارٍ الإرسال…' : 'إرسال إلى خدمة العملاء'}
+                </Button>
               </div>
-
-              {error && (
-                <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-
-              <Button type="submit" className="w-full" disabled={sending}>
-                <Send className="size-4" aria-hidden="true" />
-                {sending ? 'جارٍ الإرسال…' : 'إرسال إلى خدمة العملاء'}
-              </Button>
             </form>
           )}
-        </div>
-      )}
-
-      {(launcher || open) && (
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label={open ? 'إغلاق خدمة العملاء' : 'تواصل مع خدمة العملاء'}
-        aria-expanded={open}
-        className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      >
-        {open ? <X className="size-6" aria-hidden="true" /> : <Headset className="size-7" aria-hidden="true" />}
-      </button>
-      )}
-    </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
