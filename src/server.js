@@ -467,10 +467,24 @@ function isShell(urlPath) {
 /** The app shell with this address's share tags (src/lib/share.js). */
 async function serveShell(req, res, url) {
   const shell = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
+  const products = await publicProducts();
+  // A product page carries its rating for search engines - the reviews of every size.
+  let reviews = null;
+  const productMatch = url.pathname.match(/^\/product\/(\d+)\/?$/);
+  if (productMatch) {
+    const id = Number(productMatch[1]);
+    const product = products.find((p) => p.id === id || (p.variants ?? []).some((v) => v.id === id));
+    if (product) {
+      reviews = await perksLib
+        .publicReviews([product.id, ...(product.variants ?? []).map((v) => v.id)])
+        .catch(() => null);
+    }
+  }
   const html = share.render(shell, url.pathname, url.search, {
-    products: await publicProducts(),
+    products,
     banners: banners.list(),
     origin: originOf(req),
+    reviews,
   });
   res.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',

@@ -102,6 +102,20 @@ function unitPart() {
       { id: 203, label: 'H24, 90*190', price: 720, inStock: false },
     ],
   };
+  // schema.org for search engines, with a review trying to close the data block.
+  const reviews = {
+    count: 2,
+    average: 4.5,
+    reviews: [{ id: 'r1', rating: 5, comment: 'ممتازة</script><script>alert(1)</script>', name: 'سالم', createdAt: '2026-09-20T10:00:00.000Z' }],
+  };
+  const page = share.render('<html><head><title>x</title></head></html>', '/product/203', '', { products: [product], banners: [], origin, reviews });
+  const blocks = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  const ld = blocks.find((b) => b['@type'] === 'Product');
+  ok('schema: منتج بعروض بالدينار', ld?.offers?.['@type'] === 'AggregateOffer' && ld.offers.priceCurrency === 'LYD' && ld.offers.lowPrice === 640 && ld.offers.highPrice === 720, JSON.stringify(ld?.offers));
+  ok('schema: التقييم', ld?.aggregateRating?.ratingValue === 4.5 && ld.aggregateRating.reviewCount === 2 && ld.review?.[0]?.author?.name === 'سالم');
+  ok('schema: </script> في تقييم لا يكسر الصفحة', !page.includes('<script>alert') && ld.review[0].reviewBody.includes('</script>'));
+  ok('schema: الرئيسية تسمّي المتجر فقط', share.structuredData({ type: 'website' }, { origin }, origin).every((b) => b['@type'] === 'Organization'));
+
   const noPicture = { id: 300, name: 'No Picture', price: 700, inStock: true };
   const { csv, count, skipped } = metaFeed.buildCsv([product, noPicture], { origin, lydPerUsd: 8 });
   const lines = csv.trim().split('\n');

@@ -60,6 +60,7 @@ function describe(pathname, { products, banners, origin }) {
         type: 'product',
         price: from,
         inStock: product.inStock !== false,
+        product,
       };
     }
   }
@@ -90,6 +91,81 @@ function firstImage(products, origin) {
 }
 
 /**
+ * JSON for a <script> data block: a "</script>" inside a value must not end
+ * the block, so every "<" is written as its escape (still the same JSON).
+ */
+function jsonForScript(value) {
+  return JSON.stringify(value).replace(/</g, '\\u003c');
+}
+
+const availabilityOf = (inStock) => `https://schema.org/${inStock === false ? 'OutOfStock' : 'InStock'}`;
+
+/**
+ * schema.org data for search engines - Google shows the price, the stock and
+ * the stars under the result. A product page gets a Product (with every
+ * size's price, and the rating once there are reviews); every page names the
+ * shop. Dinars: this is what a person sees, unlike Meta's dollars.
+ */
+function structuredData(page, context, url) {
+  const shop = { '@context': 'https://schema.org', '@type': 'Organization', name: SITE_NAME, url: context.origin };
+  if (page.type !== 'product') return [shop];
+
+  const p = page.product;
+  const sizes = p.variants ?? [{ id: p.id, price: p.price, inStock: p.inStock }];
+  const prices = sizes.map((v) => Number(v.price)).filter((n) => n > 0);
+  const offers =
+    sizes.length > 1
+      ? {
+          '@type': 'AggregateOffer',
+          priceCurrency: 'LYD',
+          lowPrice: Math.min(...prices),
+          highPrice: Math.max(...prices),
+          offerCount: sizes.length,
+          availability: availabilityOf(sizes.some((v) => v.inStock !== false)),
+          url,
+        }
+      : {
+          '@type': 'Offer',
+          priceCurrency: 'LYD',
+          price: prices[0] ?? Number(p.price),
+          availability: availabilityOf(p.inStock),
+          itemCondition: 'https://schema.org/NewCondition',
+          url,
+        };
+
+  const product = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.name,
+    description: page.description,
+    brand: { '@type': 'Brand', name: 'Brimatex' },
+    ...(p.sku ? { sku: p.sku } : {}),
+    ...(p.tier ? { category: p.tier.name } : {}),
+    ...(page.image ? { image: [page.image] } : {}),
+    offers,
+  };
+
+  const reviews = context.reviews;
+  if (reviews && reviews.count > 0 && reviews.average !== null) {
+    product.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: reviews.average,
+      reviewCount: reviews.count,
+      bestRating: 5,
+      worstRating: 1,
+    };
+    product.review = reviews.reviews.slice(0, 5).map((r) => ({
+      '@type': 'Review',
+      reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+      author: { '@type': 'Person', name: r.name },
+      datePublished: String(r.createdAt).slice(0, 10),
+      ...(r.comment ? { reviewBody: r.comment } : {}),
+    }));
+  }
+  return [shop, product];
+}
+
+/**
  * The shell with this address's tags: its <title> and description replaced,
  * the Open Graph / Twitter tags added before </head>.
  */
@@ -116,6 +192,9 @@ function render(shell, pathname, search, context) {
       ? `<meta property="product:availability" content="${page.inStock ? 'in stock' : 'out of stock'}" />`
       : '',
   ].filter(Boolean);
+  for (const data of structuredData(page, context, url)) {
+    tags.push(`<script type="application/ld+json">${jsonForScript(data)}</script>`);
+  }
 
   return shell
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(page.title)}</title>`)
@@ -126,4 +205,4 @@ function render(shell, pathname, search, context) {
     .replace('</head>', `    ${tags.join('\n    ')}\n  </head>`);
 }
 
-module.exports = { render, describe, imageOf, priceFrom, escapeHtml };
+module.exports = { render, describe, imageOf, priceFrom, escapeHtml, structuredData, jsonForScript };
