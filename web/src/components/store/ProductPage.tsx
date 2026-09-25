@@ -82,6 +82,7 @@ export function ProductPage({
     ? { ...product, id: selected.id, price: selected.price, sku: selected.sku, stock: selected.stock, inStock: selected.inStock }
     : product;
   const features = resolveFeatureIcons(product.iconFeatures);
+  const layers = product.layers ?? [];
 
   function ask() {
     const size = selected?.label ? ` (المقاس: ${selected.label})` : '';
@@ -219,18 +220,36 @@ export function ProductPage({
                 <AccordionContent className="text-base leading-7 text-muted-foreground">{product.description}</AccordionContent>
               </AccordionItem>
             )}
-            {features.length > 0 && (
+            {(features.length > 0 || layers.length > 0) && (
               <AccordionItem value="specs">
                 <AccordionTrigger>المواصفات</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-3 gap-2">
-                    {features.map((f) => (
-                      <div key={f.key} className="flex flex-col items-center rounded-md border p-3 text-center">
-                        <img src={iconSrc(f.file)} alt="" className="size-10 object-contain" />
-                        <span className="mt-2 line-clamp-2 text-xs leading-4">{f.label}</span>
-                      </div>
-                    ))}
-                  </div>
+                <AccordionContent className="space-y-4">
+                  {features.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {features.map((f) => (
+                        <div key={f.key} className="flex flex-col items-center rounded-md border p-3 text-center">
+                          <img src={iconSrc(f.file)} alt="" className="size-10 object-contain" />
+                          <span className="mt-2 line-clamp-2 text-xs leading-4">{f.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* The catalogue's cutaway, top to bottom */}
+                  {layers.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold">مكوّنات المرتبة</p>
+                      <ol className="space-y-1.5">
+                        {layers.map((layer, i) => (
+                          <li key={`${i}-${layer}`} className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-semibold text-secondary-foreground">
+                              {i + 1}
+                            </span>
+                            {layer}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
             )}
@@ -243,7 +262,9 @@ export function ProductPage({
             <AccordionItem value="warranty">
               <AccordionTrigger>الضمان</AccordionTrigger>
               <AccordionContent className="leading-7 text-muted-foreground">
-                مراتبنا من مصنعنا في ليبيا، وعليها ضمان المصنع — حتى 10 سنوات لبعض المنتجات.
+                {product.warrantyYears
+                  ? `عليها ضمان المصنع ${product.warrantyYears} سنوات على عيوب التصنيع — من مصنعنا في ليبيا، ونتابعها معك بعد البيع.`
+                  : 'مراتبنا من مصنعنا في ليبيا، وعليها ضمان المصنع — حتى 10 سنوات لبعض المنتجات.'}
               </AccordionContent>
             </AccordionItem>
           </Accordion>

@@ -18,6 +18,7 @@ const path = require('path');
 const odoo = require('./odoo');
 const productOverrides = require('./productOverrides');
 const { photoFor } = require('./productPhotos');
+const { detailsFor } = require('./productDetails');
 const odooStatus = require('./odooStatus');
 const { isOfferable } = require('./sellable');
 
@@ -49,12 +50,26 @@ async function withOverrides(products) {
   const all = await productOverrides.getAllOverrides();
   return products.map((p) => {
     const o = all[String(p.id)];
+    // The printed catalogue's details, shipped with the site (src/lib/productDetails.js):
+    // what the dashboard sets wins, and an empty dashboard field falls back to them.
+    const d = detailsFor(p.name);
+    const shipped = { warrantyYears: d.warrantyYears, layers: d.layers };
     // A dashboard upload first, then the photo shipped with the site (src/lib/productPhotos.js).
-    if (!o) return { ...p, iconFeatures: [], enabled: true, image: photoFor(p.name) || p.image };
+    if (!o) {
+      return {
+        ...p,
+        ...shipped,
+        iconFeatures: d.iconKeys,
+        description: d.description || p.description,
+        enabled: true,
+        image: photoFor(p.name) || p.image,
+      };
+    }
     return {
       ...p,
-      iconFeatures: o.iconKeys,
-      description: o.description || p.description,
+      ...shipped,
+      iconFeatures: o.iconKeys?.length ? o.iconKeys : d.iconKeys,
+      description: o.description || d.description || p.description,
       enabled: o.enabled,
       image: o.imageUrl || photoFor(p.name) || p.image,
     };

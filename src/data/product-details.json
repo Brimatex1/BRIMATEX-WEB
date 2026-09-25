@@ -1,0 +1,39 @@
+{
+  "// ": "Odoo product name -> the details from the printed catalogue (كتالوج للطباعة.pdf): description, spec icons (keys in web/src/lib/icons.ts), warranty years and the layers from the cutaway. What the dashboard sets for a product wins (src/lib/productDetails.js).",
+  "Classic Mattress": {
+    "description": "مرتبة \"كلاسيك\" الاقتصادية توفر راحة عملية للاستخدام اليومي، بتصميم مصنوع من طبقات الإسفنج المضغوط والمرن لمنح دعم متوازن ونوم مريح. تعمل على الوجهين لزيادة عمر الاستخدام، وتُعد خياراً اقتصادياً يجمع بين الراحة والسعر المناسب.",
+    "iconKeys": ["pressure-22", "dual-season", "economical-price", "anti-allergy", "antibacterial", "recycling", "made-in-libya"],
+    "warrantyYears": null,
+    "layers": ["إسفنج ضغط 22"]
+  },
+  "Daily Mattress": {
+    "description": "مرتبة \"ديلي\" العملية مصممة من الإسفنج المضغوط 28 لتوفير دعم ثابت وراحة يومية تدوم لفترات طويلة. تتميز بتصميم مزدوج الوجهين يتيح استخداماً متوازناً ويطيل من عمر المرتبة، مع أداء عملي مناسب للاستخدام اليومي في كل بيت.",
+    "iconKeys": ["warranty-4", "pressure-28", "dual-season", "economical-price", "anti-allergy", "antibacterial", "recycling", "made-in-libya"],
+    "warrantyYears": 4,
+    "layers": ["إسفنج ضغط 28"]
+  },
+  "Comfort Mattress": {
+    "description": "مرتبة \"كمفورت\" تجمع بين الراحة والأداء المتوازن، بقلب من الإسفنج المضغوط 30 لدعم الجسم بشكل متكامل. تأتي بتصميم عملي مزدوج الوجهين لتعزيز الاستخدام، مع نظام تهوية وعزل داخلي يساعد على توفير نوم هادئ ومريح كل ليلة.",
+    "iconKeys": ["warranty-6", "pressure-30", "premium-quality", "dual-season", "ventilation-system", "anti-allergy", "antibacterial", "recycling", "made-in-libya"],
+    "warrantyYears": 6,
+    "layers": ["إسفنج ضغط 30"]
+  },
+  "Sport Mattress H30cm": {
+    "description": "مرتبة \"سبورت\" الرياضية الطبية صُممت لتوفير دعم صحي وراحة متوازنة للجسم، بارتفاع 30 سم وتقنية Pocket Spring لعزل الحركة وتقليل الضغط على العمود الفقري والعضلات. مدعّمة بإسفنج عالي الكثافة للمساعدة على الاسترخاء والاستشفاء العضلي، مع نظام Box System وهيكل مزدوج الوجهين لضمان الثبات والمتانة طويلة الأمد.",
+    "iconKeys": ["warranty-5", "pressure-28", "medical-support", "pocket-springs", "edge-support", "multi-layer-comfort", "high-density-foam", "premium-quality", "dual-season", "anti-allergy", "antibacterial", "recycling", "made-in-libya"],
+    "warrantyYears": 5,
+    "layers": ["إطار جانبي وطبقة حماية", "طبقة إسفنج عالي الكثافة", "نظام نوابض منفصلة Pocket Spring", "طبقة إسفنج عالي الكثافة", "Box System ضغط 28"]
+  },
+  "Hotel Mattress H28cm": {
+    "description": "مرتبة \"هوتيل\" تجمع بين الدعم الطبي والراحة الفندقية الفاخرة، بقلب إسفنجي مضغوط 30 يوفر ثباتاً متوازناً ودعماً مريحاً للجسم أثناء النوم. مزودة بطبقة Pillow Top Memory Foam تتكيف مع انحناءات الجسم للمساعدة على تخفيف الضغط ومنح إحساس أكثر نعومة وراحة. كما تتميز بعزل ممتاز للحركة وقماش فاخر عالي الجودة يساعد على توفير نوم عميق وهادئ وتجربة استرخاء متكاملة.",
+    "iconKeys": ["warranty-10", "pressure-30", "deep-sleep", "memory-foam", "multi-layer-comfort", "hotel-comfort-layer", "premium-quality", "anti-allergy", "antibacterial", "recycling", "made-in-libya"],
+    "warrantyYears": 10,
+    "layers": ["طبقة ميموري فوم", "طبقة إسفنج عالي الكثافة", "إسفنج ضغط 30"]
+  },
+  "Deluxe Mattress H30cm": {
+    "description": "مرتبة \"ديلوكس\" تقدم تجربة نوم متكاملة، بتصميم يعتمد على نظام Pocket Spring للنوابض المنفصلة لتقليل انتقال الحركة وتوفير دعم متوازن لكل مناطق الجسم. مدعّمة بإطار جانبي قوي Box System (ضغط 30) لزيادة الثبات وتعزيز العمر الافتراضي للمرتبة. وتتوجها طبقة علوية فاخرة Pillow Top مدمجة مع حشوة إسفنجية عالية الكثافة تمنح نعومة مريحة مع دعم متوازن للجسم، وتساعد على دعم العمود الفقري وتوفير راحة واستقرار مثالي أثناء النوم.",
+    "iconKeys": ["warranty-7", "pressure-30", "medical-support", "pocket-springs", "edge-support", "high-density-foam", "premium-quality", "dual-season", "anti-allergy", "antibacterial", "recycling", "made-in-libya"],
+    "warrantyYears": 7,
+    "layers": ["طبقة إسفنج عالي الكثافة", "نظام نوابض منفصلة Pocket Spring", "طبقة إسفنج عالي الكثافة", "Box System ضغط 30"]
+  }
+}

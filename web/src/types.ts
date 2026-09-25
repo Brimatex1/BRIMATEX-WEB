@@ -93,6 +93,10 @@ export interface Product {
   features?: string[];
   /** Keys into web/src/lib/icons.ts — which spec icons this product shows. */
   iconFeatures?: string[];
+  /** The factory warranty in years, from the printed catalogue; null when it states none. */
+  warrantyYears?: number | null;
+  /** What the mattress is made of, top to bottom - the catalogue's cutaway. */
+  layers?: string[];
   inStock?: boolean;
   /** Admin can switch a product off from the dashboard; hidden from /api/products when false. */
   enabled?: boolean;
