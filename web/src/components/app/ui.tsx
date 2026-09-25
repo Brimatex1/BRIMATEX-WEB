@@ -132,10 +132,8 @@ export function HeartButton({
  * name's first letter on Nebula, instead of a dead grey box (as in the app).
  */
 export function ProductImage({ product, letterSize = 64, className }: { product: Product; letterSize?: number; className?: string }) {
-  // A dashboard upload first, then Odoo's own picture - the site used to show
-  // only uploads, so a mattress photographed in Odoo showed a letter here while
-  // the app showed its photo.
-  const src = product.image || (product.hasImage ? `/api/products/${product.id}/image` : null);
+  // The photo uploaded from the dashboard - Odoo's pictures are not used.
+  const src = product.image || null;
   return (
     <div className={cn('grid place-items-center overflow-hidden bg-app-nebula', className)}>
       {src ? (

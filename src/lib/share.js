@@ -39,11 +39,9 @@ function escapeHtml(value) {
 
 const formatPrice = (n) => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
-/** The product's picture as a full address, or null: an admin upload first, then Odoo's. */
+/** The product's picture as a full address - the one uploaded from the dashboard - or null. */
 function imageOf(product, origin) {
-  if (product.image) return new URL(product.image, origin).href;
-  if (product.hasImage) return `${origin}/api/products/${product.id}/image`;
-  return null;
+  return product.image ? new URL(product.image, origin).href : null;
 }
 
 /** The lowest price a product sells at - what "يبدأ من" means on its card. */

@@ -87,7 +87,7 @@ const meta = (html, prop) => {
 
 function unitPart() {
   const origin = 'https://brimatex.ly';
-  const evil = { id: 9, name: '"><script>alert(1)</script>', price: 500, inStock: true, hasImage: true };
+  const evil = { id: 9, name: '"><script>alert(1)</script>', price: 500, inStock: true, image: '/uploads/products/9-1.png' };
   const html = share.render('<html><head><title>x</title></head></html>', '/product/9', '', { products: [evil], banners: [], origin });
   ok('اسم خبيث يُهرَّب', !html.includes('<script>alert') && html.includes('&lt;script&gt;'));
   const shellHtml = '<html><head><title>x</title></head><body><div id="root"></div></body></html>';
@@ -98,7 +98,7 @@ function unitPart() {
     id: 202,
     name: 'Daily Mattress',
     price: 150,
-    hasImage: true,
+    image: '/uploads/products/202-1.png',
     tier: { key: 'comfort', name: 'كومفورت', rank: 2 },
     variants: [
       { id: 202, label: 'H18, 90*190', price: 640, inStock: true },
@@ -138,7 +138,7 @@ function unitPart() {
   ok('المعرّف والمجموعة كما يرسلها البكسل', lines[1].startsWith('"202","202"') && lines[2].startsWith('"203","202"'), lines[1]);
   ok('السعر بالدولار بسعر 8', lines[1].includes('"80.00 USD"') && lines[2].includes('"90.00 USD"'));
   ok('المخزون', lines[1].includes('"in stock"') && lines[2].includes('"out of stock"'));
-  ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/api/products/202/image"') && lines[1].includes('"https://brimatex.ly/product/202"'));
+  ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/uploads/products/202-1.png"') && lines[1].includes('"https://brimatex.ly/product/202"'));
   ok('بلا سعر صرف: بالدينار', metaFeed.buildCsv([product], { origin, lydPerUsd: 0 }).csv.includes('"640.00 LYD"'));
 }
 
@@ -185,9 +185,17 @@ function unitPart() {
     ok('الكتالوج: CSV', empty.status === 200 && /text\/csv/.test(empty.type) && empty.text.startsWith('id,item_group_id,title'));
     ok('الكتالوج: بلا صور لا أسطر', empty.text.trim().split('\n').length === 1);
 
+    ok('بلا صورة مرفوعة: صورة المنتج 404', (await req('GET', `/api/products/${p.id}/image`)).status === 404);
     const up = await req('POST', `/api/admin/products/${p.id}/image`, { imageDataUrl: `data:image/png;base64,${PNG.toString('base64')}` }, admin);
     uploaded = up.json?.imageUrl;
     ok('رفع صورة المنتج من اللوحة', up.status === 200 && Boolean(uploaded), up.status + ' ' + JSON.stringify(up.json));
+    const appImage = await new Promise((resolve) =>
+      http.get({ hostname: '127.0.0.1', port: PORT, path: `/api/products/${p.id}/image` }, (res) => {
+        res.resume();
+        resolve({ status: res.statusCode, location: res.headers.location });
+      })
+    );
+    ok('صورة التطبيق = الصورة المرفوعة', appImage.status === 302 && appImage.location === `http://127.0.0.1:${PORT}${uploaded}`, JSON.stringify(appImage));
     const feed = await req('GET', '/feeds/meta-catalog.csv');
     const row = feed.text.trim().split('\n')[1] || '';
     ok('الكتالوج: المنتج بصورته', row.startsWith(`"${p.id}","${p.id}"`) && row.includes(uploaded), row);

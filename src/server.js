@@ -249,18 +249,21 @@ async function handleApi(req, res, url) {
   }
 
   const imageMatch = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
+  // A product's photo - the one uploaded from the dashboard, never Odoo's (the
+  // owner turned Odoo's pictures off). The app asks here for every picture, so
+  // an upload shows in it at once, with no app release; a size's id finds its
+  // product's photo. No upload: 404, and the app draws the name's letter.
   if (req.method === 'GET' && imageMatch) {
-    if (!odoo.isConfigured()) {
-      res.writeHead(404);
+    const { products } = await getProducts();
+    const product = productLookup(products).get(Number(imageMatch[1]));
+    if (!product?.image || !product.image.startsWith('/uploads/')) {
+      res.writeHead(404, { 'Cache-Control': 'no-cache' });
       return res.end();
     }
-    const buf = await odoo.fetchProductImage(Number(imageMatch[1]));
-    if (!buf) {
-      res.writeHead(404);
-      return res.end();
-    }
-    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' });
-    return res.end(buf);
+    // Short: a photo replaced in the dashboard shows within minutes.
+    // A full address: some phone image loaders mishandle a relative redirect.
+    res.writeHead(302, { Location: originOf(req) + product.image, 'Cache-Control': 'public, max-age=300' });
+    return res.end();
   }
 
   // --- Orders and invoices ---
