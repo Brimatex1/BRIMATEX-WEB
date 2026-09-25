@@ -1,22 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { AdminSection } from '@/components/AdminSection';
-import { AuthSection } from '@/components/AuthSection';
 import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { Header } from '@/components/Header';
 import { CartScreen } from '@/components/app/CartScreen';
 import { Catalogue } from '@/components/app/Catalogue';
 import { HomeScreen } from '@/components/app/HomeScreen';
 import { ProductScreen } from '@/components/app/ProductScreen';
-import { PointsScreen } from '@/components/app/PointsScreen';
-import { QuizScreen } from '@/components/app/QuizScreen';
-import { VouchersScreen } from '@/components/app/VouchersScreen';
 import { TabBar } from '@/components/app/TabBar';
 import { TopBar } from '@/components/app/TopBar';
 import { WishlistScreen } from '@/components/app/WishlistScreen';
-import { OrdersSection } from '@/components/OrdersSection';
 import { SocialLinks } from '@/components/SocialLinks';
 import { SupportWidget } from '@/components/SupportWidget';
 import { Toaster } from '@/components/ui/sonner';
@@ -31,6 +25,28 @@ import { captureClickId, disablePixel, initPixel, trackAddToCart, trackPageView,
 import { parseRoute, routePath, type Route } from '@/lib/route';
 import type { TierFilter } from '@/lib/tiers';
 import type { Address, Product, SectionId } from '@/types';
+
+/*
+ * Screens a visitor from an ad rarely opens first are fetched when opened, not
+ * with the page: the dashboard above all, which only admins ever see. Home,
+ * the shop, a product and the cart - the path from an ad to an order - stay in
+ * the first download.
+ */
+const AdminSection = lazy(() => import('@/components/AdminSection').then((m) => ({ default: m.AdminSection })));
+const AuthSection = lazy(() => import('@/components/AuthSection').then((m) => ({ default: m.AuthSection })));
+const OrdersSection = lazy(() => import('@/components/OrdersSection').then((m) => ({ default: m.OrdersSection })));
+const QuizScreen = lazy(() => import('@/components/app/QuizScreen').then((m) => ({ default: m.QuizScreen })));
+const VouchersScreen = lazy(() => import('@/components/app/VouchersScreen').then((m) => ({ default: m.VouchersScreen })));
+const PointsScreen = lazy(() => import('@/components/app/PointsScreen').then((m) => ({ default: m.PointsScreen })));
+
+/** Shown for the moment a screen above is on its way. */
+function ScreenLoading() {
+  return (
+    <div className="grid min-h-[50vh] place-items-center" role="status" aria-label="جارٍ التحميل">
+      <span className="size-8 animate-spin rounded-full border-[3px] border-app-tint border-t-app-ocean" />
+    </div>
+  );
+}
 
 const DEFAULT_TITLE = document.title;
 
@@ -236,6 +252,7 @@ export default function App() {
         // Phones: clear of the tab bar at the bottom
         className={isPhone ? 'min-h-[100svh] pb-[calc(72px+env(safe-area-inset-bottom))]' : 'min-h-[70vh]'}
       >
+        <Suspense fallback={<ScreenLoading />}>
         {section === 'home' && (
           <HomeScreen
             user={auth.user}
@@ -397,6 +414,7 @@ export default function App() {
             pointsBalance={loyalty.perks?.points.balance ?? null}
           />
         )}
+        </Suspense>
       </main>
 
       {/* The app has no footer; on phones the tab bar ends the page */}

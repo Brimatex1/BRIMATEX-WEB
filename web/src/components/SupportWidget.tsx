@@ -4,7 +4,6 @@ import { CheckCircle2, Headset, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { api, ApiError } from '@/lib/api';
 import { onOpenSupport } from '@/lib/support';
@@ -225,22 +224,29 @@ export function SupportWidget({ user, token, className, launcher = true }: Suppo
                 <Label htmlFor={fieldId('topic')} className="text-xs">
                   الموضوع
                 </Label>
-                <Select value={fields.topic} onValueChange={(v) => set('topic', v as SupportTopic)}>
-                  <SelectTrigger
-                    id={fieldId('topic')}
-                    aria-invalid={Boolean(show('topic'))}
-                    aria-describedby={show('topic') ? fieldId('topic-error') : undefined}
-                  >
-                    <SelectValue placeholder="اختر الموضوع" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TOPICS.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Native: the phone's own picker, and no dropdown library in every page's download */}
+                <select
+                  id={fieldId('topic')}
+                  value={fields.topic}
+                  onChange={(e) => set('topic', e.target.value as SupportTopic)}
+                  aria-invalid={Boolean(show('topic'))}
+                  aria-describedby={show('topic') ? fieldId('topic-error') : undefined}
+                  className={cn(
+                    'flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors',
+                    'focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20',
+                    'aria-[invalid=true]:border-destructive aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-destructive/20',
+                    !fields.topic && 'text-muted-foreground/70'
+                  )}
+                >
+                  <option value="" disabled>
+                    اختر الموضوع
+                  </option>
+                  {TOPICS.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
                 {show('topic') && (
                   <p id={fieldId('topic-error')} className="text-xs text-destructive">
                     {show('topic')}
