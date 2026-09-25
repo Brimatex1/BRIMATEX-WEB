@@ -209,7 +209,7 @@ export function CatalogueCard({
           <span className="text-xl font-bold text-app-ocean">{formatPrice(priceFrom(product))} د.ل</span>
           {hasSizes && <span className="text-sm text-app-muted">يبدأ من</span>}
         </p>
-        <p className="mt-1 text-xs text-app-muted">ادفع عند الاستلام · جرّبها 30 ليلة</p>
+        <p className="mt-1 text-xs text-app-muted">ادفع عند الاستلام · توصيل مجاني</p>
       </div>
     </div>
   );

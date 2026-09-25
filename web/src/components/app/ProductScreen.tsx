@@ -23,7 +23,7 @@ interface ProductScreenProps {
 /** "Why Brimatex" - the app's product screen lists the same three promises. */
 const TRUST = [
   { title: 'الدفع عند الاستلام', body: 'لا تدفع شيئاً قبل أن تستلم.' },
-  { title: 'تجربة 30 ليلة', body: 'جرّبها في بيتك، وأرجعها إن لم تناسبك.' },
+  { title: 'ضمان المصنع', body: 'ضمان حتى 10 سنوات لبعض المنتجات.' },
   { title: 'توصيل مجاني', body: 'إلى باب منزلك دون رسوم إضافية.' },
 ];
 

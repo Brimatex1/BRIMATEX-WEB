@@ -36,7 +36,7 @@ async function sendInvoiceViaWhatsApp(customerPhone, invoiceName, invoiceStatus,
 شكراً لاختيارك بريماتكس 🛏️
 للمزيد من المعلومات، يرجى زيارة موقعنا أو التواصل معنا.
 
-_تجربة 100 ليلة · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات_
+_توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات_
   `.trim();
 
   if (!isConfigured()) {

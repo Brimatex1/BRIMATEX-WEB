@@ -168,7 +168,7 @@ export function HomeScreen({
         <div className="flex-1">
           <p className="text-[17px] font-bold text-app-text">إعلان</p>
           <p className="mt-1 text-sm leading-[21px] text-app-text">
-            الدفع عند الاستلام وتجربة 30 ليلة على كل المراتب. عندك سؤال؟ اكتب لخدمة العملاء وسنتصل بك.
+            الدفع عند الاستلام على كل المراتب. عندك سؤال؟ اكتب لخدمة العملاء وسنتصل بك.
           </p>
         </div>
         <ArrowButton size={40} label="تواصل مع خدمة العملاء" onClick={() => openSupport()} />

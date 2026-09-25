@@ -405,7 +405,7 @@ export default function App() {
           <div className="mx-auto flex max-w-6xl flex-col items-center px-8 pb-8">
             {/* currentColor puts the mark in white here, not the navy it ships as */}
             <BrimatexLogo className="mb-4 h-16 w-auto text-white" />
-            <p>تجربة 30 ليلة · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات</p>
+            <p>الدفع عند الاستلام · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات</p>
             <p className="mt-2 flex items-center gap-1.5 text-white/70">
               <MapPin className="size-4" aria-hidden="true" />
               طرابلس، ليبيا
