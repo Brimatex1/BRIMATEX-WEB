@@ -118,9 +118,16 @@ async function testStatic() {
     check(`${asset} يُخزَّن مؤقتاً بأمان`, (r.headers['cache-control'] || '').includes('immutable'), r.headers['cache-control']);
   }
 
-  // Unknown client-side routes must fall back to the SPA shell, not 404.
+  // An unknown address still gets the app (it shows its home), but with a real
+  // 404 and noindex - a 200 there is what Google calls a "soft 404".
   const deep = await request('GET', '/some/deep/route');
-  check('المسارات غير المعروفة ترجع صفحة التطبيق', deep.status === 200 && deep.body.includes('id="root"'), `status ${deep.status}`);
+  check(
+    'المسارات غير المعروفة ترجع صفحة التطبيق بحالة 404',
+    deep.status === 404 && deep.body.includes('id="root"') && deep.body.includes('noindex'),
+    `status ${deep.status}`
+  );
+  const known = await request('GET', '/shop');
+  check('مسارات التطبيق المعروفة: 200', known.status === 200 && known.body.includes('id="root"'), `status ${known.status}`);
 }
 
 /* ---------------- 3. Products API ---------------- */

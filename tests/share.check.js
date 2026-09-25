@@ -126,6 +126,7 @@ function unitPart() {
     .map((m) => JSON.parse(m[1]))
     .find((b) => b['@type'] === 'BreadcrumbList');
   ok('schema: مسار الصفحة', crumbs?.itemListElement?.map((c) => c.name).join(' › ') === 'بريماتكس › مراتب كومفورت › Daily Mattress', JSON.stringify(crumbs));
+  ok('رابط مقاس: الرابط الأساسي للمرتبة', withCrumbs.includes('<link rel="canonical" href="https://brimatex.ly/product/202" />'));
   ok('العنوان بالعربي مع نوع المرتبة', withCrumbs.includes('<title>Daily Mattress — مرتبة كومفورت | بريماتكس</title>'));
   ok('محتوى الصفحة: العنوان والمقاسات بأسعارها', withCrumbs.includes('<h1>Daily Mattress</h1>') && withCrumbs.includes('H18, 90*190: 640 د.ل') && withCrumbs.includes('(غير متوفر حالياً)'));
   ok('schema: الرئيسية تسمّي المتجر فقط', share.structuredData({ type: 'website' }, { origin }, origin).every((b) => ['Organization', 'WebSite'].includes(b['@type'])));
@@ -167,6 +168,29 @@ function unitPart() {
     ok('صفحة المنتج: الرابط الأساسي', page.text.includes(`<link rel="canonical" href="http://127.0.0.1:${PORT}/product/${p.id}" />`));
     ok('منتج غير موجود: الوسوم العامة', meta((await req('GET', '/product/999999')).text, 'og:type') === 'website');
     ok('الملفات تُخدم كما هي', /image\/svg/.test((await req('GET', '/favicon.svg')).type));
+
+    // One address per page, and real 404s (Google: duplicate content, soft 404).
+    const raw = (p, headers = {}) =>
+      new Promise((resolve) =>
+        http.get({ hostname: '127.0.0.1', port: PORT, path: p, headers }, (res) => {
+          let text = '';
+          res.on('data', (c) => (text += c));
+          res.on('end', () => resolve({ status: res.statusCode, location: res.headers.location, text }));
+        })
+      );
+    const unknown = await raw('/no-such-page');
+    ok('صفحة غير موجودة: 404 وnoindex', unknown.status === 404 && unknown.text.includes('<meta name="robots" content="noindex" />'));
+    ok('مرتبة غير موجودة: 404', (await raw('/product/987654')).status === 404);
+    ok('ملف غير موجود: 404 لا الصفحة الرئيسية', (await raw('/logo.png')).status === 404);
+    ok('الصفحات الموجودة: 200 بلا noindex', (await raw('/quiz')).status === 200 && !(await raw('/')).text.includes('noindex'));
+    const slash = await raw('/shop/?category=comfort');
+    ok('/shop/ → /shop (301)', slash.status === 301 && slash.location === `http://127.0.0.1:${PORT}/shop?category=comfort`, JSON.stringify(slash.location));
+    const www = await raw('/product/1', { Host: 'www.example.com' });
+    ok('www → بلا www (301)', www.status === 301 && www.location === 'https://example.com/product/1', www.location);
+    const insecure = await raw('/', { Host: 'example.com', 'X-Forwarded-Proto': 'http' });
+    ok('http → https (301)', insecure.status === 301 && insecure.location === 'https://example.com/', insecure.location);
+    ok('favicon.ico → favicon.svg', (await raw('/favicon.ico')).location?.endsWith('/favicon.svg'));
+    ok('رابط بتتبّع فيسبوك: og:url بدونه', meta((await req('GET', '/?fbclid=abc&utm_source=fb')).text, 'og:url') === `http://127.0.0.1:${PORT}/`);
 
     const robots = await req('GET', '/robots.txt');
     ok('robots.txt نص وليس الصفحة', robots.status === 200 && /text\/plain/.test(robots.type) && !robots.text.includes('<html'));

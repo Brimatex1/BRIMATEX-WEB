@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { ArrowLeft, Heart, Minus, Plus, ShoppingBag, Trash2, type LucideIcon } from 'lucide-react';
 
 import { cn, formatPrice } from '@/lib/utils';
@@ -174,6 +174,17 @@ export function Pill({ tone, children }: { tone: 'success' | 'danger'; children:
 }
 
 /** The catalogue card (components/ProductCard): the whole card opens the product. */
+/**
+ * A real link to a product page - Google follows <a href>, not buttons - that
+ * still opens the product inside the app on a plain click. Ctrl/Cmd/middle
+ * click and long-press keep the browser's own "open in a new tab".
+ */
+function productLinkClick(e: MouseEvent<HTMLAnchorElement>, open: () => void) {
+  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  open();
+}
+
 export function CatalogueCard({
   product,
   saved,
@@ -189,14 +200,9 @@ export function CatalogueCard({
 }) {
   const hasSizes = Boolean(product.variants?.length);
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(product)}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen(product))}
-      aria-label={`${product.name}، ${formatPrice(priceFrom(product))} د.ل`}
-      className="cursor-pointer overflow-hidden rounded-[20px] border border-app-border bg-white shadow-app-card transition-transform active:scale-[0.995] active:opacity-90"
-    >
+    // The whole card is the product link: its name is an <a> whose ::after
+    // covers the card ("stretched link"), with the heart raised above it.
+    <div className="relative cursor-pointer overflow-hidden rounded-[20px] border border-app-border bg-white shadow-app-card transition-transform active:scale-[0.995] active:opacity-90">
       <div className="relative">
         <ProductImage product={product} className="aspect-[4/3]" />
         {product.inStock === false && (
@@ -208,11 +214,18 @@ export function CatalogueCard({
           saved={saved}
           disabled={wishlistPending}
           onClick={() => onToggleWishlist(product)}
-          className="absolute top-3 end-3"
+          className="absolute top-3 end-3 z-10"
         />
       </div>
       <div className="p-4">
-        <p className="line-clamp-2 text-base font-semibold leading-6 text-app-text">{product.name}</p>
+        <a
+          href={`/product/${product.id}`}
+          onClick={(e) => productLinkClick(e, () => onOpen(product))}
+          aria-label={`${product.name}، ${formatPrice(priceFrom(product))} د.ل`}
+          className="line-clamp-2 text-base font-semibold leading-6 text-app-text after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-[20px] focus-visible:after:ring-2 focus-visible:after:ring-app-ocean"
+        >
+          {product.name}
+        </a>
         <p className="mt-2 flex items-baseline gap-2">
           <span className="text-xl font-bold text-app-ocean">{formatPrice(priceFrom(product))} د.ل</span>
           {hasSizes && <span className="text-sm text-app-muted">يبدأ من</span>}
@@ -226,13 +239,17 @@ export function CatalogueCard({
 /** The small card of a sideways row - "new arrivals", "you may like" (components/NewItemCard). */
 export function NewItemCard({ product, onOpen }: { product: Product; onOpen: (product: Product) => void }) {
   return (
-    <button type="button" onClick={() => onOpen(product)} className="w-[150px] shrink-0 text-start">
+    <a
+      href={`/product/${product.id}`}
+      onClick={(e) => productLinkClick(e, () => onOpen(product))}
+      className="block w-[150px] shrink-0 text-start"
+    >
       <span className="block rounded-[20px] bg-white p-2 shadow-app-raised">
         <ProductImage product={product} letterSize={44} className="aspect-square rounded-[14px]" />
       </span>
       <span className="mt-3 line-clamp-2 block min-h-10 text-sm leading-5 text-app-text">{product.name}</span>
       <span className="mt-0.5 block text-[17px] font-bold text-app-text">{formatPrice(priceFrom(product))} د.ل</span>
-    </button>
+    </a>
   );
 }
 

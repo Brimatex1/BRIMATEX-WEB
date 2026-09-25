@@ -91,6 +91,8 @@ function describe(pathname, { products, banners, origin }, search = '') {
       const tierPath = product.tier ? `/shop?category=${encodeURIComponent(product.tier.key)}` : '/shop';
       return {
         title: productTitle(product),
+        // A size's id opens the same page; the product's own id is its one address.
+        canonicalPath: `/product/${product.id}`,
         heading: product.name,
         description:
           product.description ||
@@ -320,9 +322,11 @@ function structuredData(page, context, url) {
  */
 function render(shell, pathname, search, context) {
   const page = describe(pathname, context, search);
-  const url = context.origin + pathname + (search || '');
+  // The page's one address - also og:url and the offer's url, so an ad's
+  // ?fbclid=... or a size's id does not make Facebook count a second page.
+  const url = context.origin + (page.canonicalPath || pathname);
   const tags = [
-    `<link rel="canonical" href="${escapeHtml(context.origin + (page.canonicalPath || pathname))}" />`,
+    `<link rel="canonical" href="${escapeHtml(url)}" />`,
     `<meta property="og:site_name" content="${SITE_NAME}" />`,
     `<meta property="og:locale" content="ar_LY" />`,
     `<meta property="og:type" content="${page.type}" />`,

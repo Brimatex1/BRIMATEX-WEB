@@ -446,7 +446,8 @@ function serveStatic(res, urlPath) {
  */
 function originOf(req) {
   if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/+$/, '');
-  const host = req.headers.host || 'localhost';
+  // www redirects to the bare host (seo.redirectFor), so links never name it.
+  const host = String(req.headers.host || 'localhost').replace(/^www\./i, '');
   const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
   return `${local ? 'http' : 'https'}://${host}`;
 }
@@ -487,13 +488,17 @@ async function serveShell(req, res, url) {
         .catch(() => null);
     }
   }
-  const html = share.render(shell, url.pathname, url.search, {
+  let html = share.render(shell, url.pathname, url.search, {
     products,
     banners: banners.list(),
     origin: originOf(req),
     reviews,
   });
-  res.writeHead(200, {
+  // A real 404 for an address the app lacks or a product no longer sold -
+  // still the app (it shows its home), but not indexed as a page.
+  const status = seo.statusFor(url.pathname, products);
+  if (status === 404) html = html.replace('</head>', '    <meta name="robots" content="noindex" />\n  </head>');
+  res.writeHead(status, {
     'Content-Type': 'text/html; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'SAMEORIGIN',
@@ -506,6 +511,12 @@ async function serveShell(req, res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
+    // One address per page: www, http, a trailing slash and /favicon.ico move for good.
+    const moved = seo.redirectFor(req, url);
+    if (moved) {
+      res.writeHead(301, { Location: moved });
+      return res.end();
+    }
     if (url.pathname.startsWith('/api/')) {
       await handleApi(req, res, url);
     } else if (req.method === 'GET' && url.pathname === '/feeds/meta-catalog.csv') {
@@ -523,6 +534,10 @@ const server = http.createServer(async (req, res) => {
       // src/lib/seo.js - built from the catalogue, so a new product is listed at once.
       res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-cache' });
       res.end(seo.sitemap(await publicProducts(), originOf(req)));
+    } else if (/\.[a-z0-9]{2,5}$/i.test(url.pathname) && isShell(url.pathname)) {
+      // A missing file (/logo.png, /old.js) is a 404, not the home page.
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end('Not found');
     } else if ((req.method === 'GET' || req.method === 'HEAD') && isShell(url.pathname)) {
       await serveShell(req, res, url);
     } else {
