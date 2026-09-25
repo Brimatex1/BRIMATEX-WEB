@@ -428,6 +428,10 @@ function serveStatic(res, urlPath) {
     // Compare against the resolved path: on Windows `safePath` uses backslashes,
     // so matching '/assets/' there never fires.
     headers['Cache-Control'] = 'public, max-age=31536000, immutable';
+  } else if (path.relative(PUBLIC_DIR, filePath).replace(/\\/g, '/').startsWith('fonts/')) {
+    // Not fingerprinted, but a font file is replaced only under a new name -
+    // a month spares a returning visitor 140 kB on every page.
+    headers['Cache-Control'] = 'public, max-age=2592000';
   }
   res.writeHead(200, headers);
   fs.createReadStream(filePath).pipe(res);

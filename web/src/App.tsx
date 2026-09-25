@@ -22,6 +22,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
 import { captureClickId, disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
+import { titleFor } from '@/lib/pageTitle';
 import { parseRoute, routePath, type Route } from '@/lib/route';
 import type { TierFilter } from '@/lib/tiers';
 import type { Address, Product, SectionId } from '@/types';
@@ -48,7 +49,6 @@ function ScreenLoading() {
   );
 }
 
-const DEFAULT_TITLE = document.title;
 
 /**
  * Phone screen titles, as the iOS app's headers show them. Home has none - it
@@ -205,12 +205,13 @@ export default function App() {
   useEffect(() => {
     if (!selected || viewedId === undefined) return;
     trackViewContent(selected);
-    document.title = `${selected.name} — بريماتكس`;
-    return () => {
-      document.title = DEFAULT_TITLE;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewedId]);
+
+  // The tab's title follows the screen - worded for search (lib/pageTitle.ts).
+  useEffect(() => {
+    document.title = titleFor(section, { product: selected, category: shopCategory, products: catalogue.products });
+  }, [section, selected, shopCategory, catalogue.products]);
 
   const productRelated = selected
     ? // "You may also like": the same Odoo tier, so an Elite mattress suggests Elite ones.
@@ -234,7 +235,7 @@ export default function App() {
       {isPhone ? (
         section !== 'home' && (
           <TopBar
-            title={section === 'shop' ? (shopQuery.trim() ? 'نتائج البحث' : 'كل المنتجات') : (PHONE_TITLE[section] ?? '')}
+            title={section === 'shop' ? (shopQuery.trim() ? 'نتائج البحث' : 'كل المراتب') : (PHONE_TITLE[section] ?? '')}
             onBack={PUSHED.includes(section) ? back : undefined}
           />
         )
@@ -299,7 +300,7 @@ export default function App() {
           <div className="mx-auto max-w-6xl px-5 pb-10 pt-4 md:px-8 md:pb-16 md:pt-10">
             {!isPhone && (
               <h1 className="mb-5 text-[34px] font-bold text-app-text">
-                {shopQuery.trim() ? 'نتائج البحث' : 'كل المنتجات'}
+                {shopQuery.trim() ? 'نتائج البحث' : 'كل المراتب'}
               </h1>
             )}
             <Catalogue

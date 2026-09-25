@@ -96,8 +96,10 @@ export interface Product {
   inStock?: boolean;
   /** Admin can switch a product off from the dashboard; hidden from /api/products when false. */
   enabled?: boolean;
-  /** Null until real photography exists — ProductVisual draws a placeholder. */
+  /** An admin-uploaded picture; wins over Odoo's. Null when none was uploaded. */
   image?: string | null;
+  /** Odoo holds a picture, served at /api/products/:id/image. */
+  hasImage?: boolean;
   /**
    * Other sizes/heights of this same product (an Odoo product template with
    * more than one variant). Undefined for single-variant and demo products —

@@ -11,8 +11,23 @@
 'use strict';
 
 const SITE_NAME = 'بريماتكس';
-const DEFAULT_TITLE = 'بريماتكس — متجر المراتب الفاخرة';
+// Worded the way Libyans search - in Arabic, with "مراتب" / "مرتبة" in them;
+// Odoo's product names are English. The app sets the same titles once it
+// runs (web/src/lib/pageTitle.ts), and search engines keep that one: change
+// both together.
+const DEFAULT_TITLE = 'بريماتكس — مراتب صناعة ليبية | الدفع عند الاستلام';
+const SHOP_TITLE = 'مراتب للبيع في ليبيا — بريماتكس';
 const DEFAULT_DESCRIPTION = 'مراتب بريماتكس من مصنعنا في ليبيا — الدفع عند الاستلام وتوصيل مجاني لباب بيتك.';
+
+/** What search engines are told about the shop itself - all of it already on the site. */
+const SHOP_FACTS = {
+  telephone: '+218935770070',
+  locality: 'طرابلس',
+  sameAs: ['https://www.facebook.com/profile.php?id=100083078093248'],
+};
+
+const productTitle = (p) => `${p.name} — ${p.tier ? `مرتبة ${p.tier.name}` : 'مرتبة'} | ${SITE_NAME}`;
+const tierTitle = (name) => `مراتب ${name} — ${SITE_NAME}`;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -51,12 +66,20 @@ function describe(pathname, { products, banners, origin }, search = '') {
   const tier = category ? products.find((p) => p.tier?.key === category)?.tier : null;
   if (tier) {
     const items = products.filter((p) => p.tier?.key === tier.key);
+    const path = `/shop?category=${encodeURIComponent(tier.key)}`;
     return {
-      title: `مراتب ${tier.name} — ${SITE_NAME}`,
-      description: `مراتب بريماتكس من فئة ${tier.name} (${items.length}) — الدفع عند الاستلام وتوصيل مجاني لباب بيتك.`,
+      title: tierTitle(tier.name),
+      heading: `مراتب ${tier.name}`,
+      description: `مراتب بريماتكس من فئة ${tier.name} (${items.length}) — صناعة ليبية، الدفع عند الاستلام وتوصيل مجاني لباب بيتك.`,
       image: firstImage(items, origin) || fallbackImage,
       type: 'website',
-      canonicalPath: `/shop?category=${encodeURIComponent(tier.key)}`,
+      canonicalPath: path,
+      listed: items,
+      crumbs: [
+        { name: SITE_NAME, path: '/' },
+        { name: 'المراتب', path: '/shop' },
+        { name: `مراتب ${tier.name}`, path },
+      ],
     };
   }
 
@@ -66,36 +89,122 @@ function describe(pathname, { products, banners, origin }, search = '') {
     const product = products.find((p) => p.id === id || (p.variants ?? []).some((v) => v.id === id));
     if (product) {
       const from = priceFrom(product);
-      const tier = product.tier ? `فئة ${product.tier.name} · ` : '';
+      const kind = product.tier ? `مرتبة ${product.tier.name}` : 'مرتبة';
+      const tierPath = product.tier ? `/shop?category=${encodeURIComponent(product.tier.key)}` : '/shop';
       return {
-        title: `${product.name} — ${SITE_NAME}`,
+        title: productTitle(product),
+        heading: product.name,
         description:
           product.description ||
-          `${tier}${product.variants ? 'يبدأ من ' : ''}${formatPrice(from)} د.ل — الدفع عند الاستلام وتوصيل مجاني.`,
+          `${product.name} — ${kind} من بريماتكس، صناعة ليبية. ${product.variants ? 'يبدأ من ' : ''}${formatPrice(from)} د.ل — الدفع عند الاستلام وتوصيل مجاني.`,
         image: imageOf(product, origin) || fallbackImage,
         type: 'product',
         price: from,
         inStock: product.inStock !== false,
         product,
+        // Other mattresses, the same tier first - links a crawler can follow.
+        listed: [
+          ...products.filter((p) => p.id !== product.id && p.tier?.key === product.tier?.key),
+          ...products.filter((p) => p.id !== product.id && p.tier?.key !== product.tier?.key),
+        ].slice(0, 8),
+        crumbs: [
+          { name: SITE_NAME, path: '/' },
+          product.tier ? { name: `مراتب ${product.tier.name}`, path: tierPath } : { name: 'المراتب', path: '/shop' },
+          { name: product.name, path: `/product/${product.id}` },
+        ],
       };
     }
   }
 
   if (/^\/shop\/?$/.test(pathname)) {
     return {
-      title: `المراتب — ${SITE_NAME}`,
+      title: SHOP_TITLE,
+      heading: 'مراتب بريماتكس',
       description: DEFAULT_DESCRIPTION,
       image: fallbackImage || firstImage(products, origin),
       type: 'website',
+      listed: products,
+      crumbs: [
+        { name: SITE_NAME, path: '/' },
+        { name: 'المراتب', path: '/shop' },
+      ],
     };
   }
 
   return {
     title: DEFAULT_TITLE,
+    heading: 'بريماتكس — مراتب صناعة ليبية',
     description: DEFAULT_DESCRIPTION,
     image: fallbackImage || firstImage(products, origin),
     type: 'website',
+    // The home page lists everything; any other page (the quiz, an unknown
+    // address) links to the shop and nothing more.
+    listed: pathname === '/' ? products : [],
   };
+}
+
+/**
+ * The page's text, in the HTML itself, for crawlers that run no JavaScript
+ * (and Google's first look, before it runs any): a heading, the description,
+ * the prices, and links to the tiers and the mattresses. React replaces it the
+ * moment the app starts - createRoot empties its container - so a visitor sees
+ * it only on a connection too slow to have loaded the app yet, and then it is
+ * the same content, not something else.
+ */
+function bodyHtml(page, products) {
+  const link = (path, text) => `<a href="${escapeHtml(path)}">${escapeHtml(text)}</a>`;
+  const parts = [];
+  if (page.crumbs) {
+    parts.push(
+      `<nav aria-label="مسار الصفحة">${page.crumbs
+        .map((c, i) => (i === page.crumbs.length - 1 ? escapeHtml(c.name) : link(c.path, c.name)))
+        .join(' › ')}</nav>`
+    );
+  }
+  parts.push(`<h1>${escapeHtml(page.heading || page.title)}</h1>`);
+  parts.push(`<p>${escapeHtml(page.description)}</p>`);
+
+  if (page.type === 'product') {
+    const p = page.product;
+    const sizes = (p.variants ?? []).filter((v) => Number(v.price) > 0);
+    if (sizes.length) {
+      parts.push(
+        `<h2>المقاسات والأسعار</h2><ul>${sizes
+          .slice(0, 40)
+          .map((v) => `<li>${escapeHtml(v.label)}: ${formatPrice(v.price)} د.ل${v.inStock === false ? ' (غير متوفر حالياً)' : ''}</li>`)
+          .join('')}</ul>`
+      );
+    } else {
+      parts.push(`<p>السعر: ${formatPrice(p.price)} د.ل</p>`);
+    }
+  }
+
+  const tiers = [...new Map(products.filter((p) => p.tier).map((p) => [p.tier.key, p.tier])).values()].sort(
+    (a, b) => a.rank - b.rank
+  );
+  if (tiers.length) {
+    parts.push(
+      `<h2>الفئات</h2><ul>${tiers
+        .map((t) => `<li>${link(`/shop?category=${encodeURIComponent(t.key)}`, `مراتب ${t.name}`)}</li>`)
+        .join('')}</ul>`
+    );
+  }
+  if (page.listed?.length) {
+    parts.push(
+      `<h2>${page.type === 'product' ? 'مراتب أخرى' : 'المراتب'}</h2><ul>${page.listed
+        .map(
+          (p) =>
+            `<li>${link(`/product/${p.id}`, p.name)}${p.tier ? ` — مرتبة ${escapeHtml(p.tier.name)}` : ''} — ${
+              p.variants ? 'يبدأ من ' : ''
+            }${formatPrice(priceFrom(p))} د.ل</li>`
+        )
+        .join('')}</ul>`
+    );
+  } else {
+    parts.push(`<p>${link('/shop', 'تصفّح كل المراتب')}</p>`);
+  }
+  parts.push(`<p>الدفع عند الاستلام · توصيل مجاني · ضمان حتى 10 سنوات لبعض المنتجات · ${SHOP_FACTS.locality}، ليبيا</p>`);
+  return `<div class="ssr-fallback">${parts.join('\n')}</div>`;
 }
 
 function firstImage(products, origin) {
@@ -123,8 +232,34 @@ const availabilityOf = (inStock) => `https://schema.org/${inStock === false ? 'O
  * shop. Dinars: this is what a person sees, unlike Meta's dollars.
  */
 function structuredData(page, context, url) {
-  const shop = { '@context': 'https://schema.org', '@type': 'Organization', name: SITE_NAME, url: context.origin };
-  if (page.type !== 'product') return [shop];
+  const shop = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    alternateName: 'Brimatex',
+    url: context.origin,
+    telephone: SHOP_FACTS.telephone,
+    address: { '@type': 'PostalAddress', addressLocality: SHOP_FACTS.locality, addressCountry: 'LY' },
+    areaServed: { '@type': 'Country', name: 'ليبيا' },
+    sameAs: SHOP_FACTS.sameAs,
+  };
+  const site = { '@context': 'https://schema.org', '@type': 'WebSite', name: SITE_NAME, url: context.origin, inLanguage: 'ar' };
+  // The path Google shows instead of a bare address: بريماتكس › مراتب كومفورت › Comfort Mattress.
+  const crumbs = page.crumbs
+    ? [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: page.crumbs.map((c, i) => ({
+            '@type': 'ListItem',
+            position: i + 1,
+            name: c.name,
+            item: context.origin + c.path,
+          })),
+        },
+      ]
+    : [];
+  if (page.type !== 'product') return [shop, site, ...crumbs];
 
   const p = page.product;
   const sizes = p.variants ?? [{ id: p.id, price: p.price, inStock: p.inStock }];
@@ -178,7 +313,7 @@ function structuredData(page, context, url) {
       ...(r.comment ? { reviewBody: r.comment } : {}),
     }));
   }
-  return [shop, product];
+  return [shop, site, ...crumbs, product];
 }
 
 /**
@@ -218,7 +353,8 @@ function render(shell, pathname, search, context) {
       /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/,
       `<meta name="description" content="${escapeHtml(page.description)}" />`
     )
-    .replace('</head>', `    ${tags.join('\n    ')}\n  </head>`);
+    .replace('</head>', `    ${tags.join('\n    ')}\n  </head>`)
+    .replace('<div id="root"></div>', `<div id="root">${bodyHtml(page, context.products)}</div>`);
 }
 
 module.exports = { render, describe, imageOf, priceFrom, escapeHtml, structuredData, jsonForScript };

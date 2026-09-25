@@ -116,6 +116,8 @@ export function HomeScreen({
         </button>
       </div>
 
+      {/* The page's heading for search engines and screen readers; the greeting is what shows */}
+      <h1 className="sr-only">بريماتكس — مراتب صناعة ليبية</h1>
       <p className="mt-5 text-[34px] font-bold leading-tight text-app-text md:text-[44px]">
         {firstName ? `مرحباً، ${firstName}!` : 'مرحباً بك!'}
       </p>

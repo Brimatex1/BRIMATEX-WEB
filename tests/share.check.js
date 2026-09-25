@@ -90,6 +90,9 @@ function unitPart() {
   const evil = { id: 9, name: '"><script>alert(1)</script>', price: 500, inStock: true, hasImage: true };
   const html = share.render('<html><head><title>x</title></head></html>', '/product/9', '', { products: [evil], banners: [], origin });
   ok('اسم خبيث يُهرَّب', !html.includes('<script>alert') && html.includes('&lt;script&gt;'));
+  const shellHtml = '<html><head><title>x</title></head><body><div id="root"></div></body></html>';
+  const evilBody = share.render(shellHtml, '/product/9', '', { products: [evil], banners: [], origin });
+  ok('المحتوى المكتوب للمتصفح يُهرَّب أيضاً', !evilBody.includes('<script>alert') && evilBody.includes('<div id="root"><div class="ssr-fallback">'));
 
   const product = {
     id: 202,
@@ -118,7 +121,14 @@ function unitPart() {
   ok('صفحة فئة: عنوانها ورابطها الأساسي', tierPage.includes('<title>مراتب كومفورت — بريماتكس</title>') && tierPage.includes('<link rel="canonical" href="https://brimatex.ly/shop?category=comfort" />'));
   const unknownTier = share.render('<html><head><title>x</title></head></html>', '/shop', '?category=nope', { products: [product], banners: [], origin });
   ok('فئة غير موجودة: رابط المتجر', unknownTier.includes('<link rel="canonical" href="https://brimatex.ly/shop" />'));
-  ok('schema: الرئيسية تسمّي المتجر فقط', share.structuredData({ type: 'website' }, { origin }, origin).every((b) => b['@type'] === 'Organization'));
+  const withCrumbs = share.render(shellHtml, '/product/203', '', { products: [product], banners: [], origin });
+  const crumbs = [...withCrumbs.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)]
+    .map((m) => JSON.parse(m[1]))
+    .find((b) => b['@type'] === 'BreadcrumbList');
+  ok('schema: مسار الصفحة', crumbs?.itemListElement?.map((c) => c.name).join(' › ') === 'بريماتكس › مراتب كومفورت › Daily Mattress', JSON.stringify(crumbs));
+  ok('العنوان بالعربي مع نوع المرتبة', withCrumbs.includes('<title>Daily Mattress — مرتبة كومفورت | بريماتكس</title>'));
+  ok('محتوى الصفحة: العنوان والمقاسات بأسعارها', withCrumbs.includes('<h1>Daily Mattress</h1>') && withCrumbs.includes('H18, 90*190: 640 د.ل') && withCrumbs.includes('(غير متوفر حالياً)'));
+  ok('schema: الرئيسية تسمّي المتجر فقط', share.structuredData({ type: 'website' }, { origin }, origin).every((b) => ['Organization', 'WebSite'].includes(b['@type'])));
 
   const noPicture = { id: 300, name: 'No Picture', price: 700, inStock: true };
   const { csv, count, skipped } = metaFeed.buildCsv([product, noPicture], { origin, lydPerUsd: 8 });
@@ -141,7 +151,7 @@ function unitPart() {
   let uploaded = null;
   try {
     const home = await req('GET', '/');
-    ok('الرئيسية: og:title', meta(home.text, 'og:title') === 'بريماتكس — متجر المراتب الفاخرة', meta(home.text, 'og:title'));
+    ok('الرئيسية: og:title', meta(home.text, 'og:title') === 'بريماتكس — مراتب صناعة ليبية | الدفع عند الاستلام', meta(home.text, 'og:title'));
     ok('الرئيسية: الوصف بلا تجربة', !home.text.includes('ليلة') && Boolean(meta(home.text, 'og:description')));
     ok('الرئيسية: HTML ولا تُخزَّن', /text\/html/.test(home.type) && home.status === 200);
     ok('الرئيسية: السكربت ما زال في الصفحة', /<script type="module"[^>]*src="\/assets\/index-/.test(home.text));
@@ -149,7 +159,9 @@ function unitPart() {
     const products = (await req('GET', '/api/products')).json.products;
     const p = products[0];
     const page = await req('GET', `/product/${p.id}`);
-    ok('صفحة المنتج: اسمه في العنوان', page.text.includes(`<title>${p.name} — بريماتكس</title>`));
+    ok('صفحة المنتج: اسمه في العنوان', page.text.includes(`<title>${p.name} — مرتبة ${p.tier.name} | بريماتكس</title>`));
+    ok('الرئيسية: روابط كل المراتب في الصفحة نفسها', products.every((x) => home.text.includes(`<a href="/product/${x.id}">`)));
+    ok('صفحة المنتج: h1 باسمه', page.text.includes('<h1>' + p.name.replace(/&/g, '&amp;') + '</h1>'));
     ok('صفحة المنتج: og:type product', meta(page.text, 'og:type') === 'product');
     ok('صفحة المنتج: السعر بالدينار', meta(page.text, 'product:price:amount') === String(p.price) && meta(page.text, 'product:price:currency') === 'LYD');
     ok('صفحة المنتج: الرابط الأساسي', page.text.includes(`<link rel="canonical" href="http://127.0.0.1:${PORT}/product/${p.id}" />`));
