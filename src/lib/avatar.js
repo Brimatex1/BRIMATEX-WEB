@@ -54,7 +54,13 @@ function remove(url) {
   if (typeof url !== 'string' || !url.startsWith(URL_PREFIX)) return;
   const name = path.basename(url);
   if (!/^[a-f0-9]{32}\.(jpeg|png|webp)$/.test(name)) return;
-  fs.unlink(path.join(DIR, name), () => {});
+  // Synchronous, so the file is gone by the time the request is answered - a
+  // background unlink let a request right after still fetch the old photo.
+  try {
+    fs.unlinkSync(path.join(DIR, name));
+  } catch {
+    /* already gone */
+  }
 }
 
 module.exports = { save, remove, sniff, MAX_BYTES };

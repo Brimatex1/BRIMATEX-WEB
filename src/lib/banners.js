@@ -97,7 +97,12 @@ function remove(id) {
   settings.writeBanners(banners.filter((b) => b.id !== id));
   const name = path.basename(String(banner.imageUrl || ''));
   if (String(banner.imageUrl || '').startsWith(URL_PREFIX) && /^[a-f0-9]{16}-[a-f0-9]{16}\.(jpeg|png|webp)$/.test(name)) {
-    fs.unlink(path.join(DIR, name), () => {});
+    // Synchronous, as in avatar.js: gone before the request is answered.
+    try {
+      fs.unlinkSync(path.join(DIR, name));
+    } catch {
+      /* already gone */
+    }
   }
   return { banners: list() };
 }
