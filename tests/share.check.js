@@ -5,6 +5,7 @@
 //   price and its picture, in the HTML itself (crawlers run no JavaScript)
 // - text from the catalogue is escaped, never markup
 // - files are still served as files
+// - robots.txt and sitemap.xml are real files, listing every product
 // - the feed lists one row per size, in dollars at the Pixel's rate, with the
 //   ids the Pixel reports, and leaves out products with no picture
 //
@@ -136,6 +137,14 @@ function unitPart() {
     ok('صفحة المنتج: الرابط الأساسي', page.text.includes(`<link rel="canonical" href="http://127.0.0.1:${PORT}/product/${p.id}" />`));
     ok('منتج غير موجود: الوسوم العامة', meta((await req('GET', '/product/999999')).text, 'og:type') === 'website');
     ok('الملفات تُخدم كما هي', /image\/svg/.test((await req('GET', '/favicon.svg')).type));
+
+    const robots = await req('GET', '/robots.txt');
+    ok('robots.txt نص وليس الصفحة', robots.status === 200 && /text\/plain/.test(robots.type) && !robots.text.includes('<html'));
+    ok('robots.txt يمنع اللوحة ويشير للخريطة', robots.text.includes('Disallow: /admin') && !robots.text.includes('/api') && robots.text.includes(`Sitemap: http://127.0.0.1:${PORT}/sitemap.xml`));
+    const map = await req('GET', '/sitemap.xml');
+    ok('sitemap.xml بصيغة XML', map.status === 200 && /xml/.test(map.type) && map.text.startsWith('<?xml'));
+    ok('الخريطة فيها كل منتج', products.every((x) => map.text.includes(`/product/${x.id}</loc>`)));
+    ok('والرئيسية والمتجر، بلا اللوحة', map.text.includes(`<loc>http://127.0.0.1:${PORT}/</loc>`) && map.text.includes('/shop</loc>') && !map.text.includes('/admin'));
 
     const register = async (phone) =>
       (await req('POST', '/api/auth/register', { name: 'تجربة', phone, password: 'secret1' })).json.token;

@@ -20,6 +20,7 @@ const banners = require('./lib/banners');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
 const metaFeed = require('./lib/metaFeed');
+const seo = require('./lib/seo');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
 const otp = require('./lib/otp');
@@ -494,6 +495,13 @@ const server = http.createServer(async (req, res) => {
       });
       res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-cache' });
       res.end(csv);
+    } else if (req.method === 'GET' && url.pathname === '/robots.txt') {
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end(seo.robots(originOf(req)));
+    } else if (req.method === 'GET' && url.pathname === '/sitemap.xml') {
+      // src/lib/seo.js - built from the catalogue, so a new product is listed at once.
+      res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(seo.sitemap(await publicProducts(), originOf(req)));
     } else if ((req.method === 'GET' || req.method === 'HEAD') && isShell(url.pathname)) {
       await serveShell(req, res, url);
     } else {
