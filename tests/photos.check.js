@@ -34,9 +34,17 @@ const MAP = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'data',
 const entries = Object.entries(MAP).filter(([name]) => !name.startsWith('//'));
 
 group('Every mapped photo exists');
+check(
+  'none are put straight into src/public (the build deletes them)',
+  !fs.existsSync(path.join(__dirname, '..', 'src', 'public', 'images', 'products')) ||
+    fs.readdirSync(path.join(__dirname, '..', 'src', 'public', 'images', 'products')).every((f) =>
+      fs.existsSync(path.join(__dirname, '..', 'web', 'public', 'images', 'products', f))
+    )
+);
 check('the map is not empty', entries.length > 0);
 for (const [name, file] of entries) {
-  const onDisk = path.join(__dirname, '..', 'src', 'public', 'images', 'products', file);
+  // The source: the web build copies it into src/public, which it empties first.
+  const onDisk = path.join(__dirname, '..', 'web', 'public', 'images', 'products', file);
   check(`${name} → ${file}`, fs.existsSync(onDisk) && fs.statSync(onDisk).size > 1000, 'missing or empty');
   check(`${name} is found by photoFor`, photoFor(name) === PHOTO_PREFIX + file, String(photoFor(name)));
 }

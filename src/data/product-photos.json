@@ -1,5 +1,5 @@
 {
-  "// ": "Odoo product name -> a photo in src/public/images/products/. A dashboard upload overrides it (src/lib/productPhotos.js).",
+  "// ": "Odoo product name -> a photo in web/public/images/products/. A dashboard upload overrides it (src/lib/productPhotos.js).",
   "Classic Mattress": "classic.webp",
   "Comfort Mattress": "comfort.webp",
   "Daily Mattress": "daily.webp",

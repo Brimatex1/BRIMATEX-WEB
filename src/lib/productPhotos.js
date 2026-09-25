@@ -1,6 +1,8 @@
 /**
  * Product photos that ship with the site - the owner's official pictures,
- * kept in the repository under src/public/images/products/ and matched to a
+ * kept in the repository under web/public/images/products/ (the web build
+ * copies them into src/public, which it empties first - a photo put straight
+ * into src/public is deleted by the next build) and matched to a
  * product by its Odoo name (src/data/product-photos.json), which survives a
  * re-sync where ids might not.
  *
@@ -12,6 +14,8 @@ const path = require('path');
 
 const MAP_FILE = path.join(__dirname, '..', 'data', 'product-photos.json');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+// The source the build copies from - there before the first build, too.
+const SOURCE_DIR = path.join(__dirname, '..', '..', 'web', 'public');
 
 /** Where a shipped photo is served from - the image route accepts this prefix. */
 const PHOTO_PREFIX = '/images/products/';
@@ -24,7 +28,7 @@ function load() {
       if (name.startsWith('//')) continue;
       const url = PHOTO_PREFIX + file;
       // A mapping to a file that is not there would 404 on every card - skip it and say so.
-      if (!fs.existsSync(path.join(PUBLIC_DIR, url))) {
+      if (!fs.existsSync(path.join(PUBLIC_DIR, url)) && !fs.existsSync(path.join(SOURCE_DIR, url))) {
         console.error(`[photos] ${name}: ${url} is missing`);
         continue;
       }
