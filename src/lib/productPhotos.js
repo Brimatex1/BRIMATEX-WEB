@@ -2,9 +2,10 @@
  * Product photos that ship with the site - the owner's official pictures,
  * kept in the repository under web/public/images/products/ (the web build
  * copies them into src/public, which it empties first - a photo put straight
- * into src/public is deleted by the next build) and matched to a
- * product by its Odoo name (src/data/product-photos.json), which survives a
- * re-sync where ids might not.
+ * into src/public is deleted by the next build) and matched to a product by
+ * its Odoo product (template) id in src/data/product-photos.json. The id,
+ * not the name: the names are edited in Odoo (English to Arabic, once), and
+ * a rename used to take every photo off the site.
  *
  * They are the default: a photo uploaded from the dashboard still wins
  * (src/lib/catalogue.js), and Odoo's own pictures stay off.
@@ -23,18 +24,18 @@ const PHOTO_PREFIX = '/images/products/';
 function load() {
   try {
     const raw = JSON.parse(fs.readFileSync(MAP_FILE, 'utf8'));
-    const byName = new Map();
-    for (const [name, file] of Object.entries(raw)) {
-      if (name.startsWith('//')) continue;
-      const url = PHOTO_PREFIX + file;
+    const byTemplate = new Map();
+    for (const [key, entry] of Object.entries(raw)) {
+      if (key.startsWith('//') || !entry?.file) continue;
+      const url = PHOTO_PREFIX + entry.file;
       // A mapping to a file that is not there would 404 on every card - skip it and say so.
       if (!fs.existsSync(path.join(PUBLIC_DIR, url)) && !fs.existsSync(path.join(SOURCE_DIR, url))) {
-        console.error(`[photos] ${name}: ${url} is missing`);
+        console.error(`[photos] ${entry.product || key}: ${url} is missing`);
         continue;
       }
-      byName.set(name.trim().toLowerCase(), url);
+      byTemplate.set(String(key), url);
     }
-    return byName;
+    return byTemplate;
   } catch (err) {
     if (err.code !== 'ENOENT') console.error('[photos] could not read product-photos.json:', err.message);
     return new Map();
@@ -44,10 +45,10 @@ function load() {
 // Read once: the file only changes with a deploy, which restarts the server.
 const PHOTOS = load();
 
-/** The shipped photo for a product name, or null. */
-function photoFor(name) {
-  if (!name) return null;
-  return PHOTOS.get(String(name).trim().toLowerCase()) ?? null;
+/** The shipped photo for a product (by its Odoo template id), or null. */
+function photoFor(product) {
+  if (product?.templateId == null) return null;
+  return PHOTOS.get(String(product.templateId)) ?? null;
 }
 
 module.exports = { photoFor, PHOTO_PREFIX };

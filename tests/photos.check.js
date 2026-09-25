@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // The product photos shipped with the site - src/lib/productPhotos.js
 //
-// What it guards: every name in src/data/product-photos.json points at a file
-// that is really there (a missing one would 404 on every card), the match
-// ignores case and spaces, and a photo uploaded from the dashboard still wins
-// over the shipped one.
+// What it guards: every Odoo product id in src/data/product-photos.json points
+// at a file that is really there (a missing one would 404 on every card), the
+// match is on the id - a renamed product keeps its photo - and a photo
+// uploaded from the dashboard still wins over the shipped one.
 //
 // Runs with the rest: npm test
 const fs = require('fs');
@@ -31,7 +31,9 @@ function group(title) {
 }
 
 const MAP = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'data', 'product-photos.json'), 'utf8'));
-const entries = Object.entries(MAP).filter(([name]) => !name.startsWith('//'));
+const entries = Object.entries(MAP)
+  .filter(([key]) => !key.startsWith('//'))
+  .map(([key, entry]) => [key, entry.file, entry.product]);
 
 group('Every mapped photo exists');
 check(
@@ -42,25 +44,27 @@ check(
     )
 );
 check('the map is not empty', entries.length > 0);
-for (const [name, file] of entries) {
+for (const [key, file, label] of entries) {
+  check(`${label}: keyed by an Odoo id`, /^\d+$/.test(key), key);
   // The source: the web build copies it into src/public, which it empties first.
   const onDisk = path.join(__dirname, '..', 'web', 'public', 'images', 'products', file);
-  check(`${name} → ${file}`, fs.existsSync(onDisk) && fs.statSync(onDisk).size > 1000, 'missing or empty');
-  check(`${name} is found by photoFor`, photoFor(name) === PHOTO_PREFIX + file, String(photoFor(name)));
+  check(`${label} → ${file}`, fs.existsSync(onDisk) && fs.statSync(onDisk).size > 1000, 'missing or empty');
+  check(`${label} is found by photoFor`, photoFor({ templateId: Number(key) }) === PHOTO_PREFIX + file, String(photoFor({ templateId: Number(key) })));
 }
 
 group('Matching');
-const [firstName, firstFile] = entries[0];
-check('case and spaces do not matter', photoFor(`  ${firstName.toUpperCase()} `) === PHOTO_PREFIX + firstFile);
-check('an unknown product has none', photoFor('No Such Mattress') === null);
-check('no name, no photo', photoFor(undefined) === null && photoFor('') === null);
+const [firstKey, firstFile] = entries[0];
+const templateId = Number(firstKey);
+check('a renamed product keeps its photo', photoFor({ templateId, name: 'مرتبة باسم جديد' }) === PHOTO_PREFIX + firstFile);
+check('an unknown product has none', photoFor({ templateId: 1, name: 'No Such Mattress' }) === null);
+check('no id, no photo', photoFor(undefined) === null && photoFor({ name: 'Classic Mattress' }) === null);
 
 group('A dashboard upload wins');
 (async () => {
   const productOverrides = require('../src/lib/productOverrides');
   const { withOverrides } = require('../src/lib/catalogue');
   const original = productOverrides.getAllOverrides;
-  const product = { id: 999001, name: firstName, price: 100 };
+  const product = { id: 999001, templateId, name: 'أي اسم', price: 100 };
 
   productOverrides.getAllOverrides = async () => ({});
   const [plain] = await withOverrides([product]);

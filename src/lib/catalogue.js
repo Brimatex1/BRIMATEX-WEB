@@ -52,7 +52,7 @@ async function withOverrides(products) {
     const o = all[String(p.id)];
     // The printed catalogue's details, shipped with the site (src/lib/productDetails.js):
     // what the dashboard sets wins, and an empty dashboard field falls back to them.
-    const d = detailsFor(p.name);
+    const d = detailsFor(p);
     const shipped = { warrantyYears: d.warrantyYears, layers: d.layers };
     // A dashboard upload first, then the photo shipped with the site (src/lib/productPhotos.js).
     if (!o) {
@@ -62,7 +62,7 @@ async function withOverrides(products) {
         iconFeatures: d.iconKeys,
         description: d.description || p.description,
         enabled: true,
-        image: photoFor(p.name) || p.image,
+        image: photoFor(p) || p.image,
       };
     }
     return {
@@ -71,7 +71,7 @@ async function withOverrides(products) {
       iconFeatures: o.iconKeys?.length ? o.iconKeys : d.iconKeys,
       description: o.description || d.description || p.description,
       enabled: o.enabled,
-      image: o.imageUrl || photoFor(p.name) || p.image,
+      image: o.imageUrl || photoFor(p) || p.image,
     };
   });
 }

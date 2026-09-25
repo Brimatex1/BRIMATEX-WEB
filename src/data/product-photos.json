@@ -1,9 +1,27 @@
 {
-  "// ": "Odoo product name -> a photo in web/public/images/products/. A dashboard upload overrides it (src/lib/productPhotos.js).",
-  "Classic Mattress": "classic.webp",
-  "Comfort Mattress": "comfort.webp",
-  "Daily Mattress": "daily.webp",
-  "Sport Mattress H30cm": "sport.webp",
-  "Hotel Mattress H28cm": "hotel.webp",
-  "Deluxe Mattress H30cm": "deluxe.webp"
+  "// ": "Odoo product (template) id -> a photo in web/public/images/products/. The id is the product's own in Odoo - it survives renames, where a name does not. A dashboard upload overrides it (src/lib/productPhotos.js).",
+  "4782": {
+    "product": "Classic Mattress",
+    "file": "classic.webp"
+  },
+  "4776": {
+    "product": "Comfort Mattress",
+    "file": "comfort.webp"
+  },
+  "4779": {
+    "product": "Daily Mattress",
+    "file": "daily.webp"
+  },
+  "4973": {
+    "product": "Sport Mattress H30cm",
+    "file": "sport.webp"
+  },
+  "4773": {
+    "product": "Hotel Mattress H28cm",
+    "file": "hotel.webp"
+  },
+  "4792": {
+    "product": "Deluxe Mattress H30cm",
+    "file": "deluxe.webp"
+  }
 }

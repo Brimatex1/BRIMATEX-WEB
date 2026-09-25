@@ -257,6 +257,10 @@ async function fetchProducts() {
     const primary = vs[0];
     return {
       id: primary.id,
+      // The Odoo product (template) itself - stable across renames and price
+      // changes, so what ships with the site (photos, catalogue details) is
+      // matched on it rather than on the name.
+      templateId: t.id,
       name: t.name,
       price: primary.price,
       sku: primary.sku,

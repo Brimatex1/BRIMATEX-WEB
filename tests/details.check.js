@@ -30,15 +30,17 @@ function group(title) {
 }
 
 const MAP = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'data', 'product-details.json'), 'utf8'));
-const entries = Object.entries(MAP).filter(([name]) => !name.startsWith('//'));
+const entries = Object.entries(MAP).filter(([key]) => !key.startsWith('//'));
 const iconsTs = fs.readFileSync(path.join(__dirname, '..', 'web', 'src', 'lib', 'icons.ts'), 'utf8');
 const KNOWN = new Set([...iconsTs.matchAll(/^\s*'([a-z0-9-]+)': \{ key:/gm)].map((m) => m[1]));
 
 group('Every mattress');
 check('the icon library was read', KNOWN.size > 20, String(KNOWN.size));
 check('the map is not empty', entries.length > 0);
-for (const [name, entry] of entries) {
-  const d = detailsFor(name);
+for (const [key, entry] of entries) {
+  const name = entry.product || key;
+  check(`${name}: keyed by an Odoo id`, /^\d+$/.test(key), key);
+  const d = detailsFor({ templateId: Number(key) });
   check(`${name}: has a description`, Boolean(d.description) && d.description.length > 60);
   const unknown = d.iconKeys.filter((k) => !KNOWN.has(k));
   check(`${name}: every icon exists`, unknown.length === 0, unknown.join(', '));
@@ -53,17 +55,18 @@ for (const [name, entry] of entries) {
 }
 
 group('Matching');
-check('an unknown product has none', detailsFor('No Such Mattress').description === null && detailsFor('No Such Mattress').iconKeys.length === 0);
-check('case and spaces do not matter', detailsFor(`  ${entries[0][0].toUpperCase()} `).description === detailsFor(entries[0][0]).description);
+check('an unknown product has none', detailsFor({ templateId: 1 }).description === null && detailsFor({ templateId: 1 }).iconKeys.length === 0);
+check('no id, no details (a name is not enough)', detailsFor({ name: 'Classic Mattress' }).description === null && detailsFor(undefined).description === null);
+check('a renamed product keeps its details', detailsFor({ templateId: Number(entries[0][0]), name: 'مرتبة باسم جديد' }).description === detailsFor({ templateId: Number(entries[0][0]) }).description);
 
 group('The dashboard wins');
 (async () => {
   const productOverrides = require('../src/lib/productOverrides');
   const { withOverrides } = require('../src/lib/catalogue');
   const original = productOverrides.getAllOverrides;
-  const [name] = entries[0];
-  const d = detailsFor(name);
-  const product = { id: 999002, name, price: 100, description: 'من أودو' };
+  const templateId = Number(entries[0][0]);
+  const d = detailsFor({ templateId });
+  const product = { id: 999002, templateId, name: 'أي اسم', price: 100, description: 'من أودو' };
 
   productOverrides.getAllOverrides = async () => ({});
   const [plain] = await withOverrides([product]);
