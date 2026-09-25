@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { openSupport } from '@/lib/support';
 import { ALL_TIERS, inTier, tiersOf, type TierFilter } from '@/lib/tiers';
 import type { Product } from '@/types';
 
@@ -210,15 +211,26 @@ export function ShopPage({
         <Card className="flex flex-col items-center gap-3 p-12 text-center">
           <SearchX className="size-10 text-muted-foreground" aria-hidden="true" />
           <p className="font-semibold">ما لقيناش مراتب تطابق بحثك</p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              onQueryChange('');
-              onCategoryChange(ALL_TIERS);
-            }}
-          >
-            عرض كل المراتب
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                onQueryChange('');
+                onCategoryChange(ALL_TIERS);
+              }}
+            >
+              عرض كل المراتب
+            </Button>
+            {/* Looking for something the shop may still make - ask the factory */}
+            <Button
+              variant="ghost"
+              onClick={() =>
+                openSupport({ topic: 'product', message: query.trim() ? `أدوّر على: ${query.trim()}\n` : '' })
+              }
+            >
+              ما لقيتش اللي تدوّر عليه؟ اسألنا
+            </Button>
+          </div>
         </Card>
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">

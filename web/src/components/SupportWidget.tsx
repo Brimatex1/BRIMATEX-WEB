@@ -69,8 +69,13 @@ export function SupportWidget({ user, token, className, launcher = true }: Suppo
   // product the customer is asking about already written in.
   useEffect(
     () =>
-      onOpenSupport(({ message }) => {
-        if (message) setFields((f) => ({ ...f, message: f.message || message }));
+      onOpenSupport(({ message, topic, orderName }) => {
+        setFields((f) => ({
+          ...f,
+          message: f.message || message || '',
+          topic: topic ?? f.topic,
+          orderName: orderName ?? f.orderName,
+        }));
         setOpen(true);
       }),
     []

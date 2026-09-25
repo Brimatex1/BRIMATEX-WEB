@@ -205,7 +205,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
     <section className="container animate-fade-up pb-16">
       <div className="flex flex-wrap items-end justify-between gap-4 pt-10 pb-6">
         <div>
-          <h1 className="font-heading text-3xl max-md:sr-only font-semibold text-primary sm:text-4xl">
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             لوحة التحكم
           </h1>
           <p className="mt-2 text-muted-foreground">مرحباً {user.name} — إدارة المتجر.</p>

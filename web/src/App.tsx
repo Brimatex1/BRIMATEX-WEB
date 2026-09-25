@@ -13,7 +13,6 @@ import { SupportWidget } from '@/components/SupportWidget';
 import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
-import { useIsPhone } from '@/hooks/useIsPhone';
 import { usePerks } from '@/hooks/usePerks';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
@@ -56,7 +55,6 @@ export default function App() {
   const [shopCategory, setShopCategory] = useState<TierFilter>(landing.category ?? 'all');
   const [shopQuery, setShopQuery] = useState(landing.query ?? '');
 
-  const isPhone = useIsPhone();
   /** The cart drawer, opened from the header's bag and after adding a mattress. */
   const [cartOpen, setCartOpen] = useState(false);
   /** Screens opened inside the site this visit - "back" leaves it only at zero. */
@@ -398,12 +396,14 @@ export default function App() {
 
       {section !== 'admin' && <SiteFooter tiers={tiers} onNavigate={navigate} onOpenTier={openTier} />}
 
-      {/* Not on the dashboard. On a phone the round button stays off the
-          screens with a fixed bottom bar it would cover - the product page
-          (which has its own "ask about this mattress" button) and the cart. */}
+      {/* The form is on every page but the dashboard. Its floating button
+          only where a visitor browses - home and the shop; elsewhere the form
+          opens from where the question comes up (lib/support.ts): a product,
+          the quiz's result, the cart, an order, a search with no results, the
+          footer and the phone menu. */}
       {section !== 'admin' && (
         <SupportWidget
-          launcher={!(isPhone && (section === 'product' || section === 'cart'))}
+          launcher={section === 'home' || section === 'shop'}
           user={auth.user}
           token={auth.token}
         />

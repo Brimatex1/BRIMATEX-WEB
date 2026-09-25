@@ -1,8 +1,10 @@
-import { MapPin, Phone } from 'lucide-react';
+import { MapPin, MessageCircle, Phone } from 'lucide-react';
 
 import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { SocialLinks } from '@/components/SocialLinks';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { openSupport } from '@/lib/support';
 import type { SectionId, Tier } from '@/types';
 
 /** The store's footer: who we are, the tiers, help, and how to reach us. */
@@ -52,6 +54,9 @@ export function SiteFooter({
 
         <div>
           <h2 className="mb-3 text-sm font-semibold">تواصل معنا</h2>
+          <Button variant="outline" size="sm" className="mb-3 gap-2" onClick={() => openSupport()}>
+            <MessageCircle /> راسل خدمة العملاء
+          </Button>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-center gap-2">
               <MapPin className="size-4 shrink-0" aria-hidden="true" /> طرابلس، ليبيا

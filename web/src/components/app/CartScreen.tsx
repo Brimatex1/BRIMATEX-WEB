@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, HandCoins, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
+import { Check, HandCoins, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
 
 import { CheckoutForm } from '@/components/CheckoutForm';
 import { findProduct, ProductImage, productLinkClick } from '@/components/store/ProductCard';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/pixel';
+import { openSupport } from '@/lib/support';
 import { formatPrice } from '@/lib/utils';
 import type { CartLine, OrderResult, Product, User, Voucher } from '@/types';
 
@@ -42,6 +43,15 @@ const PROMISES = [
  * validation stay in one place. Purchase is tracked here, with the lines read
  * before the cart is emptied.
  */
+/** A question before ordering - the size, delivery - is the moment a customer might leave instead. */
+function AskBeforeOrdering() {
+  return (
+    <Button variant="ghost" size="sm" className="w-full gap-2 text-muted-foreground" onClick={() => openSupport({ topic: 'product' })}>
+      <MessageCircle /> عندك سؤال قبل ما تطلب؟ تواصل معنا
+    </Button>
+  );
+}
+
 export function CartScreen({
   lines,
   total,
@@ -113,6 +123,13 @@ export function CartScreen({
               </p>
             </div>
             {Boolean(result.discount) && <p className="text-sm text-success">وفّرت {formatPrice(result.discount!)} د.ل بالقسيمة</p>}
+            <Button
+              variant="link"
+              className="h-auto gap-1.5 p-0"
+              onClick={() => openSupport({ topic: 'order', orderName: result.orderName ?? '' })}
+            >
+              <MessageCircle /> تبي تعدّل حاجة في طلبك؟ تواصل معنا
+            </Button>
             <div className="flex flex-col gap-2 pt-2">
               <Button
                 size="lg"
@@ -250,6 +267,11 @@ export function CartScreen({
             </ul>
           </Card>
 
+          {/* Phones and tablets: here, as the summary with its own link is hidden */}
+          <div className="lg:hidden">
+            <AskBeforeOrdering />
+          </div>
+
           {fromWishlist.length > 0 && (
             <section>
               <h2 className="mb-4 text-lg font-bold">من مفضّلتك</h2>
@@ -312,6 +334,8 @@ export function CartScreen({
                   </li>
                 ))}
               </ul>
+              <Separator />
+              <AskBeforeOrdering />
             </CardContent>
           </Card>
         </aside>

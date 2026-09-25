@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { openSupport } from '@/lib/support';
 import { cn } from '@/lib/utils';
 import type { SectionId, Tier, User } from '@/types';
 
@@ -127,6 +128,14 @@ export function SiteHeader({ section, user, cartCount, tiers, onNavigate, onOpen
               <MenuLink onClick={() => go('wishlist')}>المفضّلة</MenuLink>
               <MenuLink onClick={() => go(user ? 'orders' : 'auth')}>طلباتي</MenuLink>
               <MenuLink onClick={() => go('auth')}>{user ? 'حسابي' : 'تسجيل الدخول'}</MenuLink>
+              <MenuLink
+                onClick={() => {
+                  setMenuOpen(false);
+                  openSupport();
+                }}
+              >
+                تواصل معنا
+              </MenuLink>
               {isAdmin && <MenuLink onClick={() => go('admin')}>لوحة التحكم</MenuLink>}
             </div>
             <div className="border-t p-3">

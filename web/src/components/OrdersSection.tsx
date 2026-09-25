@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Package } from 'lucide-react';
+import { MessageCircle, Package } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
+import { openSupport } from '@/lib/support';
 import { formatPrice } from '@/lib/utils';
 import type { OrderSummary, Product, User } from '@/types';
 
@@ -64,7 +65,7 @@ export function OrdersSection({
             <div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
               <Package className="size-7" aria-hidden="true" />
             </div>
-            <h1 className="mb-3 font-heading max-md:sr-only text-2xl font-semibold text-primary">طلباتي</h1>
+            <h1 className="mb-3 text-2xl font-bold tracking-tight">طلباتي</h1>
             <p className="mb-6 text-muted-foreground">
               سجّل الدخول لمتابعة طلباتك وفواتيرك.
             </p>
@@ -79,11 +80,17 @@ export function OrdersSection({
 
   return (
     <section className="container max-w-3xl animate-fade-up">
-      <div className="pt-12 pb-6 max-md:pt-4">
-        <h1 className="font-heading text-4xl max-md:sr-only font-semibold tracking-tight text-primary">طلباتي</h1>
-        <p className="mt-3 text-muted-foreground">
-          الطلبات التي أنشأتها وأنت مسجّل الدخول تظهر هنا مع حالة الفاتورة.
-        </p>
+      <div className="flex flex-col gap-3 pb-6 pt-6 sm:flex-row sm:items-end sm:justify-between md:pt-10">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">طلباتي</h1>
+          <p className="text-sm text-muted-foreground">
+            الطلبات التي أنشأتها وأنت مسجّل الدخول تظهر هنا مع حالة الفاتورة.
+          </p>
+        </div>
+        {/* A late or wrong delivery is the question here - the topic comes chosen */}
+        <Button variant="outline" size="sm" className="gap-2 self-start sm:self-auto" onClick={() => openSupport({ topic: 'order' })}>
+          <MessageCircle /> فيه مشكلة في طلب؟ تواصل معنا
+        </Button>
       </div>
 
       {loading && (
