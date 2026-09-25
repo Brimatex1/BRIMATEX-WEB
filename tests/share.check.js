@@ -114,6 +114,10 @@ function unitPart() {
   ok('schema: منتج بعروض بالدينار', ld?.offers?.['@type'] === 'AggregateOffer' && ld.offers.priceCurrency === 'LYD' && ld.offers.lowPrice === 640 && ld.offers.highPrice === 720, JSON.stringify(ld?.offers));
   ok('schema: التقييم', ld?.aggregateRating?.ratingValue === 4.5 && ld.aggregateRating.reviewCount === 2 && ld.review?.[0]?.author?.name === 'سالم');
   ok('schema: </script> في تقييم لا يكسر الصفحة', !page.includes('<script>alert') && ld.review[0].reviewBody.includes('</script>'));
+  const tierPage = share.render('<html><head><title>x</title></head></html>', '/shop', '?category=comfort&q=x', { products: [product], banners: [], origin });
+  ok('صفحة فئة: عنوانها ورابطها الأساسي', tierPage.includes('<title>مراتب كومفورت — بريماتكس</title>') && tierPage.includes('<link rel="canonical" href="https://brimatex.ly/shop?category=comfort" />'));
+  const unknownTier = share.render('<html><head><title>x</title></head></html>', '/shop', '?category=nope', { products: [product], banners: [], origin });
+  ok('فئة غير موجودة: رابط المتجر', unknownTier.includes('<link rel="canonical" href="https://brimatex.ly/shop" />'));
   ok('schema: الرئيسية تسمّي المتجر فقط', share.structuredData({ type: 'website' }, { origin }, origin).every((b) => b['@type'] === 'Organization'));
 
   const noPicture = { id: 300, name: 'No Picture', price: 700, inStock: true };

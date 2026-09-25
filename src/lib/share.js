@@ -41,8 +41,24 @@ function priceFrom(product) {
  * The page's title, description, picture and type for an address.
  * `products` is the public catalogue; `banners` the home banners.
  */
-function describe(pathname, { products, banners, origin }) {
+function describe(pathname, { products, banners, origin }, search = '') {
   const fallbackImage = banners[0] ? new URL(banners[0].imageUrl, origin).href : null;
+
+  // A tier's page (/shop?category=premium) is its own page - its own title and
+  // canonical address. With /shop as its canonical, Google would drop it as a
+  // duplicate although the sitemap lists it.
+  const category = /^\/shop\/?$/.test(pathname) ? new URLSearchParams(search).get('category') : null;
+  const tier = category ? products.find((p) => p.tier?.key === category)?.tier : null;
+  if (tier) {
+    const items = products.filter((p) => p.tier?.key === tier.key);
+    return {
+      title: `مراتب ${tier.name} — ${SITE_NAME}`,
+      description: `مراتب بريماتكس من فئة ${tier.name} (${items.length}) — الدفع عند الاستلام وتوصيل مجاني لباب بيتك.`,
+      image: firstImage(items, origin) || fallbackImage,
+      type: 'website',
+      canonicalPath: `/shop?category=${encodeURIComponent(tier.key)}`,
+    };
+  }
 
   const productMatch = pathname.match(/^\/product\/(\d+)\/?$/);
   if (productMatch) {
@@ -170,10 +186,10 @@ function structuredData(page, context, url) {
  * the Open Graph / Twitter tags added before </head>.
  */
 function render(shell, pathname, search, context) {
-  const page = describe(pathname, context);
+  const page = describe(pathname, context, search);
   const url = context.origin + pathname + (search || '');
   const tags = [
-    `<link rel="canonical" href="${escapeHtml(context.origin + pathname)}" />`,
+    `<link rel="canonical" href="${escapeHtml(context.origin + (page.canonicalPath || pathname))}" />`,
     `<meta property="og:site_name" content="${SITE_NAME}" />`,
     `<meta property="og:locale" content="ar_LY" />`,
     `<meta property="og:type" content="${page.type}" />`,
