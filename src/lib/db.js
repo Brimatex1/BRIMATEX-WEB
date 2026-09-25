@@ -245,6 +245,16 @@ create table if not exists reviews (
   created_at timestamptz not null default now(),
   unique (user_id, product_id, order_name)
 );
+-- Reviews show on the product page as soon as they are written; an admin can
+-- hide one from the dashboard.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'reviews' and column_name = 'hidden'
+  ) then
+    alter table reviews add column hidden boolean not null default false;
+  end if;
+end $$;
 `;
 
 let migrated = false;

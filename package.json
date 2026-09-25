@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/postgres92.check.js && node tests/brand.check.js && node tests/sellable.check.js && node tests/order-sync.check.js && node tests/idempotency.check.js && node tests/auth.check.js && node tests/admin.check.js && node tests/user.check.js && node tests/routes-coverage.check.js && node tests/meta-capi.check.js && node tests/perks.check.js && node tests/avatar.check.js && node tests/tiers.check.js && node tests/banners.check.js && node tests/share.check.js && node tests/smoke.test.js",
+    "test": "node tests/postgres92.check.js && node tests/brand.check.js && node tests/sellable.check.js && node tests/order-sync.check.js && node tests/idempotency.check.js && node tests/auth.check.js && node tests/admin.check.js && node tests/user.check.js && node tests/routes-coverage.check.js && node tests/meta-capi.check.js && node tests/perks.check.js && node tests/avatar.check.js && node tests/tiers.check.js && node tests/banners.check.js && node tests/share.check.js && node tests/reviews.check.js && node tests/smoke.test.js",
     "setup": "npm --prefix web install",
     "postinstall": "[ -d web ] && npm --prefix web install || true",
     "build": "npm --prefix web install && npm --prefix web run build",

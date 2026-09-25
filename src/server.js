@@ -18,6 +18,7 @@ const path = require('path');
 const odoo = require('./lib/odoo');
 const banners = require('./lib/banners');
 const share = require('./lib/share');
+const perksLib = require('./lib/perks');
 const metaFeed = require('./lib/metaFeed');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
@@ -227,6 +228,18 @@ async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
     return sendJson(res, 200, { ...result, products: visibleOnly(result.products) });
+  }
+
+  // A product's reviews, from customers who bought it (src/lib/perks.js). A
+  // product's sizes are separate ids, and a review is of the size bought, so
+  // the reviews of every size show on the product.
+  const reviewsMatch = url.pathname.match(/^\/api\/products\/(\d+)\/reviews$/);
+  if (req.method === 'GET' && reviewsMatch) {
+    const id = Number(reviewsMatch[1]);
+    const { products } = await getProducts();
+    const product = products.find((p) => p.id === id || (p.variants ?? []).some((v) => v.id === id));
+    const ids = product ? [product.id, ...(product.variants ?? []).map((v) => v.id)] : [id];
+    return sendJson(res, 200, await perksLib.publicReviews(ids));
   }
 
   // The home page's sliding banners - set from the dashboard (src/lib/banners.js).

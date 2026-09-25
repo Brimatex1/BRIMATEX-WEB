@@ -1,5 +1,6 @@
 import type {
   Address,
+  AdminReview,
   Banner,
   AdminCustomer,
   AdminOrder,
@@ -14,6 +15,7 @@ import type {
   OdooSettings,
   Perks,
   Product,
+  ProductReviews,
   Voucher,
   ProductOverrides,
   Role,
@@ -75,6 +77,14 @@ function authHeaders(token: string): RequestInit {
 export const api = {
   getProducts: () =>
     request<{ source: string; products: Product[] }>('/api/products'),
+
+  /** Reviews of a product (all its sizes), from customers who bought it. */
+  getProductReviews: (productId: number) => request<ProductReviews>(`/api/products/${productId}/reviews`),
+
+  adminReviews: (token: string) => request<{ reviews: AdminReview[] }>('/api/admin/reviews', authHeaders(token)),
+
+  adminSetReviewHidden: (token: string, id: string, hidden: boolean) =>
+    request<{ id: string; hidden: boolean }>(`/api/admin/reviews/${id}`, { ...jsonBody({ hidden }, token), method: 'PATCH' }),
 
   /** The home page's sliding banners. */
   getBanners: () => request<{ banners: Banner[] }>('/api/banners'),

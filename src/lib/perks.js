@@ -21,6 +21,7 @@ const crypto = require('crypto');
 const db = require('./db');
 const orders = require('./orders');
 const auth = require('./auth');
+const catalogue = require('./catalogue');
 
 const store = db.isConfigured() ? require('./store/pg-perks') : require('./store/file-perks');
 
@@ -250,6 +251,17 @@ async function listReviews(userId) {
  * A review of something the customer bought: the order must be theirs. One
  * review per product per order - the reviewer reward cannot be farmed.
  */
+/** Is `pid` a line of the order - the size bought, or the product card that size belongs to? */
+async function orderHasProduct(order, pid) {
+  const lineIds = (order.items || []).map((i) => Number(i.productId));
+  if (lineIds.includes(pid)) return true;
+  // Throws when the catalogue cannot be read, so a review is retried later
+  // rather than refused for good over an Odoo outage.
+  const { products } = await catalogue.getProducts();
+  const card = products.find((p) => p.id === pid);
+  return Boolean(card && (card.variants ?? []).some((v) => lineIds.includes(v.id)));
+}
+
 async function addReview(userId, { productId, orderName, rating, comment }) {
   const pid = Number(productId);
   const stars = Number(rating);
@@ -258,6 +270,13 @@ async function addReview(userId, { productId, orderName, rating, comment }) {
   if (!Number.isInteger(stars) || stars < 1 || stars > 5) return { error: 'التقييم من 1 إلى 5' };
   const order = (await orders.listOrdersForUser(userId)).find((o) => o.orderName === name);
   if (!order) return { error: 'الطلب غير موجود في حسابك' };
+  // Reviews show on the product page, so each must come from someone who
+  // bought that very product - not just from someone with some order. An
+  // order line holds the size bought; the app reviews the product card (as
+  // the product page shows reviews of every size), so either id counts.
+  if (!(await orderHasProduct(order, pid))) {
+    return { error: 'هذا المنتج ليس في الطلب' };
+  }
 
   const review = {
     id: crypto.randomUUID(),
@@ -270,6 +289,62 @@ async function addReview(userId, { productId, orderName, rating, comment }) {
   const added = await store.addReview(userId, review);
   if (!added) return { error: 'قيّمت هذا المنتج في هذا الطلب من قبل' };
   return { review };
+}
+
+/** "محمد بن علي" -> "محمد": a review shows its author's first name, nothing more. */
+function firstName(name) {
+  return String(name || '').trim().split(/\s+/)[0] || 'زبون';
+}
+
+async function namesOf(reviews) {
+  const ids = [...new Set(reviews.map((r) => r.userId))];
+  const users = await Promise.all(ids.map((id) => auth.getUser(id).catch(() => null)));
+  return new Map(ids.map((id, i) => [id, users[i]]));
+}
+
+/**
+ * What the product page shows: the visible reviews of any of `productIds` (a
+ * product's sizes are separate ids, and a review is of the size bought), with
+ * the average and the count. Author: first name only.
+ */
+async function publicReviews(productIds) {
+  const ids = new Set(productIds.map(Number));
+  const reviews = (await store.listAllReviews()).filter((r) => !r.hidden && ids.has(Number(r.productId)));
+  const users = await namesOf(reviews);
+  const count = reviews.length;
+  const average = count ? Math.round((reviews.reduce((t, r) => t + r.rating, 0) / count) * 10) / 10 : null;
+  return {
+    count,
+    average,
+    reviews: reviews.slice(0, 20).map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      name: firstName(users.get(r.userId)?.name),
+      createdAt: r.createdAt,
+    })),
+  };
+}
+
+/** Every review for the dashboard, hidden ones included, with the author's full name and phone. */
+async function adminReviews() {
+  const reviews = await store.listAllReviews();
+  const users = await namesOf(reviews);
+  return reviews.map((r) => ({
+    id: r.id,
+    productId: r.productId,
+    orderName: r.orderName,
+    rating: r.rating,
+    comment: r.comment,
+    createdAt: r.createdAt,
+    hidden: r.hidden,
+    name: users.get(r.userId)?.name || '—',
+    phone: users.get(r.userId)?.phone || null,
+  }));
+}
+
+async function setReviewHidden(id, hidden) {
+  return store.setReviewHidden(String(id), Boolean(hidden));
 }
 
 module.exports = {
@@ -288,4 +363,7 @@ module.exports = {
   attachVoucherToOrder,
   listReviews,
   addReview,
+  publicReviews,
+  adminReviews,
+  setReviewHidden,
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BadgeCheck, Check } from 'lucide-react';
 
+import { ProductReviews } from '@/components/app/ProductReviews';
 import { AppCard, HeartButton, NewItemCard, Pill, ProductImage, SectionTitle } from '@/components/app/ui';
 import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
 import { openSupport } from '@/lib/support';
@@ -187,6 +188,8 @@ export function ProductScreen({
           </div>
         </AppCard>
       )}
+
+      <ProductReviews productId={product.id} />
 
       <AppCard className="mb-4">
         <SectionTitle>لماذا بريماتكس</SectionTitle>

@@ -104,6 +104,21 @@ async function addReview(userId, review) {
   return true;
 }
 
+async function listAllReviews() {
+  return read()
+    .reviews.map((r) => ({ ...r, hidden: Boolean(r.hidden) }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+async function setReviewHidden(id, hidden) {
+  const data = read();
+  const review = data.reviews.find((r) => r.id === id);
+  if (!review) return false;
+  review.hidden = hidden;
+  write(data);
+  return true;
+}
+
 module.exports = {
   listUnlocks,
   addUnlock,
@@ -115,4 +130,6 @@ module.exports = {
   setUseOrder,
   listReviews,
   addReview,
+  listAllReviews,
+  setReviewHidden,
 };

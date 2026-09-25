@@ -27,6 +27,36 @@ export interface ProductVariant {
   inStock?: boolean;
 }
 
+/** One review as the product page shows it - the author's first name only. */
+export interface PublicReview {
+  id: string;
+  rating: number;
+  comment: string;
+  name: string;
+  createdAt: string;
+}
+
+/** GET /api/products/:id/reviews. */
+export interface ProductReviews {
+  count: number;
+  /** One decimal; null with no reviews. */
+  average: number | null;
+  reviews: PublicReview[];
+}
+
+/** A review as the dashboard lists it - hidden ones included, with the author. */
+export interface AdminReview {
+  id: string;
+  productId: number;
+  orderName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  hidden: boolean;
+  name: string;
+  phone: string | null;
+}
+
 /** A picture in the home page's sliding banner - set from the dashboard (src/lib/banners.js). */
 export interface Banner {
   id: string;

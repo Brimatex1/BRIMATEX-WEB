@@ -117,6 +117,29 @@ async function listReviews(userId) {
   }));
 }
 
+/** Every review, with its author and whether it is hidden - newest first. */
+async function listAllReviews() {
+  const { rows } = await db.query(
+    'select id, user_id, product_id, order_name, rating, comment, created_at, hidden from reviews order by created_at desc'
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    productId: r.product_id,
+    orderName: r.order_name,
+    rating: r.rating,
+    comment: r.comment,
+    createdAt: new Date(r.created_at).toISOString(),
+    hidden: r.hidden,
+  }));
+}
+
+/** False when there is no such review. */
+async function setReviewHidden(id, hidden) {
+  const { rowCount } = await db.query('update reviews set hidden = $2 where id = $1', [id, hidden]);
+  return rowCount > 0;
+}
+
 /** False when this product in this order is already reviewed. */
 async function addReview(userId, review) {
   try {
@@ -142,4 +165,6 @@ module.exports = {
   setUseOrder,
   listReviews,
   addReview,
+  listAllReviews,
+  setReviewHidden,
 };

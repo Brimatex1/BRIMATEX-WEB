@@ -26,6 +26,7 @@ const db = require('../lib/db');
 const odooStatus = require('../lib/odooStatus');
 const catalogue = require('../lib/catalogue');
 const banners = require('../lib/banners');
+const perks = require('../lib/perks');
 const { getProducts } = catalogue;
 const { sendJson, readBody } = require('../lib/respond');
 const { sniff } = require('../lib/avatar');
@@ -330,6 +331,28 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       const imageUrl = `/uploads/products/${filename}`;
       const saved = await productOverrides.setOverridesForProduct(productId, { imageUrl });
       return sendJson(res, 200, { productId, ...saved });
+    }
+
+    // ---- Customer reviews: shown as written, hidden from here ----
+
+    if (req.method === 'GET' && url.pathname === '/api/admin/reviews') {
+      if (!(await requireAdmin(req, res))) return;
+      return sendJson(res, 200, { reviews: await perks.adminReviews() });
+    }
+
+    const reviewMatch = url.pathname.match(/^\/api\/admin\/reviews\/([0-9a-f-]{36})$/);
+    if (req.method === 'PATCH' && reviewMatch) {
+      if (!(await requireAdmin(req, res))) return;
+      let payload;
+      try {
+        payload = JSON.parse(await readBody(req));
+      } catch {
+        return sendJson(res, 400, { error: 'JSON غير صالح' });
+      }
+      if (typeof payload.hidden !== 'boolean') return sendJson(res, 400, { error: 'hidden يجب أن يكون true أو false' });
+      const found = await perks.setReviewHidden(reviewMatch[1], payload.hidden);
+      if (!found) return sendJson(res, 404, { error: 'التقييم غير موجود' });
+      return sendJson(res, 200, { id: reviewMatch[1], hidden: payload.hidden });
     }
 
     // ---- Home banners (src/lib/banners.js) ----

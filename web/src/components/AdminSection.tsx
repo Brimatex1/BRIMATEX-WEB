@@ -4,6 +4,7 @@ import {
   BarChart3,
   Boxes,
   Images,
+  Star,
   Package,
   Plug,
   RefreshCw,
@@ -14,6 +15,7 @@ import {
 import { toast } from 'sonner';
 
 import { BannersPanel } from '@/components/BannersPanel';
+import { ReviewsPanel } from '@/components/ReviewsPanel';
 import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
 import { OdooSettingsPanel } from '@/components/OdooSettingsPanel';
 import { ProductOverridesEditor } from '@/components/ProductOverridesEditor';
@@ -35,7 +37,7 @@ import type {
   User,
 } from '@/types';
 
-type Tab = 'overview' | 'orders' | 'products' | 'stock' | 'banners' | 'customers' | 'roles' | 'settings';
+type Tab = 'overview' | 'orders' | 'products' | 'stock' | 'banners' | 'reviews' | 'customers' | 'roles' | 'settings';
 
 const TABS: { id: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'overview', label: 'نظرة عامة', Icon: BarChart3 },
@@ -43,6 +45,7 @@ const TABS: { id: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { id: 'products', label: 'المنتجات', Icon: Boxes },
   { id: 'stock', label: 'المخزون', Icon: AlertTriangle },
   { id: 'banners', label: 'الإعلانات', Icon: Images },
+  { id: 'reviews', label: 'التقييمات', Icon: Star },
   { id: 'customers', label: 'العملاء', Icon: Users },
   { id: 'roles', label: 'الصلاحيات', Icon: ShieldCheck },
   { id: 'settings', label: 'الإعدادات', Icon: Plug },
@@ -705,6 +708,9 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
 
       {/* ---------------- صور الإعلانات ---------------- */}
       {!error && tab === 'banners' && token && <BannersPanel token={token} />}
+
+      {/* ---------------- التقييمات ---------------- */}
+      {!error && tab === 'reviews' && token && <ReviewsPanel token={token} />}
 
       {/* ---------------- الإعدادات ---------------- */}
       {!error && tab === 'settings' && token && (
