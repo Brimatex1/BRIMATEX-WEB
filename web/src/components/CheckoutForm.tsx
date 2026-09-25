@@ -113,7 +113,7 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
   });
 
   return (
-    <Card className="mt-6">
+    <Card>
       <CardHeader>
         <CardTitle>بيانات التوصيل</CardTitle>
         <CardDescription>لا حاجة لإنشاء حساب — أدخل بياناتك وسنتواصل معك.</CardDescription>
@@ -144,7 +144,7 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
                         return next;
                       });
                     }}
-                    className="min-h-9 rounded-full border px-4 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="min-h-9 rounded-md border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     {a.city} — {a.address}
                   </button>
@@ -258,8 +258,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
                       aria-pressed={on}
                       onClick={() => setVoucherCode(on ? null : v.code)}
                       className={cn(
-                        'rounded-full px-4 py-2.5 text-sm font-medium',
-                        on ? 'bg-app-ocean text-white' : 'bg-app-tint-soft text-app-ocean'
+                        'rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        on ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
                       )}
                     >
                       {v.title} · {discountLabel(v)}
@@ -270,13 +270,13 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
             </div>
           )}
 
-          <div className="space-y-1 rounded-[14px] bg-app-input p-4 text-sm">
+          <div className="space-y-1 rounded-lg bg-muted/60 p-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-app-muted">المجموع</span>
+              <span className="text-muted-foreground">المجموع</span>
               <span className="tabular">{formatPrice(subtotal)} د.ل</span>
             </div>
             {chosen && (
-              <div className="flex justify-between text-app-success">
+              <div className="flex justify-between text-success">
                 <span>{discountLabel(chosen)}</span>
                 <span className="tabular">- {formatPrice(discount)} د.ل</span>
               </div>

@@ -56,7 +56,7 @@ export function Avatar({ user, size = 52, className }: { user: User | null; size
     <span
       style={{ width: size, height: size, fontSize: size * 0.38 }}
       className={cn(
-        'grid shrink-0 place-items-center overflow-hidden rounded-full border-2 border-app-tint bg-app-tint-soft font-bold text-app-ocean',
+        'grid shrink-0 place-items-center overflow-hidden rounded-full border bg-secondary font-bold text-secondary-foreground',
         className
       )}
     >
@@ -117,10 +117,10 @@ export function AvatarPicker({
         onClick={() => input.current?.click()}
         disabled={busy}
         aria-label="تغيير الصورة الشخصية"
-        className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-ocean"
+        className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Avatar user={user} size={72} className={cn(busy && 'opacity-50')} />
-        <span className="absolute -bottom-0.5 -end-0.5 grid size-7 place-items-center rounded-full bg-app-ocean text-white ring-2 ring-white">
+        <span className="absolute -bottom-0.5 -end-0.5 grid size-7 place-items-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
           <Camera className="size-4" aria-hidden="true" />
         </span>
       </button>
@@ -129,12 +129,12 @@ export function AvatarPicker({
           type="button"
           onClick={() => input.current?.click()}
           disabled={busy}
-          className="text-sm font-semibold text-app-ocean"
+          className="text-sm font-semibold text-primary hover:underline"
         >
           {busy ? 'جارٍ الرفع…' : user.avatarUrl ? 'تغيير الصورة' : 'أضف صورة'}
         </button>
         {user.avatarUrl && (
-          <button type="button" onClick={() => void remove()} disabled={busy} className="text-sm text-app-muted">
+          <button type="button" onClick={() => void remove()} disabled={busy} className="text-sm text-muted-foreground hover:text-destructive">
             إزالة
           </button>
         )}

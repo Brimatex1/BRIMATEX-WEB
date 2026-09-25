@@ -1,11 +1,16 @@
-import { BedDouble, Check, Cloud, Heart, ShoppingBag, Smile, Star, type LucideIcon } from 'lucide-react';
+import { BedDouble, CalendarClock, Check, Cloud, Heart, ShoppingBag, Smile, Star, type LucideIcon } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { RewardIcon, Voucher } from '@/types';
 
 /*
- * Loyalty pieces from the iOS app (brimatex-ios/src/components/Perks.tsx):
- * the progress ring and the voucher ticket.
+ * Loyalty pieces shared by the vouchers and points screens (and checkout):
+ * the reward icons, the discount label, the progress ring and the voucher
+ * card. They mirror the iOS app's (brimatex-ios/src/components/Perks.tsx) in
+ * substance, drawn with the site's shadcn/ui primitives.
  */
 
 export const REWARD_ICONS: Record<RewardIcon, LucideIcon> = {
@@ -26,8 +31,9 @@ export function daysLeft(v: Voucher): number {
 }
 
 /**
- * Beads around a white circle - the completed share in Dark Ocean, the rest
- * light - with the reward's icon inside and a check once it is complete.
+ * Beads around a card-coloured circle - the completed share in the brand
+ * navy, the rest faint - with the reward's icon inside and a check once it is
+ * complete.
  */
 export function ProgressRing({
   ratio,
@@ -47,24 +53,25 @@ export function ProgressRing({
   return (
     <div className="relative" style={{ width: size, height: size }} aria-hidden="true">
       <div
-        className="absolute grid place-items-center rounded-full bg-white shadow-app-raised"
+        className="absolute grid place-items-center rounded-full border bg-card shadow-sm"
         style={{ inset: 12 }}
       >
-        <Icon className="text-app-ocean" style={{ width: size * 0.3, height: size * 0.3 }} />
+        <Icon className="text-primary" style={{ width: size * 0.3, height: size * 0.3 }} />
       </div>
       {Array.from({ length: beads }).map((_, i) => {
         const a = (-90 + (360 / beads) * i) * (Math.PI / 180);
         return (
           <span
             key={i}
-            className={cn('absolute size-1.5 rounded-full', i < done ? 'bg-app-ocean' : 'bg-app-tint')}
+            className={cn('absolute size-1.5 rounded-full', i < done ? 'bg-primary' : 'bg-primary/20')}
+            // Geometry, not layout: the beads sit on a circle, so physical offsets are intended
             style={{ left: size / 2 + r * Math.cos(a) - 3, top: size / 2 + r * Math.sin(a) - 3 }}
           />
         );
       })}
       {complete && (
-        <span className="absolute top-1.5 end-1.5 grid size-7 place-items-center rounded-full bg-app-success">
-          <Check className="size-4 text-white" />
+        <span className="absolute top-1.5 end-1.5 grid size-7 place-items-center rounded-full bg-success">
+          <Check className="size-4 text-success-foreground" />
         </span>
       )}
     </div>
@@ -72,9 +79,10 @@ export function ProgressRing({
 }
 
 /**
- * The voucher ticket: a frame in the brand colour (pink when about to expire,
- * grey once used or expired), "valid until" on top, a dashed tear line with a
- * notch at each end, then the icon, title, discount and code.
+ * The voucher as a card: the reward's icon, the discount in large type, the
+ * title and terms, then - under a dashed tear line - the code, the validity
+ * (in red when about to expire) and the voucher's state or, at checkout, the
+ * button that applies it. Used and expired vouchers are dimmed.
  */
 export function VoucherCard({
   voucher,
@@ -89,59 +97,61 @@ export function VoucherCard({
   const left = daysLeft(voucher);
   const active = voucher.state === 'active';
   const urgent = active && left <= 3;
-  const tone = urgent ? 'border-app-danger text-app-danger' : active ? 'border-app-ocean text-app-ocean' : 'border-app-muted text-app-muted';
   const until = new Date(voucher.validUntil).toLocaleDateString('ar-LY', { day: 'numeric', month: 'numeric', year: '2-digit' });
   const Icon = REWARD_ICONS[voucher.icon] ?? ShoppingBag;
+  const applicable = active && onApply;
 
   return (
-    <div className={cn('relative mb-4 rounded-[20px] border-2 bg-white', tone, !active && 'opacity-60')}>
-      <div className="flex items-center gap-2 px-4 pt-3">
-        <span className={cn('rounded-full px-3 py-1 text-xs font-semibold text-white', urgent ? 'bg-app-danger' : 'bg-app-ocean')}>
-          صالحة حتى {until}
+    <Card className={cn('overflow-hidden', urgent && 'border-destructive/50', !active && 'opacity-60')}>
+      <div className="flex items-start gap-4 p-5">
+        <span
+          className={cn(
+            'grid size-12 shrink-0 place-items-center rounded-lg',
+            active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+          )}
+        >
+          <Icon className="size-6" aria-hidden="true" />
         </span>
-        {urgent && <span className="text-xs text-app-danger">بقي {left <= 0 ? 'اليوم' : `${left} أيام`}</span>}
-        <span className="ms-auto text-sm font-bold">قسيمة</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">قسيمة</p>
+              <p className="text-2xl font-bold tracking-tight text-primary">{discountLabel(voucher)}</p>
+            </div>
+            {!applicable && (
+              <Badge variant={active ? 'success' : 'secondary'} className="shrink-0">
+                {active ? 'مُحصَّلة' : voucher.state === 'used' ? 'مستخدمة' : 'منتهية'}
+              </Badge>
+            )}
+          </div>
+          <p className="mt-2 font-semibold">{voucher.title}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{voucher.body}</p>
+        </div>
       </div>
 
-      {/* The tear line, with a notch cut into each side */}
-      <div className={cn('mx-4 mt-3 border-t-2 border-dashed', tone)} />
-      <span className={cn('absolute -start-[11px] top-[46px] size-5 rounded-full border-2 border-s-transparent bg-white', tone)} />
-      <span className={cn('absolute -end-[11px] top-[46px] size-5 rounded-full border-2 border-e-transparent bg-white', tone)} />
-
-      <div className="flex items-center gap-3 p-4">
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-[17px] font-bold text-app-text">
-            <Icon className="size-5 text-app-ocean" aria-hidden="true" />
-            {voucher.title}
-          </p>
-          <p className="mt-1 text-sm text-app-text">{voucher.body}</p>
-          <p className="mt-1 font-mono text-xs tracking-wider text-app-muted" dir="ltr">
-            {voucher.code}
-          </p>
-        </div>
-        {active && onApply ? (
-          <button
+      {/* The tear line: the code and validity below it, like a ticket stub */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-dashed bg-muted/40 px-5 py-3">
+        <code className="rounded-md border bg-background px-2.5 py-1 font-mono text-xs tracking-wider" dir="ltr">
+          {voucher.code}
+        </code>
+        <span className={cn('flex items-center gap-1.5 text-xs', urgent ? 'text-destructive' : 'text-muted-foreground')}>
+          <CalendarClock className="size-3.5" aria-hidden="true" />
+          صالحة حتى {until}
+          {urgent && <span className="font-medium">· بقي {left <= 0 ? 'اليوم' : `${left} أيام`}</span>}
+        </span>
+        {applicable && (
+          <Button
             type="button"
+            size="sm"
             onClick={() => onApply(voucher)}
             aria-pressed={applied}
-            className={cn(
-              'shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold',
-              applied ? 'bg-app-success text-white' : 'bg-app-ocean text-white'
-            )}
+            className={cn('ms-auto', applied && 'bg-success text-success-foreground hover:bg-success/90')}
           >
+            {applied && <Check aria-hidden="true" />}
             {applied ? 'مُطبَّقة' : 'استخدم'}
-          </button>
-        ) : (
-          <span
-            className={cn(
-              'shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold',
-              active ? 'bg-app-ocean text-white' : 'bg-app-input text-app-muted'
-            )}
-          >
-            {active ? 'مُحصَّلة' : voucher.state === 'used' ? 'مستخدمة' : 'منتهية'}
-          </span>
+          </Button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

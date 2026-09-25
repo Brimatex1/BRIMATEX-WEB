@@ -324,6 +324,7 @@ export default function App() {
             user={auth.user}
             products={catalogue.products}
             savedIds={wishlist.ids}
+            wishlistPending={wishlist.pending}
             onAdd={handleAdd}
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}

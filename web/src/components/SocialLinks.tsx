@@ -3,14 +3,19 @@ import { Facebook, Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * Store's social profiles. Instagram and TikTok are still placeholders
- * until those links are provided.
+ * The store's social profiles. Instagram and TikTok have no address yet; a
+ * link to "#" goes nowhere, so a profile shows only once its address is set
+ * here.
  */
-const LINKS = {
-  facebook: 'https://www.facebook.com/profile.php?id=100083078093248',
-  instagram: '#',
-  tiktok: '#',
-};
+const LINKS: { href: string; label: string; Icon: (props: { className?: string }) => JSX.Element }[] = [
+  {
+    href: 'https://www.facebook.com/profile.php?id=100083078093248',
+    label: 'بريماتكس على فيسبوك',
+    Icon: ({ className }) => <Facebook className={className} aria-hidden="true" />,
+  },
+  { href: '', label: 'بريماتكس على إنستقرام', Icon: ({ className }) => <Instagram className={className} aria-hidden="true" /> },
+  { href: '', label: 'بريماتكس على تيك توك', Icon: TikTokIcon },
+];
 
 interface SocialLinksProps {
   className?: string;
@@ -18,34 +23,19 @@ interface SocialLinksProps {
 
 export function SocialLinks({ className }: SocialLinksProps) {
   return (
-    <div className={cn('flex items-center gap-4', className)}>
-      <a
-        href={LINKS.facebook}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="بريماتكس على فيسبوك"
-        className="text-primary-foreground/70 transition-colors hover:text-primary-foreground"
-      >
-        <Facebook className="size-5" aria-hidden="true" />
-      </a>
-      <a
-        href={LINKS.instagram}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="بريماتكس على إنستقرام"
-        className="text-primary-foreground/70 transition-colors hover:text-primary-foreground"
-      >
-        <Instagram className="size-5" aria-hidden="true" />
-      </a>
-      <a
-        href={LINKS.tiktok}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="بريماتكس على تيك توك"
-        className="text-primary-foreground/70 transition-colors hover:text-primary-foreground"
-      >
-        <TikTokIcon className="size-5" />
-      </a>
+    <div className={cn('flex items-center gap-2', className)}>
+      {LINKS.filter((l) => l.href).map(({ href, label, Icon }) => (
+        <a
+          key={label}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={label}
+          className="grid size-9 place-items-center rounded-md border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Icon className="size-[18px]" />
+        </a>
+      ))}
     </div>
   );
 }

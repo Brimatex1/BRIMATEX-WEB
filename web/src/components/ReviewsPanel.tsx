@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Stars } from '@/components/app/ProductReviews';
+import { Stars } from '@/components/store/ProductReviewsSection';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react';
-import { BedDouble, Check, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BedDouble, Check, MessageCircle, RotateCcw } from 'lucide-react';
 
-import { AppCard, Pill, SectionTitle, StickyBar } from '@/components/app/ui';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   LINES,
   QUESTIONS,
@@ -26,11 +31,10 @@ interface QuizScreenProps {
 }
 
 /**
- * "Which mattress suits you?" - the iOS app's quiz screen (brimatex-ios/src/
- * screens/QuizScreen.tsx): an intro, the four questions with progress dots
- * and choice rows, then the recommendation with its specs, why it suits you,
- * and two alternatives. The questions and scoring are the app's own
- * (lib/mattressQuiz.ts); this screen only displays them.
+ * "Which mattress suits you?": an intro, the four questions one card at a
+ * time with a progress bar, then the recommendation with its specs, why it
+ * suits you, and two alternatives. The questions and scoring are the iOS
+ * app's own (lib/mattressQuiz.ts); this screen only displays them.
  *
  * A recommended line that is in the catalogue opens its product; one that is
  * not yet opens customer care under its name - never an "order" button that
@@ -45,6 +49,7 @@ export function QuizScreen({ products, productsReady, onOpen }: QuizScreenProps)
   const top = ranked ? LINES[ranked[0]] : null;
   const topProduct = top && productsReady ? findCatalogProduct(top, products) : undefined;
   const last = current === QUESTIONS.length - 1;
+  const step = `سؤال ${current + 1} من ${QUESTIONS.length}`;
 
   const toTop = () => window.scrollTo({ top: 0 });
 
@@ -68,171 +73,190 @@ export function QuizScreen({ products, productsReady, onOpen }: QuizScreenProps)
     toTop();
   }
 
-  const primary = 'w-full rounded-full bg-app-ocean py-4 text-[17px] font-semibold text-white disabled:opacity-45';
-
   return (
-    // Bottom padding keeps the content clear of the fixed action bar (phones)
-    <div className="mx-auto max-w-2xl px-5 pb-32 pt-5 md:px-8 md:pb-16 md:pt-10">
+    // Bottom padding keeps the content clear of the phone's fixed action bar
+    <div className="mx-auto max-w-2xl px-4 pb-28 pt-6 md:px-6 md:pb-10 md:pt-10">
       {phase === 'intro' && (
-        <div>
-          <div className="mb-7 grid h-[220px] place-items-center rounded-[28px] bg-[#e3f2fd]">
-            <BedDouble className="size-24 text-app-ocean" strokeWidth={1.5} aria-hidden="true" />
-          </div>
-          <h2 className="text-[26px] font-bold text-app-text">شن المرتبة المناسبة ليك؟</h2>
-          <p className="mt-3 text-[17px] leading-[30px] text-app-text">
-            {QUESTIONS.length} أسئلة بسيطة، وبنقترح عليك المرتبة الأقرب لنوم مريح فعلاً — بلا تعقيد ولا مبالغة.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 p-8 text-center md:p-10">
+            <span className="grid size-24 place-items-center rounded-full bg-secondary text-secondary-foreground">
+              <BedDouble className="size-12" strokeWidth={1.5} aria-hidden="true" />
+            </span>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">شن المرتبة المناسبة ليك؟</h1>
+            <p className="max-w-md leading-7 text-muted-foreground">
+              {QUESTIONS.length} أسئلة بسيطة، وبنقترح عليك المرتبة الأقرب لنوم مريح فعلاً — بلا تعقيد ولا مبالغة.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {phase === 'quiz' && (
-        <div>
-          <div className="mb-7 flex items-center justify-between">
-            <p className="text-base font-medium text-app-muted">
-              سؤال {current + 1} من {QUESTIONS.length}
-            </p>
-            <div className="flex gap-2" aria-hidden="true">
-              {QUESTIONS.map((_, i) => (
-                <span key={i} className={cn('size-5 rounded-full', i === current ? 'bg-app-ocean' : 'bg-app-tint')} />
-              ))}
+        <Card>
+          <CardHeader className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">{step}</p>
+              {/* Radix fills the bar from the left; flipped so it grows from the start in RTL */}
+              <Progress value={((current + 1) / QUESTIONS.length) * 100} aria-label={step} />
             </div>
-          </div>
-          <h2 className="mb-3 text-[28px] font-bold leading-10 text-app-text">{QUESTIONS[current].title}</h2>
-          <div role="radiogroup" aria-label={QUESTIONS[current].title}>
-            {QUESTIONS[current].options.map((option, i) => {
-              const checked = answers[current] === i;
-              return (
-                <button
-                  key={option.label}
-                  type="button"
-                  role="radio"
-                  aria-checked={checked}
-                  onClick={() => select(i)}
-                  className={cn(
-                    'mt-3 flex min-h-[60px] w-full items-center gap-3 rounded-[14px] p-4 text-start active:opacity-85',
-                    checked ? 'bg-app-tint' : 'bg-app-tint-soft'
-                  )}
-                >
-                  <span className={cn('grid size-[26px] shrink-0 place-items-center rounded-full', checked ? 'bg-app-ocean' : 'bg-white')}>
-                    {checked && <Check className="size-4 text-white" aria-hidden="true" />}
-                  </span>
-                  <span className={cn('flex-1 text-[17px] leading-[26px] text-app-text', checked && 'font-semibold')}>
-                    {option.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            <h1 id="quiz-question" className="text-xl font-bold leading-8 tracking-tight md:text-2xl">
+              {QUESTIONS[current].title}
+            </h1>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              // Remounted per question so focus and ids start fresh
+              key={current}
+              dir="rtl"
+              value={answers[current] === null ? '' : String(answers[current])}
+              onValueChange={(v) => select(Number(v))}
+              aria-labelledby="quiz-question"
+              className="gap-3"
+            >
+              {QUESTIONS[current].options.map((option, i) => {
+                const id = `quiz-${current}-${i}`;
+                return (
+                  <Label
+                    key={option.label}
+                    htmlFor={id}
+                    className={cn(
+                      'flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border p-4 text-base font-normal leading-6 text-foreground transition-colors hover:bg-muted',
+                      'has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-secondary has-[[data-state=checked]]:font-semibold',
+                      'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring'
+                    )}
+                  >
+                    <RadioGroupItem value={String(i)} id={id} className="size-5 shrink-0" />
+                    <span className="flex-1 text-start">{option.label}</span>
+                  </Label>
+                );
+              })}
+            </RadioGroup>
+          </CardContent>
+        </Card>
       )}
 
       {phase === 'result' && ranked && top && (
-        <div>
-          <div className="mb-4 flex items-center gap-2">
-            <Pill tone="success">النتيجة جاهزة</Pill>
-            <span className="rounded-full bg-app-ocean px-4 py-1.5 text-sm font-medium text-white">{top.tier}</span>
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="success">النتيجة جاهزة</Badge>
+              <Badge>{top.tier}</Badge>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{top.name}</h1>
+            <p className="text-lg text-muted-foreground">{top.tagline}</p>
+            <p className="leading-7">{top.desc}</p>
           </div>
-          <h2 className="text-[26px] font-bold text-app-text">{top.name}</h2>
-          <p className="mt-1 text-[17px] text-app-muted">{top.tagline}</p>
-          <p className="mb-5 mt-4 text-base leading-7 text-app-text">{top.desc}</p>
 
-          <AppCard className="mb-4">
-            <SectionTitle>المواصفات</SectionTitle>
-            <dl className="grid grid-cols-2 gap-4">
-              {top.specs.map(([key, value]) => (
-                <div key={key}>
-                  <dt className="text-sm text-app-muted">{key}</dt>
-                  <dd className="mt-0.5 text-base font-semibold text-app-text">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          </AppCard>
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">المواصفات</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-2 gap-4">
+                {top.specs.map(([key, value]) => (
+                  <div key={key} className="rounded-md bg-muted/60 p-3">
+                    <dt className="text-sm text-muted-foreground">{key}</dt>
+                    <dd className="mt-0.5 font-semibold">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
 
-          <AppCard className="mb-4">
-            <SectionTitle>{`ليش ${top.name} مناسبة ليك`}</SectionTitle>
-            {top.why.map((reason, i) => (
-              <div key={reason} className={cn('flex items-center gap-3 py-2.5', i > 0 && 'border-t border-app-divider')}>
-                <p className="flex-1 text-base leading-6 text-app-text">{reason}</p>
-                <span className="grid size-[26px] shrink-0 place-items-center rounded-full bg-app-success-bg">
-                  <Check className="size-[15px] text-app-success" aria-hidden="true" />
-                </span>
-              </div>
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">{`ليش ${top.name} مناسبة ليك`}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y">
+                {top.why.map((reason) => (
+                  <li key={reason} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-success/10 text-success">
+                      <Check className="size-3.5" aria-hidden="true" />
+                    </span>
+                    <p className="flex-1 leading-6">{reason}</p>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <section className="space-y-3">
+            <h2 className="text-xl font-bold">خيارات بديلة تقدر تشوفها</h2>
+            {[ranked[1], ranked[2]].map((id) => (
+              <Alternative key={id} id={id} product={productsReady ? findCatalogProduct(LINES[id], products) : undefined} onOpen={onOpen} />
             ))}
-          </AppCard>
+          </section>
 
-          <div className="mt-3">
-            <SectionTitle>خيارات بديلة تقدر تشوفها</SectionTitle>
-          </div>
-          {[ranked[1], ranked[2]].map((id) => (
-            <Alternative key={id} id={id} product={productsReady ? findCatalogProduct(LINES[id], products) : undefined} onOpen={onOpen} />
-          ))}
-
-          <button type="button" onClick={restart} className="mt-5 w-full text-center text-base text-app-muted underline-offset-4 hover:underline">
-            إعادة الاختبار من جديد
-          </button>
+          <Button variant="ghost" onClick={restart} className="w-full text-muted-foreground">
+            <RotateCcw /> إعادة الاختبار من جديد
+          </Button>
         </div>
       )}
 
-      <StickyBar>
+      {/* Phones: a bar fixed at the bottom; larger screens: the buttons in the flow */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:static md:z-auto md:mt-6 md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
         {phase === 'intro' ? (
-          <button type="button" onClick={() => setPhase('quiz')} className={primary}>
-            ابدأ الاختبار
-          </button>
+          <Button size="lg" onClick={() => setPhase('quiz')} className="w-full">
+            ابدأ الاختبار <ArrowLeft />
+          </Button>
         ) : phase === 'quiz' ? (
           <div className="flex gap-3">
             {current > 0 && (
-              <button type="button" onClick={back} className="rounded-full px-6 py-4 text-[17px] font-semibold text-app-ocean">
-                رجوع
-              </button>
+              <Button size="lg" variant="outline" onClick={back}>
+                <ArrowRight /> رجوع
+              </Button>
             )}
-            <button type="button" onClick={next} disabled={answers[current] === null} className={cn(primary, 'flex-1')}>
-              {last ? 'شوف النتيجة' : 'التالي'}
-            </button>
+            <Button size="lg" onClick={next} disabled={answers[current] === null} className="flex-1">
+              {last ? 'شوف النتيجة' : 'التالي'} <ArrowLeft />
+            </Button>
           </div>
         ) : !top ? null : !productsReady ? (
-          <button type="button" disabled className={primary}>
+          <Button size="lg" disabled className="w-full">
             …
-          </button>
+          </Button>
         ) : topProduct ? (
-          <button type="button" onClick={() => onOpen(topProduct)} className={primary}>
+          <Button size="lg" variant="accent" onClick={() => onOpen(topProduct)} className="w-full">
             اطلب {top.name} الآن
-          </button>
+          </Button>
         ) : (
           // Not in the catalogue yet: ask customer care about it by name.
-          <button
-            type="button"
+          <Button
+            size="lg"
             onClick={() => openSupport({ message: `أرغب في مرتبة ${top.name} (ترشيح اختبار اختيار المرتبة).\n` })}
-            className={primary}
+            className="w-full"
           >
-            اسأل عن {top.name}
-          </button>
+            <MessageCircle /> اسأل عن {top.name}
+          </Button>
         )}
-      </StickyBar>
+      </div>
     </div>
   );
 }
 
-/** An alternative line - tappable only when there is a product for it to open. */
+/** An alternative line - clickable only when there is a product for it to open. */
 function Alternative({ id, product, onOpen }: { id: LineId; product?: Product; onOpen: (product: Product) => void }) {
   const line = LINES[id];
+  // Spans only: a button may hold phrasing content, not a Card's divs
   const body = (
     <>
       <span className="flex-1">
-        <span className="block text-[17px] font-semibold text-app-text">
-          {line.name} <span className="text-sm font-normal text-app-muted">· {line.tier}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{line.name}</span>
+          <span className="rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">{line.tier}</span>
         </span>
-        <span className="mt-0.5 block text-sm leading-[21px] text-app-muted">{line.tagline}</span>
+        <span className="mt-1 block text-sm leading-5 text-muted-foreground">{line.tagline}</span>
       </span>
-      {product && (
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white text-app-ocean">
-          <ChevronLeft className="size-[18px]" aria-hidden="true" />
-        </span>
-      )}
+      {product && <ArrowLeft className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-1" aria-hidden="true" />}
     </>
   );
-  const row = 'mt-3 flex min-h-[60px] w-full items-center gap-3 rounded-[14px] bg-app-tint-soft p-4 text-start';
+  // The Card's own look, so the clickable and the static rows match
+  const row = 'flex w-full items-center gap-3 rounded-lg border bg-card p-4 text-start text-card-foreground shadow-sm';
   return product ? (
-    <button type="button" onClick={() => onOpen(product)} className={cn(row, 'active:opacity-85')}>
+    <button
+      type="button"
+      onClick={() => onOpen(product)}
+      className={cn(row, 'group transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+    >
       {body}
     </button>
   ) : (

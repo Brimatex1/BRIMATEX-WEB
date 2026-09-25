@@ -12,7 +12,9 @@ const Progress = React.forwardRef<
   <ProgressPrimitive.Root
     ref={ref}
     className={cn(
-      "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+      // rtl: mirrored, so the bar fills from the right in Arabic - Radix
+      // slides the indicator in from the left whatever the direction.
+      "relative h-2 w-full overflow-hidden rounded-full bg-primary/20 rtl:-scale-x-100",
       className
     )}
     {...props}
