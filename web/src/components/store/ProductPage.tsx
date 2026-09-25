@@ -256,7 +256,7 @@ export function ProductPage({
             <AccordionItem value="delivery">
               <AccordionTrigger>التوصيل والدفع</AccordionTrigger>
               <AccordionContent className="leading-7 text-muted-foreground">
-                نوصّل المرتبة لباب بيتك مجاناً، وتدفع ثمنها نقداً عند الاستلام — ما تدفع شي قبل ما تشوفها.
+                نوصّل المرتبة لباب بيتك مجاناً، وتدفع عند الاستلام — ما تدفع شي قبل ما تشوفها.
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="warranty">
