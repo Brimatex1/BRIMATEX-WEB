@@ -17,6 +17,8 @@ const fs = require('fs');
 const path = require('path');
 const odoo = require('./lib/odoo');
 const banners = require('./lib/banners');
+const share = require('./lib/share');
+const metaFeed = require('./lib/metaFeed');
 const whatsapp = require('./lib/whatsapp');
 const auth = require('./lib/auth');
 const otp = require('./lib/otp');
@@ -375,6 +377,9 @@ async function handleApi(req, res, url) {
   sendJson(res, 404, { error: 'Not found' });
 }
 
+const SHELL_CSP =
+  "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; connect-src 'self' https://www.facebook.com";
+
 function serveStatic(res, urlPath) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
   let filePath = path.join(PUBLIC_DIR, safePath === '/' ? 'index.html' : safePath);
@@ -401,7 +406,7 @@ function serveStatic(res, urlPath) {
     'X-Frame-Options': 'SAMEORIGIN',
   };
   if (ext === '.html') {
-    headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; connect-src 'self' https://www.facebook.com";
+    headers['Content-Security-Policy'] = SHELL_CSP;
     // The SPA shell must never be cached, or users get stale asset references.
     headers['Cache-Control'] = 'no-cache';
   } else if (path.relative(PUBLIC_DIR, filePath).replace(/\\/g, '/').startsWith('assets/')) {
@@ -414,11 +419,70 @@ function serveStatic(res, urlPath) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+/**
+ * The site's own address, for links a crawler follows. PUBLIC_URL wins; else
+ * the request's host - over https, except on this machine.
+ */
+function originOf(req) {
+  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/+$/, '');
+  const host = req.headers.host || 'localhost';
+  const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host);
+  return `${local ? 'http' : 'https'}://${host}`;
+}
+
+/** The public catalogue, or none - a share preview or a feed never takes the page down. */
+async function publicProducts() {
+  try {
+    return visibleOnly((await getProducts()).products);
+  } catch {
+    return [];
+  }
+}
+
+/** Would this address be answered with the store's app shell (rather than a file)? */
+function isShell(urlPath) {
+  // The same resolution as serveStatic, so the two never disagree about a path.
+  const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
+  const filePath = path.join(PUBLIC_DIR, safePath === '/' || safePath === '\\' ? 'index.html' : safePath);
+  if (!filePath.startsWith(PUBLIC_DIR)) return false;
+  if (filePath === path.join(PUBLIC_DIR, 'index.html')) return true;
+  if (!fs.existsSync(filePath)) return true;
+  return fs.statSync(filePath).isDirectory() && !fs.existsSync(path.join(filePath, 'index.html'));
+}
+
+/** The app shell with this address's share tags (src/lib/share.js). */
+async function serveShell(req, res, url) {
+  const shell = fs.readFileSync(path.join(PUBLIC_DIR, 'index.html'), 'utf8');
+  const html = share.render(shell, url.pathname, url.search, {
+    products: await publicProducts(),
+    banners: banners.list(),
+    origin: originOf(req),
+  });
+  res.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Content-Security-Policy': SHELL_CSP,
+    'Cache-Control': 'no-cache',
+  });
+  res.end(html);
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   try {
     if (url.pathname.startsWith('/api/')) {
       await handleApi(req, res, url);
+    } else if (req.method === 'GET' && url.pathname === '/feeds/meta-catalog.csv') {
+      // Meta's catalogue fetches this on a schedule - src/lib/metaFeed.js.
+      const { csv } = metaFeed.buildCsv(await publicProducts(), {
+        origin: originOf(req),
+        lydPerUsd: Number(settings.readPublicFacebookPixel().lydPerUsd) || 0,
+      });
+      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-cache' });
+      res.end(csv);
+    } else if ((req.method === 'GET' || req.method === 'HEAD') && isShell(url.pathname)) {
+      await serveShell(req, res, url);
     } else {
       serveStatic(res, url.pathname);
     }

@@ -205,7 +205,12 @@ async function fetchProducts() {
   const templates = await searchReadAll(
     'product.template',
     shopDomain(shop),
-    { fields: ['id', 'name', 'categ_id', 'product_variant_ids'] }
+    {
+      fields: ['id', 'name', 'categ_id', 'product_variant_ids', 'image_1920'],
+      // bin_size: the picture comes back as its size ("48.2 Kb") rather than
+      // the picture itself - all that is needed to know one exists.
+      context: { bin_size: true },
+    }
   );
   if (templates.length === 0) return [];
 
@@ -265,6 +270,9 @@ async function fetchProducts() {
       // rather than something read from a field. Revisit if pillows/bedding
       // ever get added to Odoo.
       category: 'mattress',
+      // Whether Odoo holds a picture - the share preview and Meta's catalogue
+      // need a real image, and /api/products/:id/image is a 404 without one.
+      hasImage: Boolean(t.image_1920),
       // Null for a product filed under Mattresses itself rather than a tier.
       tier: shop.tierByCategoryId.get(Array.isArray(t.categ_id) ? t.categ_id[0] : t.categ_id) ?? null,
       // A single-variant template (or one with no attributes at all) has
