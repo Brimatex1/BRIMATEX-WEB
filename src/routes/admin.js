@@ -28,6 +28,12 @@ const catalogue = require('../lib/catalogue');
 const banners = require('../lib/banners');
 const { getProducts } = catalogue;
 const { sendJson, readBody } = require('../lib/respond');
+const { sniff } = require('../lib/avatar');
+
+// Where uploaded product pictures are written. The upload below used this
+// name while it was defined only in server.js, so every upload threw a
+// ReferenceError and answered 502 - tests/share.check.js covers it now.
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 /** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('admin-route-not-handled');
@@ -302,16 +308,21 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       if (!match) {
         return sendJson(res, 400, { error: 'صيغة الصورة يجب أن تكون JPEG أو PNG أو WebP' });
       }
-      const [, ext, base64] = match;
+      const [, , base64] = match;
       const buffer = Buffer.from(base64, 'base64');
       if (buffer.length > 5_000_000) {
         return sendJson(res, 413, { error: 'حجم الصورة يتجاوز 5 ميجابايت' });
+      }
+      // The declared type is not trusted: the bytes decide, as for every other upload.
+      const ext = sniff(buffer);
+      if (!ext) {
+        return sendJson(res, 400, { error: 'الملف ليس صورة JPEG أو PNG أو WebP' });
       }
 
       const current = await productOverrides.getOverridesForProduct(productId);
       deleteUploadedFile(current.imageUrl);
 
-      const filename = `${productId}-${Date.now()}.${ext === 'jpg' ? 'jpeg' : ext}`;
+      const filename = `${productId}-${Date.now()}.${ext}`;
       const uploadsDir = path.join(PUBLIC_DIR, 'uploads', 'products');
       fs.mkdirSync(uploadsDir, { recursive: true });
       fs.writeFileSync(path.join(uploadsDir, filename), buffer);
