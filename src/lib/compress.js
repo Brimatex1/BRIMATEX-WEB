@@ -8,10 +8,10 @@
  * is most of the wait before the shop appears.
  *
  * - brotli when the browser offers it (all current ones do), else gzip.
- * - Files under public/ are compressed once, at brotli's best, off the main
- *   thread, and kept in memory by path and modification time - a deploy
- *   replaces the files, so the cache follows it. Fingerprinted assets are
- *   the same bytes for a year.
+ * - Files under public/ are compressed once and kept in memory by path and
+ *   modification time - a deploy replaces the files, so the cache follows
+ *   it. A fast pass serves at once while brotli's best runs off the main
+ *   thread and takes over; the app's scripts are warmed at start-up.
  * - Replies built per request (HTML, JSON, CSV) use a fast level: they change
  *   every time, and the saving is nearly all there at level 4-6.
  * - Small bodies (under 1 kB) and formats that are already compressed
@@ -20,6 +20,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 const zlib = require('zlib');
 const { promisify } = require('util');
 
@@ -82,26 +83,61 @@ function sendBody(req, res, status, headers, body) {
 const fileCache = new Map();
 const MAX_CACHED_FILES = 200;
 
+/**
+ * A file's compressed bytes: at once in a fast pass, while the best pass runs
+ * in the background and takes over when done. Brotli's best is ~10% smaller
+ * but takes seconds on the main script - the first visitors after a deploy
+ * used to wait for it; now they get the fast copy (tens of milliseconds).
+ */
 function compressedFile(filePath, stat, encoding) {
   const key = `${filePath}|${stat.mtimeMs}|${encoding}`;
   let entry = fileCache.get(key);
   if (!entry) {
-    entry = fs.promises.readFile(filePath).then((raw) =>
-      encoding === 'br'
-        ? brotli(raw, {
-            params: {
-              [zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY,
-              [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length,
-            },
-          })
-        : gzip(raw, { level: zlib.constants.Z_BEST_COMPRESSION })
-    );
+    entry = { best: null, fast: null };
+    entry.fast = fs.promises.readFile(filePath).then((raw) => {
+      const fast = compressSync(raw, encoding);
+      const best =
+        encoding === 'br'
+          ? brotli(raw, {
+              params: {
+                [zlib.constants.BROTLI_PARAM_QUALITY]: zlib.constants.BROTLI_MAX_QUALITY,
+                [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length,
+              },
+            })
+          : gzip(raw, { level: zlib.constants.Z_BEST_COMPRESSION });
+      best.then((buffer) => (entry.best = buffer)).catch(() => {});
+      return fast;
+    });
     // A failed read is not cached - the next request tries again.
-    entry.catch(() => fileCache.delete(key));
+    entry.fast.catch(() => fileCache.delete(key));
     if (fileCache.size >= MAX_CACHED_FILES) fileCache.delete(fileCache.keys().next().value);
     fileCache.set(key, entry);
   }
-  return entry;
+  return entry.best ? Promise.resolve(entry.best) : entry.fast;
+}
+
+/**
+ * Compresses the app's own scripts and styles right after the server starts,
+ * so the first visitor after a deploy already finds them ready.
+ */
+function warm(publicDir) {
+  const dir = path.join(publicDir, 'assets');
+  let files = [];
+  try {
+    files = fs.readdirSync(dir).filter((f) => /\.(js|css)$/.test(f));
+  } catch {
+    return;
+  }
+  for (const f of files) {
+    const filePath = path.join(dir, f);
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.size < MIN_BYTES) continue;
+      for (const encoding of ['br', 'gzip']) compressedFile(filePath, stat, encoding).catch(() => {});
+    } catch {
+      /* a file gone since the listing is skipped */
+    }
+  }
 }
 
 /**
@@ -123,4 +159,4 @@ async function sendFile(req, res, filePath, headers) {
   fs.createReadStream(filePath).pipe(res);
 }
 
-module.exports = { encodingFor, sendBody, sendFile, isText, MIN_BYTES };
+module.exports = { encodingFor, sendBody, sendFile, warm, isText, MIN_BYTES };

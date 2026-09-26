@@ -93,6 +93,19 @@ function decoded(res) {
     const feed = await get('/feeds/meta-catalog.csv', 'gzip');
     ok('ملف ميتا مضغوط ويُقرأ', feed.status === 200 && decoded(feed).toString('utf8').startsWith('id,'), JSON.stringify(feed.headers['content-encoding']));
 
+    console.log('\n\x1b[1m3ب. أول زائر بعد الرفع لا ينتظر\x1b[0m');
+    // A TrueType font: not warmed at start-up, and big enough that brotli's best takes a while.
+    const ttf = '/fonts/ibm-plex-sans-arabic-regular.ttf';
+    const ttfOnDisk = fs.readFileSync(path.join(publicDir, ttf));
+    const t0 = Date.now();
+    const first = await get(ttf, 'br');
+    const firstMs = Date.now() - t0;
+    ok(`الطلب الأول سريع (${firstMs} مللي ثانية)`, first.headers['content-encoding'] === 'br' && firstMs < 1000);
+    ok('ويُفكّ إلى الخط نفسه', decoded(first).equals(ttfOnDisk));
+    await new Promise((r) => setTimeout(r, 4000));
+    const later = await get(ttf, 'br');
+    ok('بعدها: الضغط الأفضل، والملف نفسه', decoded(later).equals(ttfOnDisk) && later.body.length <= first.body.length, `${first.body.length} → ${later.body.length}`);
+
     console.log('\n\x1b[1m4. ما لا يُضغط\x1b[0m');
     const img = await get(`/images/products/${image}`, 'br');
     ok('الصورة كما هي', img.status === 200 && !img.headers['content-encoding']);

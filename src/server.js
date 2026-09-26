@@ -35,7 +35,7 @@ const odooStatus = require('./lib/odooStatus');
 const { getProducts, visibleOnly, productLookup } = require('./lib/catalogue');
 const { PHOTO_PREFIX } = require('./lib/productPhotos');
 const { withPreorder } = require('./lib/preorder');
-const { sendBody, sendFile } = require('./lib/compress');
+const { sendBody, sendFile, warm } = require('./lib/compress');
 const { sendJson, readBody } = require('./lib/respond');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
@@ -565,6 +565,8 @@ async function start() {
   server.listen(PORT, () => {
     const mode = odoo.isConfigured() ? 'Odoo متصل' : 'وضع تجريبي (بدون أودو)';
     console.log(`متجر المراتب يعمل على http://localhost:${PORT} — ${mode}`);
+    // The app's scripts and styles, compressed before the first visitor asks (src/lib/compress.js).
+    setImmediate(() => warm(PUBLIC_DIR));
   });
 }
 
