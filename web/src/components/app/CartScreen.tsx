@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Check, HandCoins, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
 
 import { CheckoutForm } from '@/components/CheckoutForm';
+import { PreorderNotice, PreorderTag } from '@/components/store/PreorderNotice';
 import { findProduct, ProductImage, productLinkClick } from '@/components/store/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { trackInitiateCheckout, trackPurchase } from '@/lib/pixel';
+import { leadText, preorderLines } from '@/lib/preorder';
 import { openSupport } from '@/lib/support';
 import { formatPrice } from '@/lib/utils';
 import type { CartLine, OrderResult, Product, User, Voucher } from '@/types';
@@ -71,6 +73,11 @@ export function CartScreen({
 }: CartScreenProps) {
   const [checkingOut, setCheckingOut] = useState(false);
   const [result, setResult] = useState<OrderResult | null>(null);
+  // The pre-orders of the order just placed - kept, as the cart empties on success.
+  const [madeToOrder, setMadeToOrder] = useState<{ line: CartLine; leadDays: number | null }[]>([]);
+  // Which lines are pre-orders, from the current catalogue.
+  const preorders = preorderLines(lines, products);
+  const leadOf = new Map(preorders.map((p) => [p.line.id, p.leadDays]));
 
   const count = lines.reduce((n, l) => n + l.qty, 0);
   const inCart = new Set(lines.map((l) => l.id));
@@ -81,6 +88,7 @@ export function CartScreen({
   function handleSuccess(order: OrderResult) {
     // Read before onClear() empties the cart - the Pixel needs the purchased items.
     trackPurchase(order, lines);
+    setMadeToOrder(preorders);
     setResult(order);
     setCheckingOut(false);
     onClear();
@@ -123,6 +131,11 @@ export function CartScreen({
               </p>
             </div>
             {Boolean(result.discount) && <p className="text-sm text-success">وفّرت {formatPrice(result.discount!)} د.ل بالقسيمة</p>}
+            {madeToOrder.length > 0 && (
+              <p className="rounded-lg bg-accent/15 p-3 text-sm">
+                طلبك فيه طلب مسبق — {leadText(madeToOrder[0].leadDays)}، ويتصل بك فريقنا لتأكيد موعد التوصيل.
+              </p>
+            )}
             <Button
               variant="link"
               className="h-auto gap-1.5 p-0"
@@ -169,6 +182,7 @@ export function CartScreen({
           onSuccess={handleSuccess}
           onCancel={() => setCheckingOut(false)}
           vouchers={vouchers}
+          notice={<PreorderNotice items={preorders} />}
         />
       </div>
     );
@@ -199,6 +213,7 @@ export function CartScreen({
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-8">
+          <PreorderNotice items={preorders} />
           <Card>
             <ul className="divide-y">
               {lines.map((line) => {
@@ -222,6 +237,7 @@ export function CartScreen({
                         <div className="min-w-0">
                           <p className="line-clamp-2 font-medium leading-6">{line.name}</p>
                           <p className="mt-0.5 text-sm text-muted-foreground">{formatPrice(line.price)} د.ل للقطعة</p>
+                          {leadOf.has(line.id) && <PreorderTag leadDays={leadOf.get(line.id) ?? null} />}
                         </div>
                         <Button
                           variant="ghost"

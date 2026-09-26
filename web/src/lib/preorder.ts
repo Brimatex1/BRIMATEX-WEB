@@ -17,3 +17,24 @@ export function leadText(days: number | null | undefined): string {
   if (days <= 10) return `يُصنع خلال ${days} أيام`;
   return `يُصنع خلال ${days} يوماً`;
 }
+
+/** The size a cart line holds (or the card itself, for a product with no sizes). */
+function itemOf(products: Product[], id: number): { preorder: boolean; leadDays: number | null } | null {
+  for (const p of products) {
+    const size = (p.variants ?? []).find((v) => v.id === id);
+    if (size) return { preorder: size.preorder === true, leadDays: p.leadDays ?? null };
+    if (p.id === id) return { preorder: p.preorder === true, leadDays: p.leadDays ?? null };
+  }
+  return null;
+}
+
+/**
+ * The cart lines that are pre-orders, read from the current catalogue - not
+ * from the line, which may be days old - with how long each takes.
+ */
+export function preorderLines<T extends { id: number }>(lines: T[], products: Product[]): { line: T; leadDays: number | null }[] {
+  return lines.flatMap((line) => {
+    const item = itemOf(products, line.id);
+    return item?.preorder ? [{ line, leadDays: item.leadDays }] : [];
+  });
+}

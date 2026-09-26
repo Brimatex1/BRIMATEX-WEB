@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ interface CheckoutFormProps {
   onCancel: () => void;
   /** The signed-in customer's usable vouchers - one can go on the order. */
   vouchers?: Voucher[];
+  /** Said right above "confirm" - the pre-order notice, when the order holds one. */
+  notice?: ReactNode;
 }
 
 /** What a voucher takes off - the server computes the same (src/lib/perks.js). */
@@ -30,7 +32,7 @@ function estimateDiscount(v: Voucher, subtotal: number): number {
   return Math.round(Math.min(subtotal, amount) * 100) / 100;
 }
 
-export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers = [] }: CheckoutFormProps) {
+export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers = [], notice }: CheckoutFormProps) {
   const [voucherCode, setVoucherCode] = useState<string | null>(null);
   const subtotal = lines.reduce((n, l) => n + l.price * l.qty, 0);
   const chosen = vouchers.find((v) => v.code === voucherCode) ?? null;
@@ -286,6 +288,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
               <span className="tabular">{formatPrice(subtotal - discount)} د.ل</span>
             </div>
           </div>
+
+          {notice}
 
           <div className="flex flex-wrap gap-3">
             <Button type="submit" className="flex-1" loading={submitting}>

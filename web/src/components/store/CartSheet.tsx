@@ -1,6 +1,8 @@
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 
 import { findProduct, ProductImage } from '@/components/store/ProductCard';
+import { PreorderTag } from '@/components/store/PreorderNotice';
+import { preorderLines } from '@/lib/preorder';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -32,6 +34,7 @@ export function CartSheet({
   onCheckout: () => void;
 }) {
   const count = lines.reduce((n, l) => n + l.qty, 0);
+  const leadOf = new Map(preorderLines(lines, products).map((p) => [p.line.id, p.leadDays]));
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       {/* The cart slides in from the page's end side: the left, in Arabic */}
@@ -69,6 +72,7 @@ export function CartSheet({
                     <div className="flex min-w-0 flex-1 flex-col">
                       <p className="line-clamp-2 text-sm font-medium leading-5">{line.name}</p>
                       <p className="mt-1 text-sm font-semibold text-primary">{formatPrice(line.price)} د.ل</p>
+                      {leadOf.has(line.id) && <PreorderTag leadDays={leadOf.get(line.id) ?? null} />}
                       <div className="mt-auto flex items-center justify-between pt-2">
                         <div className="flex items-center rounded-md border">
                           <Button
