@@ -46,15 +46,16 @@ function updatesFromInvoice(inv) {
 
 /**
  * The customer's stage from the sale order in Odoo, following how the team
- * works: confirming the order ("we start preparing it"), validating its
- * delivery when it leaves the warehouse ("on its way"), recording the
- * payment on the invoice when the driver brings the cash ("delivered").
+ * works: confirming the order ("we start preparing it"), the warehouse
+ * validating its delivery slip when the goods leave with the driver ("on its
+ * way"), recording the payment on the invoice when the driver brings the cash
+ * ("delivered").
  */
 function stageFromOrder(p) {
   if (!p) return null;
   if (p.state === 'cancel') return 'cancelled';
   if (p.invoice?.state === 'posted' && PAID.has(p.invoice.paymentState)) return 'done';
-  if (p.deliveryStatus === 'partial' || p.deliveryStatus === 'full') return 'shipping';
+  if (p.shipment) return 'shipping';
   if (p.state === 'sale') return 'confirmed';
   return 'review';
 }
@@ -77,6 +78,11 @@ function updatesFromOrder(p) {
     invoiceStatus: INVOICE_STATUS[stage],
     paymentStatus: stage === 'done' ? 'paid' : 'unpaid',
   };
+  // The delivery slip that took it out, for the notification and the order page.
+  if (p.shipment) {
+    updates.shipmentName = p.shipment.name;
+    updates.shippedAt = p.shipment.doneAt;
+  }
   // The invoice's number once it has one - a draft is still "/" or empty.
   if (p.invoice?.name && p.invoice.name !== '/') {
     updates.odooInvoiceId = p.invoice.id;

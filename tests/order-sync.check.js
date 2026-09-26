@@ -170,11 +170,19 @@ group('6. وضعٌ تجريبي بلا أودو');
 group('7. طلبات الموقع والتطبيق: تتبع الطلب نفسه في أودو');
 // The team's steps: confirm the order, validate its delivery when it leaves,
 // record the payment on the invoice when the cash comes back.
-const progress = (state, deliveryStatus = 'pending', invoice = null) => ({ state, deliveryStatus, invoice });
+const SLIP = { name: 'FFG/OUT/00231', doneAt: '2026-09-26T13:33:19.000Z' };
+const progress = (state, delivered = 'pending', invoice = null) => ({
+  state,
+  shipment: delivered === 'full' || delivered === 'partial' ? SLIP : null,
+  invoice,
+});
 check('عرض سعر → قيد المراجعة', stageFromOrder(progress('draft')) === 'review');
 check('طلب مؤكَّد → مؤكَّد', stageFromOrder(progress('sale')) === 'confirmed');
-check('التسليم تأكّد → في الطريق', stageFromOrder(progress('sale', 'full')) === 'shipping');
-check('تسليم جزئي → في الطريق', stageFromOrder(progress('sale', 'partial')) === 'shipping');
+check('إذن التسليم تأكّد في المخزن → في الطريق', stageFromOrder(progress('sale', 'full')) === 'shipping');
+{
+  const u = updatesFromOrder(progress('sale', 'full'));
+  check('رقم الإذن وتاريخ الشحن يُحفظان', u.shipmentName === 'FFG/OUT/00231' && u.shippedAt === SLIP.doneAt);
+}
 check('فاتورة بلا دفع → ما زال في الطريق', stageFromOrder(progress('sale', 'full', { id: 9, name: 'INV/1', state: 'posted', paymentState: 'not_paid' })) === 'shipping');
 check('الدفع تسجّل → مكتمل', stageFromOrder(progress('sale', 'full', { id: 9, name: 'INV/1', state: 'posted', paymentState: 'paid' })) === 'done');
 check('دفع ينتظر مطابقة البنك → مكتمل', stageFromOrder(progress('sale', 'full', { id: 9, name: 'INV/1', state: 'posted', paymentState: 'in_payment' })) === 'done');

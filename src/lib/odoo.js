@@ -599,11 +599,12 @@ async function readInvoice(invoiceId) {
 }
 
 /**
- * Where each sale order stands in Odoo - the order's state, how far its
- * delivery went, and its customer invoice - keyed by order id. This is what
- * the team moves: they confirm the order, validate the delivery when it
- * leaves, and record the payment on the invoice. Orders gone from Odoo are
- * left out.
+ * Where each sale order stands in Odoo - the order's state, its delivery
+ * slip, and its customer invoice - keyed by order id. This is what the team
+ * moves: they confirm the order, the warehouse validates the delivery slip
+ * (stock.picking, e.g. FFG/OUT/00231) when the goods leave with the driver,
+ * and the payment is recorded on the invoice. Orders gone from Odoo are left
+ * out.
  */
 async function readOrdersProgress(orderIds) {
   const result = new Map();
@@ -611,13 +612,25 @@ async function readOrdersProgress(orderIds) {
   // `search` first: `read` fails outright on an id that no longer exists.
   const ids = await call('sale.order', 'search', [[['id', 'in', orderIds]]]);
   if (!ids.length) return result;
-  const orders = await readInBatches('sale.order', ids, { fields: ['state', 'delivery_status', 'invoice_ids'] });
+  const orders = await readInBatches('sale.order', ids, { fields: ['state', 'picking_ids', 'invoice_ids'] });
   const invoiceIds = [...new Set(orders.flatMap((o) => o.invoice_ids || []))];
   const invoices = invoiceIds.length
     ? await readInBatches('account.move', invoiceIds, { fields: ['name', 'state', 'payment_state', 'move_type'] })
     : [];
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
+  const pickingIds = [...new Set(orders.flatMap((o) => o.picking_ids || []))];
+  const pickings = pickingIds.length
+    ? await readInBatches('stock.picking', pickingIds, { fields: ['name', 'state', 'picking_type_code', 'date_done'] })
+    : [];
+  const pickingById = new Map(pickings.map((p) => [p.id, p]));
   for (const o of orders) {
+    // The latest delivery slip the warehouse validated: outgoing (a return
+    // comes back in), done. An order sent in parts has several; the first
+    // one done is what puts the order on its way.
+    const shipped = (o.picking_ids || [])
+      .map((id) => pickingById.get(id))
+      .filter((p) => p && p.picking_type_code === 'outgoing' && p.state === 'done')
+      .sort((a, b) => String(b.date_done).localeCompare(String(a.date_done)))[0];
     // The latest customer invoice still standing (not a refund, not cancelled).
     const invoice = (o.invoice_ids || [])
       .map((id) => invoiceById.get(id))
@@ -625,7 +638,9 @@ async function readOrdersProgress(orderIds) {
       .sort((a, b) => b.id - a.id)[0];
     result.set(o.id, {
       state: o.state || '',
-      deliveryStatus: o.delivery_status || '',
+      shipment: shipped
+        ? { name: shipped.name, doneAt: shipped.date_done ? new Date(odooTime(shipped.date_done)).toISOString() : null }
+        : null,
       invoice: invoice
         ? { id: invoice.id, name: invoice.name, state: invoice.state, paymentState: invoice.payment_state || '' }
         : null,

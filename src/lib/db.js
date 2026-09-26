@@ -138,6 +138,19 @@ do $$ begin
   end if;
 end $$;
 
+-- The delivery slip that took the order out of the warehouse (Odoo's
+-- stock.picking, e.g. FFG/OUT/00231) and when it was validated: the moment
+-- the customer is told the order is on its way.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'orders' and column_name = 'shipment_name'
+  ) then
+    alter table orders add column shipment_name text;
+    alter table orders add column shipped_at timestamptz;
+  end if;
+end $$;
+
 -- Push-notification devices. One row per Expo token; re-registering replaces
 -- it. last_order lets a guest who ordered without an account still be told
 -- when that one order moves.

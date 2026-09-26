@@ -39,9 +39,14 @@ const MESSAGES = {
     title: 'تم تأكيد طلبك',
     body: `أكّدنا طلبك ${name} وبدأنا تجهيزه. نخبرك عند الشحن.`,
   }),
-  shipping: (name) => ({
+  // Sent when the warehouse validates the order's delivery slip in Odoo: the
+  // goods have left with the driver. The slip's number is the team's own
+  // reference for the shipment.
+  shipping: (name, order) => ({
     title: 'طلبك في الطريق 🚚',
-    body: `طلبك ${name} خرج للتوصيل. يتصل بك المندوب لتأكيد الموعد.`,
+    body: order?.shipmentName
+      ? `طلبك ${name} طلع من المخزن مع السائق (إذن التسليم ${order.shipmentName}). يتصل بك قبل الوصول.`
+      : `طلبك ${name} خرج للتوصيل. يتصل بك المندوب لتأكيد الموعد.`,
   }),
   done: (name) => ({
     title: 'تم تسليم طلبك ✅',
@@ -89,7 +94,7 @@ async function notifyOrderStage(before, after) {
     });
     if (!targets.length) return { sent: 0, reason: 'no_devices' };
 
-    const { title, body } = build(after.orderName);
+    const { title, body } = build(after.orderName, after);
     const results = await send(
       targets.map((d) => ({
         to: d.token,

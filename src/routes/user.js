@@ -105,6 +105,9 @@ async function handleUserRoutes(req, res, url) {
       address: o.customer?.address || '',
       placedAt: o.placedAt,
       paidAt: o.paidAt || null,
+      // The delivery slip that took it out of the warehouse, and when.
+      shipmentName: o.shipmentName || null,
+      shippedAt: o.shippedAt || null,
     }));
 
     return sendJson(res, 200, { orders: result });

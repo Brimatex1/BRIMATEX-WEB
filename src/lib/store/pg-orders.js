@@ -21,6 +21,8 @@ function toOrder(row) {
     receivedAt: row.placed_at,
     placedAt: row.placed_at,
     paidAt: row.paid_at,
+    shipmentName: row.shipment_name || null,
+    shippedAt: row.shipped_at || null,
     requestId: row.request_id,
     channel: row.channel || null,
   };
@@ -127,6 +129,8 @@ const UPDATABLE_COLUMNS = {
   odooOrderId: 'odoo_order_id',
   odooInvoiceId: 'odoo_invoice_id',
   invoiceName: 'invoice_name',
+  shipmentName: 'shipment_name',
+  shippedAt: 'shipped_at',
 };
 
 async function updateOrder(orderName, updates) {
