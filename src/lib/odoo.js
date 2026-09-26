@@ -134,8 +134,14 @@ async function readInBatches(model, ids, kwargs) {
  * price is its item there; the product card's own price (lst_price) is only
  * the fallback for a size the list does not name. The card price is one
  * figure for every size, so reading it alone sold a 200x200 at a 90x190's
- * price. ODOO_PRICELIST_ID picks another list; otherwise it is found by name.
+ * price.
+ *
+ * The owner's choice: "أسعار المراتب - التجزئة", which is id 9 in Odoo. The
+ * id is what is used - it survives a rename, where a name does not - and the
+ * name is the fallback should that list ever be recreated under a new id.
+ * ODOO_PRICELIST_ID names another list.
  */
+const RETAIL_PRICELIST_ID = 9;
 const RETAIL_PRICELIST_NAME = 'أسعار المراتب - التجزئة';
 const PRICELIST_TTL_MS = 10 * 60 * 1000;
 let pricelistCache = { id: undefined, at: 0 };
@@ -144,9 +150,10 @@ async function retailPricelistId() {
   const configured = Number(process.env.ODOO_PRICELIST_ID);
   if (Number.isInteger(configured) && configured > 0) return configured;
   if (pricelistCache.id !== undefined && Date.now() - pricelistCache.at < PRICELIST_TTL_MS) return pricelistCache.id;
-  let rows = await call('product.pricelist', 'search_read', [[['name', '=', RETAIL_PRICELIST_NAME]]], { fields: ['id'], limit: 1 });
+  // The list itself, while it exists and is active; then the same name under a new id.
+  let rows = await call('product.pricelist', 'search_read', [[['id', '=', RETAIL_PRICELIST_ID], ['active', '=', true]]], { fields: ['id'], limit: 1 });
   if (!rows.length) {
-    rows = await call('product.pricelist', 'search_read', [[['name', 'ilike', 'التجزئة']]], { fields: ['id'], limit: 1 });
+    rows = await call('product.pricelist', 'search_read', [[['name', '=', RETAIL_PRICELIST_NAME]]], { fields: ['id'], limit: 1 });
   }
   pricelistCache = { id: rows[0]?.id ?? null, at: Date.now() };
   if (!pricelistCache.id) console.error('[Odoo] no retail price list found - using the product cards\' prices');

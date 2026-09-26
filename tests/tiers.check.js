@@ -77,7 +77,8 @@ function answer(model, method, args) {
   // The retail price list: one size priced on its own, one product for all its sizes,
   // and items the shop must skip - a quantity break, an expired price, a percentage rule.
   if (model === 'product.pricelist' && method === 'search_read') {
-    return JSON.stringify(args[0]).includes('أسعار المراتب - التجزئة') ? [{ id: 9 }] : [];
+    // Found by its id (9), the owner's retail list - a name search would be the fallback.
+    return JSON.stringify(args[0]).includes('["id","=",9]') ? [{ id: 9 }] : [];
   }
   if (model === 'product.pricelist.item' && method === 'search_read') {
     if (!JSON.stringify(args[0]).includes('["pricelist_id","=",9]')) return [];
@@ -147,7 +148,8 @@ function answer(model, method, args) {
     ok('بند بكمية دنيا أو منتهي لا يُعتمد: سعر البطاقة', comfort?.variants?.find((v) => v.id === 102)?.price === 720);
     ok('بند للمنتج كله يسعّر مقاساته', byName['Hotel Mattress']?.price === 1485);
     ok('قاعدة بنسبة لا تُعتمد: سعر البطاقة', byName['Daily Mattress']?.variants?.find((v) => v.id === 202)?.price === 150);
-    ok('يقرأ قائمة التجزئة بالاسم', calls.some((c) => c.model === 'product.pricelist'));
+    const plCall = calls.find((c) => c.model === 'product.pricelist');
+    ok('قائمة «أسعار المراتب - التجزئة» برقمها في أودو (9)', JSON.stringify(plCall?.args[0]).includes('["id","=",9]'), JSON.stringify(plCall?.args[0]));
 
     hasRoot = false;
     ok('بلا فئة Mattresses: لا منتجات', (await odooLib.fetchProducts()).length === 0);
