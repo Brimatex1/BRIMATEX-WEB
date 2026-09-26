@@ -11,6 +11,7 @@ import { trackingContext } from '@/lib/pixel';
 import { discountLabel } from '@/components/app/perks';
 import { cn, formatPrice, phoneIsValid } from '@/lib/utils';
 import type { CartLine, Customer, OrderResult, User, Voucher } from '@/types';
+import { setPixelPerson } from '@/lib/pixel';
 
 type FieldKey = 'name' | 'phone' | 'city' | 'address';
 
@@ -98,6 +99,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
         trackingContext(),
         chosen?.code ?? null
       );
+      // Advanced Matching: the Purchase that follows carries who ordered (hashed).
+      await setPixelPerson({ id: user?.id, name: form.name, phone: form.phone, city: form.city });
       onSuccess(result);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر إتمام الطلب');

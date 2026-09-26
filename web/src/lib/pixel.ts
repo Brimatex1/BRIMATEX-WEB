@@ -1,5 +1,6 @@
 import type { CartLine, OrderResult, Product } from '@/types';
 import { CURRENCY_ISO } from './utils';
+import { matchData, type PixelPerson } from '@/lib/pixelMatch';
 
 // Meta (Facebook) Pixel — admin-configurable from the dashboard, applies to
 // every page and product automatically because every call here reads real
@@ -27,6 +28,10 @@ let pending: [string, Params, Options][] | null = [];
 
 /** Dinars to one dollar, from the dashboard. Null: report in LYD as-is. */
 let lydPerUsd: number | null = null;
+/** The Pixel ID once initialised - Advanced Matching re-inits with it when the visitor becomes known. */
+let activePixelId: string | null = null;
+/** Hashed person fields (lib/pixelMatch.ts) - sent with init, or with a re-init once known. */
+let personData: Record<string, string> | null = null;
 
 /**
  * Inserts Meta's loader script and calls fbq('init', ...). Safe to call once.
@@ -64,7 +69,8 @@ export function initPixel(pixelId: string, rate?: number | null) {
     s?.parentNode?.insertBefore(t, s);
   })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
-  window.fbq?.('init', pixelId);
+  activePixelId = pixelId;
+  window.fbq?.('init', pixelId, personData ?? undefined);
   for (const [event, params, options] of pending ?? []) send(event, params, options);
   pending = null;
 }
@@ -76,6 +82,24 @@ function send(event: string, params?: Params, options?: Options) {
   }
   if (options) window.fbq?.('track', event, params, options);
   else window.fbq?.('track', event, params);
+}
+
+/**
+ * Advanced Matching: tells the Pixel who the visitor is - a signed-in
+ * customer, or one who has just typed their details at checkout - hashed
+ * (lib/pixelMatch.ts). Before the Pixel starts, the data waits for init;
+ * after, a re-init with the same ID updates it, as Meta documents for pages
+ * that learn who the visitor is later. Awaited before a purchase is tracked,
+ * so the Purchase event carries it. Null forgets the person (signing out).
+ */
+export async function setPixelPerson(person: PixelPerson | null) {
+  if (typeof window === 'undefined' || !crypto?.subtle) return;
+  try {
+    personData = person ? await matchData(person) : null;
+  } catch {
+    return;
+  }
+  if (initialized && activePixelId) window.fbq?.('init', activePixelId, personData ?? {});
 }
 
 /** The shop's own address - brimatex.ly or a subdomain of it. */

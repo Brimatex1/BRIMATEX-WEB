@@ -17,7 +17,7 @@ import { usePerks } from '@/hooks/usePerks';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
-import { captureClickId, disablePixel, initPixel, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
+import { captureClickId, disablePixel, initPixel, setPixelPerson, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
 import { titleFor } from '@/lib/pageTitle';
 import { parseRoute, routePath, type Route } from '@/lib/route';
 import { tiersOf, type TierFilter } from '@/lib/tiers';
@@ -86,6 +86,12 @@ export default function App() {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Advanced Matching: a signed-in customer is known to the Pixel (hashed, lib/pixelMatch.ts); signing out forgets them.
+  useEffect(() => {
+    const u = auth.user;
+    void setPixelPerson(u ? { id: u.id, name: u.name, phone: u.phone, city: u.addresses?.[0]?.city } : null);
+  }, [auth.user]);
 
   /** Puts a route on screen. Shared by in-app navigation and the back button. */
   function show(route: Route) {
