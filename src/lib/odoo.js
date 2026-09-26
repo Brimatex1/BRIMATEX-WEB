@@ -410,6 +410,37 @@ async function findOrCreatePartner(customer) {
   ]);
 }
 
+/**
+ * The mark every order from the website or the app carries in Odoo, so the
+ * team can filter them: a tag on the customer and on the order, and the
+ * order's source - Odoo copies the source onto the invoice made from it
+ * (invoices here have no tags). Each is found by name, or created once.
+ */
+const SHOP_MARK = 'E-COMMERCE';
+const shopMarkIds = {};
+
+async function shopMark(model) {
+  if (!shopMarkIds[model]) {
+    const [found] = await call(model, 'search', [[['name', '=', SHOP_MARK]]], { limit: 1 });
+    shopMarkIds[model] = found || (await call(model, 'create', [{ name: SHOP_MARK }]));
+  }
+  return shopMarkIds[model];
+}
+
+/** The three marks; null when Odoo refuses one - an order is never lost to a tag. */
+async function shopMarks() {
+  try {
+    return {
+      customerTag: await shopMark('res.partner.category'),
+      orderTag: await shopMark('crm.tag'),
+      source: await shopMark('utm.source'),
+    };
+  } catch (err) {
+    console.error('[Odoo] E-COMMERCE tags unavailable:', err.message);
+    return null;
+  }
+}
+
 /** default_code of the service product every voucher discount line uses. */
 const DISCOUNT_CODE = 'BRX-DISCOUNT';
 let discountProductId = null;
@@ -478,10 +509,18 @@ async function createSaleOrder(customer, items, note, discount = null) {
   // The order is priced on the same list the shop shows, whatever the
   // customer's own default list - so Odoo's total is the one they saw.
   const pricelistId = await retailPricelistId().catch(() => null);
+  const marks = await shopMarks();
+  if (marks) {
+    // [4, id] adds the tag and keeps the customer's others.
+    await call('res.partner', 'write', [[partnerId], { category_id: [[4, marks.customerTag]] }]).catch((err) =>
+      console.error('[Odoo] could not tag the customer:', err.message)
+    );
+  }
   const orderId = await call('sale.order', 'create', [
     {
       partner_id: partnerId,
       ...(pricelistId ? { pricelist_id: pricelistId } : {}),
+      ...(marks ? { tag_ids: [[4, marks.orderTag]], source_id: marks.source } : {}),
       order_line: orderLines,
       note: note ? String(note) : false,
     },

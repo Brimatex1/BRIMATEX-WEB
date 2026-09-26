@@ -86,6 +86,7 @@ async function odooPart() {
   const calls = [];
   let productCreates = 0;
   let existingPartner = null;
+  const MARK_IDS = { 'res.partner.category': 31, 'crm.tag': 32, 'utm.source': 33 };
   const odoo = http.createServer((r, res) => {
     let text = '';
     r.on('data', (c) => (text += c));
@@ -100,6 +101,9 @@ async function odooPart() {
         else if (model === 'res.partner' && method === 'read') result = existingPartner ? [existingPartner] : [];
         else if (model === 'res.partner' && method === 'write') result = true;
         else if (model === 'res.partner' && method === 'create') result = 55;
+        // The E-COMMERCE marks: none yet, so each is created once.
+        else if (MARK_IDS[model] && method === 'search') result = [];
+        else if (MARK_IDS[model] && method === 'create') result = MARK_IDS[model];
         else if (model === 'product.product' && method === 'search') result = productCreates ? [9001] : [];
         else if (model === 'product.product' && method === 'create') (productCreates++, (result = 9001));
         else if (model === 'product.pricelist' && method === 'search_read') result = [{ id: 9 }];
@@ -151,6 +155,14 @@ async function odooPart() {
     ok('زبون جديد: اسمه ورقمه ومدينته وعنوانه', newPartner?.name === 'زبون' && newPartner?.phone === '+218912345678' && newPartner?.city === 'طرابلس' && newPartner?.street === 'شارع', JSON.stringify(newPartner));
     ok('والطلب باسمه', creates[0]?.args[0]?.partner_id === 55);
 
+    // Every shop order is marked E-COMMERCE: the customer, the order, and the
+    // order's source (which Odoo carries onto the invoice).
+    const markCreates = calls.filter((c) => MARK_IDS[c.model] && c.method === 'create');
+    ok('العلامات تُنشأ باسم E-COMMERCE', markCreates.length === 3 && markCreates.every((c) => c.args[0]?.name === 'E-COMMERCE'), JSON.stringify(markCreates));
+    const tagged = calls.find((c) => c.model === 'res.partner' && c.method === 'write')?.args;
+    ok('وسم الزبون يُضاف دون مسح وسومه', JSON.stringify(tagged) === JSON.stringify([[55], { category_id: [[4, 31]] }]), JSON.stringify(tagged));
+    ok('وسم الطلب ومصدره', JSON.stringify(creates[0]?.args[0]?.tag_ids) === '[[4,32]]' && creates[0]?.args[0]?.source_id === 33);
+
     const created = calls.find((c) => c.model === 'product.product' && c.method === 'create')?.args[0];
     ok('منتج الخصم: خدمة، لا يُشترى، بلا ضرائب', created?.type === 'service' && created?.purchase_ok === false && created?.default_code === 'BRX-DISCOUNT');
 
@@ -179,7 +191,8 @@ async function odooPart() {
     existingPartner = { id: 1597, name: 'محمد', street: 'قديم', city: 'مصراتة' };
     calls.length = 0;
     await odooLib.createSaleOrder(customer, items, '', null);
-    ok('وما كان مكتوباً لا يُستبدل', !calls.some((c) => c.model === 'res.partner' && c.method === 'write'));
+    const writes = calls.filter((c) => c.model === 'res.partner' && c.method === 'write').map((c) => c.args[1]);
+    ok('وما كان مكتوباً لا يُستبدل (فقط الوسم)', JSON.stringify(writes) === JSON.stringify([{ category_id: [[4, 31]] }]), JSON.stringify(writes));
     existingPartner = null;
   } finally {
     odoo.closeAllConnections();
