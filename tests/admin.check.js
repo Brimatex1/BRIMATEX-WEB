@@ -141,6 +141,19 @@ async function run() {
     ok('حذفه (200)', (await req('DELETE', '/api/admin/settings/facebook-pixel', null, bearer(tok))).status === 200);
     ok('اختفى من النقطة العامة', !(await req('GET', '/api/pixel-config')).json.pixelId);
 
+    // Pre-orders (src/lib/preorder.js)
+    ok('الطلب المسبق: مُطفأ افتراضياً', (await req('GET', '/api/admin/settings/preorder', null, bearer(tok))).json?.preorder?.enabled === false);
+    ok('الطلب المسبق: للمدير فقط (401)', (await req('PUT', '/api/admin/settings/preorder', { enabled: true })).status === 401);
+    ok('مدة غير صحيحة تُرفض (400)', (await req('PUT', '/api/admin/settings/preorder', { enabled: true, days: '0' }, bearer(tok))).status === 400);
+    const preOn = await req('PUT', '/api/admin/settings/preorder', { enabled: true, days: '7' }, bearer(tok));
+    ok('تفعيله بمدة 7 أيام', preOn.status === 200 && preOn.json.preorder.enabled === true && preOn.json.preorder.days === 7, JSON.stringify(preOn.json));
+    const pub = (await req('GET', '/api/products')).json.products;
+    ok('المنتجات تحمل مدة التجهيز', pub.length > 0 && pub.every((p) => p.leadDays === 7 && typeof p.preorder === 'boolean'), JSON.stringify(pub[0]).slice(0, 200));
+    ok('المتوفّر ليس طلباً مسبقاً', pub.filter((p) => p.inStock !== false).every((p) => p.preorder === false));
+    const preOff = await req('PUT', '/api/admin/settings/preorder', { enabled: false, days: '' }, bearer(tok));
+    ok('إيقافه', preOff.status === 200 && preOff.json.preorder.enabled === false && preOff.json.preorder.days === null);
+    ok('بعد الإيقاف: لا علامات', (await req('GET', '/api/products')).json.products.every((p) => p.preorder === false && p.leadDays === null));
+
     const waPut = await req('PUT', '/api/admin/settings/whatsapp-support', { phone: '0911234567' }, bearer(tok));
     ok('حفظ رقم دعم واتساب', waPut.status === 200, 'status ' + waPut.status);
     ok(

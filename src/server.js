@@ -34,6 +34,7 @@ const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
 const { getProducts, visibleOnly, productLookup } = require('./lib/catalogue');
 const { PHOTO_PREFIX } = require('./lib/productPhotos');
+const { withPreorder } = require('./lib/preorder');
 const { sendJson, readBody } = require('./lib/respond');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
@@ -229,7 +230,8 @@ const handleAdminRoutes = createAdminRoutes({ requireAdmin, deleteUploadedFile }
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
-    return sendJson(res, 200, { ...result, products: visibleOnly(result.products) });
+    // With pre-orders on, out-of-stock mattresses are marked orderable (src/lib/preorder.js).
+    return sendJson(res, 200, { ...result, products: withPreorder(visibleOnly(result.products), settings.readPreorder()) });
   }
 
   // A product's reviews, from customers who bought it (src/lib/perks.js). A
@@ -457,7 +459,8 @@ function originOf(req) {
 /** The public catalogue, or none - a share preview or a feed never takes the page down. */
 async function publicProducts() {
   try {
-    return visibleOnly((await getProducts()).products);
+    // With pre-orders on, out-of-stock mattresses are marked orderable (src/lib/preorder.js).
+    return withPreorder(visibleOnly((await getProducts()).products), settings.readPreorder());
   } catch {
     return [];
   }

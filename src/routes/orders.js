@@ -22,6 +22,7 @@ const metaCapi = require('../lib/meta-capi');
 const perks = require('../lib/perks');
 const settings = require('../lib/settings');
 const { getProducts, productLookup } = require('../lib/catalogue');
+const { preorderNote } = require('../lib/preorder');
 const { sendJson, readBody } = require('../lib/respond');
 
 /** Same as its counterpart in routes/auth.js - see the explanation there. */
@@ -159,6 +160,10 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           .filter(Boolean)
           .join('\n');
       }
+      // Sizes out of stock ordered as pre-orders: the note tells the team what has to be made.
+      const madeToOrder = preorderNote(order.items, result.products, settings.readPreorder());
+      if (madeToOrder) note = [note.trim(), madeToOrder].filter(Boolean).join('\n');
+
       /** Gives the voucher back when the order could not be created. */
       const releaseVoucher = () =>
         voucher ? perks.releaseVoucher(orderSession.userId, voucher.code).catch(() => {}) : null;

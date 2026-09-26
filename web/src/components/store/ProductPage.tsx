@@ -18,6 +18,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
+import { canOrder, leadText } from '@/lib/preorder';
 import { openSupport } from '@/lib/support';
 import { formatPrice, isComingSoon } from '@/lib/utils';
 import type { Product } from '@/types';
@@ -75,11 +76,13 @@ export function ProductPage({
   const selected = variants.find((v) => v.id === selectedVariantId);
   const price = selected?.price ?? product.price;
   const inStock = (selected ? selected.inStock !== false : product.inStock !== false) && !isComingSoon(product.category);
-  const stock = selected?.stock ?? product.stock;
+  // Out of stock but made to order (pre-orders on): orderable, and said so.
+  const preorder = !inStock && (selected ? selected.preorder === true : product.preorder === true) && !isComingSoon(product.category);
+  const orderable = inStock || preorder;
   const sku = selected?.sku || product.sku;
   const justAdded = justAddedId === selectedVariantId;
   const cartProduct: Product = selected
-    ? { ...product, id: selected.id, price: selected.price, sku: selected.sku, stock: selected.stock, inStock: selected.inStock }
+    ? { ...product, id: selected.id, price: selected.price, sku: selected.sku, stock: selected.stock, inStock: selected.inStock, preorder: selected.preorder }
     : product;
   const features = resolveFeatureIcons(product.iconFeatures);
   const layers = product.layers ?? [];
@@ -91,10 +94,10 @@ export function ProductPage({
 
   const buyButtons = (
     <>
-      <Button size="lg" variant="accent" className="flex-1" disabled={!inStock} onClick={() => onBuyNow(cartProduct)}>
-        {inStock ? 'اشترِ الآن' : 'نفد المخزون'}
+      <Button size="lg" variant="accent" className="flex-1" disabled={!orderable} onClick={() => onBuyNow(cartProduct)}>
+        {inStock ? 'اشترِ الآن' : preorder ? 'اطلبها الآن' : 'نفد المخزون'}
       </Button>
-      <Button size="lg" className="flex-1" disabled={!inStock || justAdded} onClick={() => onAdd(cartProduct)}>
+      <Button size="lg" className="flex-1" disabled={!orderable || justAdded} onClick={() => onAdd(cartProduct)}>
         {justAdded ? (
           <>
             <BadgeCheck /> تمت الإضافة
@@ -164,7 +167,9 @@ export function ProductPage({
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-3xl font-bold text-primary">{formatPrice(price)} د.ل</p>
               {inStock ? (
-                <Badge variant="success">{stock && stock > 0 ? `متوفّر · ${stock}` : 'متوفّر'}</Badge>
+                <Badge variant="success">متوفّر</Badge>
+              ) : preorder ? (
+                <Badge variant="secondary">طلب مسبق · {leadText(product.leadDays)}</Badge>
               ) : (
                 <Badge variant="secondary">نفد المخزون</Badge>
               )}
@@ -191,7 +196,7 @@ export function ProductPage({
                   <ToggleGroupItem
                     key={v.id}
                     value={String(v.id)}
-                    disabled={v.inStock === false}
+                    disabled={!canOrder(v)}
                     className="h-auto min-w-[88px] rounded-md border px-3 py-2 text-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                   >
                     {v.label}

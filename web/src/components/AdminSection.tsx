@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { BannersPanel } from '@/components/BannersPanel';
 import { ReviewsPanel } from '@/components/ReviewsPanel';
 import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
+import { PreorderSettingsPanel } from '@/components/PreorderSettingsPanel';
 import { OdooSettingsPanel } from '@/components/OdooSettingsPanel';
 import { ProductOverridesEditor } from '@/components/ProductOverridesEditor';
 import { WhatsAppSettingsPanel } from '@/components/WhatsAppSettingsPanel';
@@ -716,6 +717,7 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
       {!error && tab === 'settings' && token && (
         <div className="space-y-6">
           <OdooSettingsPanel token={token} onChanged={() => void load()} />
+          <PreorderSettingsPanel token={token} />
           <FacebookPixelSettingsPanel token={token} />
           <WhatsAppSettingsPanel token={token} />
         </div>

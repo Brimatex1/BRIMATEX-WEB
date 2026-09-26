@@ -110,7 +110,8 @@ function rowsFor(product, { origin }) {
     item_group_id: product.id,
     title: v.label ? `${product.name} — ${v.label}` : product.name,
     description: story.text,
-    availability: v.inStock === false ? 'out of stock' : 'in stock',
+    // A pre-order (src/lib/preorder.js) is "available for order", which Meta advertises.
+    availability: v.inStock !== false ? 'in stock' : v.preorder || (!product.variants && product.preorder) ? 'available for order' : 'out of stock',
     condition: 'new',
     price: money(v.price),
     link,

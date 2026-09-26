@@ -25,6 +25,8 @@ export interface ProductVariant {
   price: number;
   stock?: number | null;
   inStock?: boolean;
+  /** Out of stock but orderable - made to order (pre-orders on in the dashboard). */
+  preorder?: boolean;
 }
 
 /** One review as the product page shows it - the author's first name only. */
@@ -98,6 +100,10 @@ export interface Product {
   /** What the mattress is made of, top to bottom - the catalogue's cutaway. */
   layers?: string[];
   inStock?: boolean;
+  /** Out of stock but orderable - made to order (pre-orders on in the dashboard). */
+  preorder?: boolean;
+  /** Days to make a pre-order; null when the dashboard gives none. */
+  leadDays?: number | null;
   /** Admin can switch a product off from the dashboard; hidden from /api/products when false. */
   enabled?: boolean;
   /** The picture uploaded from the dashboard; null when none was. Odoo's pictures are not used. */
@@ -384,3 +390,10 @@ export type SectionId =
   | 'admin';
 
 export type SortKey = 'featured' | 'price-asc' | 'price-desc' | 'name';
+
+/** Pre-orders (dashboard settings): out-of-stock mattresses stay orderable, made to order. */
+export interface PreorderSettings {
+  enabled: boolean;
+  /** Days to make one; null when unset. */
+  days: number | null;
+}

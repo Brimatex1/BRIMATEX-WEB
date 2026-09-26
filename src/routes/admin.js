@@ -540,6 +540,32 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { facebookPixel: cleared });
     }
 
+    // ---- Pre-orders (src/lib/preorder.js) ----
+
+    if (req.method === 'GET' && url.pathname === '/api/admin/settings/preorder') {
+      if (!(await requireAdmin(req, res))) return;
+      return sendJson(res, 200, { preorder: settings.readPreorder() });
+    }
+
+    if (req.method === 'PUT' && url.pathname === '/api/admin/settings/preorder') {
+      if (!(await requireAdmin(req, res))) return;
+      let payload;
+      try {
+        payload = JSON.parse(await readBody(req));
+      } catch {
+        return sendJson(res, 400, { error: 'JSON غير صالح' });
+      }
+      const raw = payload.days;
+      let days = null;
+      if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+        days = Number(raw);
+        if (!Number.isInteger(days) || days < 1 || days > 120) {
+          return sendJson(res, 400, { error: 'مدة التجهيز عدد أيام صحيح بين 1 و120' });
+        }
+      }
+      return sendJson(res, 200, { preorder: settings.savePreorder({ enabled: payload.enabled === true, days }) });
+    }
+
     // ---- WhatsApp support settings ----
 
     if (req.method === 'GET' && url.pathname === '/api/admin/settings/whatsapp-support') {

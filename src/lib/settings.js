@@ -149,6 +149,24 @@ function clearFacebookPixel() {
 }
 
 /**
+ * Pre-orders (src/lib/preorder.js): with it on, a mattress out of stock in
+ * Odoo can still be ordered - the factory makes it to order - and `days` is
+ * how long that takes, shown to the customer when set. Not a secret.
+ */
+function readPreorder() {
+  const stored = readFile().preorder || {};
+  const days = Number.isInteger(stored.days) && stored.days > 0 ? stored.days : null;
+  return { enabled: stored.enabled === true, days };
+}
+
+function savePreorder({ enabled, days }) {
+  const data = readFile();
+  data.preorder = { enabled: Boolean(enabled), days: days || null, updatedAt: new Date().toISOString() };
+  writeFile(data);
+  return readPreorder();
+}
+
+/**
  * The Conversions API access token (Events Manager > dataset > Settings >
  * Conversions API > Generate access token). A secret, unlike the Pixel ID:
  * set from the dashboard or FACEBOOK_CAPI_TOKEN in .env, the dashboard's
@@ -247,6 +265,8 @@ module.exports = {
   clearOdoo,
   readPublicFacebookPixel,
   saveFacebookPixel,
+  readPreorder,
+  savePreorder,
   getCapiToken,
   readPublicCapiToken,
   saveCapiToken,

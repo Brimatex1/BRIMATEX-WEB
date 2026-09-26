@@ -1,4 +1,5 @@
 import type {
+  PreorderSettings,
   Address,
   AdminReview,
   Banner,
@@ -346,6 +347,17 @@ export const api = {
       '/api/admin/settings/facebook-pixel/test',
       jsonBody({ testEventCode }, token)
     ),
+
+  adminPreorderSettings: (token: string) =>
+    request<{ preorder: PreorderSettings }>('/api/admin/settings/preorder', authHeaders(token)),
+
+  /** An empty `days` means "made to order" with no number. */
+  adminSavePreorder: (token: string, enabled: boolean, days: string) =>
+    request<{ preorder: PreorderSettings }>('/api/admin/settings/preorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ enabled, days }),
+    }),
 
   /** Saves the Conversions API token on the server. Write-only: it never comes back. */
   adminSaveCapiToken: (token: string, capiToken: string) =>

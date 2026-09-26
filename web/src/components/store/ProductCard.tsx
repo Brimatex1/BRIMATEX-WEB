@@ -111,7 +111,7 @@ export function ProductCard({
         <ProductImage product={product} className="aspect-square transition-transform duration-300 group-hover:scale-[1.02]" />
         {out && (
           <Badge variant="secondary" className="absolute start-3 top-3 bg-background/90 text-foreground">
-            نفد المخزون
+            {product.preorder ? 'طلب مسبق' : 'نفد المخزون'}
           </Badge>
         )}
         <WishlistButton

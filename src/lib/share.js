@@ -101,6 +101,7 @@ function describe(pathname, { products, banners, origin }, search = '') {
         type: 'product',
         price: from,
         inStock: product.inStock !== false,
+        preorder: product.preorder === true,
         product,
         // Other mattresses, the same tier first - links a crawler can follow.
         listed: [
@@ -171,7 +172,7 @@ function bodyHtml(page, products) {
       parts.push(
         `<h2>المقاسات والأسعار</h2><ul>${sizes
           .slice(0, 40)
-          .map((v) => `<li>${escapeHtml(v.label)}: ${formatPrice(v.price)} د.ل${v.inStock === false ? ' (غير متوفر حالياً)' : ''}</li>`)
+          .map((v) => `<li>${escapeHtml(v.label)}: ${formatPrice(v.price)} د.ل${v.inStock === false ? (v.preorder ? ' (طلب مسبق)' : ' (غير متوفر حالياً)') : ''}</li>`)
           .join('')}</ul>`
       );
     } else {
@@ -223,7 +224,9 @@ function jsonForScript(value) {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
-const availabilityOf = (inStock) => `https://schema.org/${inStock === false ? 'OutOfStock' : 'InStock'}`;
+// A pre-order (src/lib/preorder.js) is orderable - schema.org's PreOrder, not OutOfStock.
+const availabilityOf = (inStock, preorder) =>
+  `https://schema.org/${inStock !== false ? 'InStock' : preorder ? 'PreOrder' : 'OutOfStock'}`;
 
 /**
  * schema.org data for search engines - Google shows the price, the stock and
@@ -262,7 +265,7 @@ function structuredData(page, context, url) {
   if (page.type !== 'product') return [shop, site, ...crumbs];
 
   const p = page.product;
-  const sizes = p.variants ?? [{ id: p.id, price: p.price, inStock: p.inStock }];
+  const sizes = p.variants ?? [{ id: p.id, price: p.price, inStock: p.inStock, preorder: p.preorder }];
   const prices = sizes.map((v) => Number(v.price)).filter((n) => n > 0);
   const offers =
     sizes.length > 1
@@ -272,14 +275,14 @@ function structuredData(page, context, url) {
           lowPrice: Math.min(...prices),
           highPrice: Math.max(...prices),
           offerCount: sizes.length,
-          availability: availabilityOf(sizes.some((v) => v.inStock !== false)),
+          availability: availabilityOf(sizes.some((v) => v.inStock !== false), sizes.some((v) => v.preorder)),
           url,
         }
       : {
           '@type': 'Offer',
           priceCurrency: 'LYD',
           price: prices[0] ?? Number(p.price),
-          availability: availabilityOf(p.inStock),
+          availability: availabilityOf(p.inStock, p.preorder),
           itemCondition: 'https://schema.org/NewCondition',
           url,
         };
@@ -342,7 +345,7 @@ function render(shell, pathname, search, context) {
     page.type === 'product' ? `<meta property="product:price:amount" content="${page.price}" />` : '',
     page.type === 'product' ? `<meta property="product:price:currency" content="LYD" />` : '',
     page.type === 'product'
-      ? `<meta property="product:availability" content="${page.inStock ? 'in stock' : 'out of stock'}" />`
+      ? `<meta property="product:availability" content="${page.inStock ? 'in stock' : page.preorder ? 'preorder' : 'out of stock'}" />`
       : '',
   ].filter(Boolean);
   for (const data of structuredData(page, context, url)) {
