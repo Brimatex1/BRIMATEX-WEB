@@ -152,6 +152,17 @@ function unitPart() {
   const bare = metaFeed.rowsFor({ id: 401, name: 'X', price: 10, image: '/x.png' }, { origin })[0];
   ok('منتج بلا تفاصيل: وصف افتراضي، بلا أقسام فارغة', bare.description.startsWith('مرتبة بريماتكس') && !bare.rich_text_description.includes('<h3>'), bare.rich_text_description);
 
+  // Plain text for Meta, whatever the dashboard holds
+  const messy = { id: 402, name: 'مرتبة 😴 <b>تجربة</b>', price: 10, image: '/x.png', description: '<p>مرتبة&nbsp;مريحة ✨ جداً</p>\u200f\u200d\uFE0F\uFFFD ثباتاً متوازناً ودعماً مريحاً' };
+  const [clean] = metaFeed.rowsFor(messy, { origin });
+  ok('الوصف: بلا وسوم ولا إيموجي ولا علامات خفية', clean.description.startsWith('مرتبة مريحة جداً ثباتاً متوازناً ودعماً مريحاً') && !/[<>😴✨\u200f\u200d\uFE0F\uFFFD]/u.test(clean.description), clean.description);
+  ok('العنوان: نص عادي', clean.title === 'مرتبة تجربة', clean.title);
+  ok('الحركات العربية تبقى', metaFeed.plainText('ثباتاً مُريحاً') === 'ثباتاً مُريحاً');
+  const long = metaFeed.rowsFor({ ...messy, description: 'كلمة '.repeat(3000) }, { origin })[0].description;
+  ok('وصف أطول من حد ميتا يُقصّ عند كلمة، ولا يزيد عن 9999', long.length <= 9999 && long.endsWith('كلمة'), String(long.length));
+  const real = metaFeed.rowsFor(full, { origin })[0].description;
+  ok('وصف عادي لا يُقصّ أبداً', real.endsWith('الدفع عند الاستلام وتوصيل مجاني لباب البيت.') && !real.includes('...'));
+
   // The labels the feed writes are the product page's own (web/src/lib/icons.ts)
   const { FEATURE_LABELS } = require('../src/lib/featureLabels');
   const iconsTs = fs.readFileSync(path.join(__dirname, '..', 'web', 'src', 'lib', 'icons.ts'), 'utf8');

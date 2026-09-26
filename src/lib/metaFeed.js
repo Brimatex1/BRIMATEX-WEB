@@ -55,19 +55,51 @@ function escapeHtml(text) {
   return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** Meta's limit for `description`: longer text is refused, not shortened. */
+const DESCRIPTION_MAX = 9999;
+
+/**
+ * Text as Meta should get it: plain, whatever was typed into the dashboard -
+ * no HTML tags, no emoji, no invisible marks (joiners, direction marks,
+ * variation selectors) and no stray replacement characters, all of which
+ * catalogue tools show as "?". Arabic letters and their vowel marks stay.
+ */
+function plainText(value) {
+  return String(value ?? '')
+    .replace(/<\/?[a-zA-Z][^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE00-\uFE0F\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\uFFFD]/gu, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** At most Meta's limit - cut at a word, never mid-word. Real descriptions are far shorter. */
+function withinLimit(text) {
+  if (text.length <= DESCRIPTION_MAX) return text;
+  const cut = text.slice(0, DESCRIPTION_MAX);
+  return cut.slice(0, cut.lastIndexOf(' ') > 0 ? cut.lastIndexOf(' ') : DESCRIPTION_MAX).trim();
+}
+
 /**
  * What a mattress is, in words: its description, then the features (the
  * warranty icon aside - it gets its own line), the warranty and the layers.
  */
 function storyOf(product) {
   const intro =
-    product.description ||
+    plainText(product.description) ||
     `مرتبة بريماتكس${product.tier ? ` من فئة ${product.tier.name}` : ''} — صناعة ليبية.`;
   const features = featureLabels((product.iconFeatures || []).filter((k) => !k.startsWith('warranty-')));
   const warranty = product.warrantyYears ? `ضمان المصنع ${product.warrantyYears} سنوات على عيوب التصنيع.` : null;
-  const layers = product.layers || [];
+  const layers = (product.layers || []).map(plainText).filter(Boolean);
 
-  const text = [
+  const text = withinLimit([
     intro,
     features.length ? `المميزات: ${features.join('، ')}.` : null,
     warranty,
@@ -75,7 +107,7 @@ function storyOf(product) {
     PROMISE,
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(' '));
 
   const html = [
     `<p>${escapeHtml(intro)}</p>`,
@@ -108,7 +140,7 @@ function rowsFor(product, { origin }) {
   return sizes.map((v) => ({
     id: v.id,
     item_group_id: product.id,
-    title: v.label ? `${product.name} — ${v.label}` : product.name,
+    title: plainText(v.label ? `${product.name} — ${v.label}` : product.name),
     description: story.text,
     // A pre-order (src/lib/preorder.js) is "available for order", which Meta advertises.
     availability: v.inStock !== false ? 'in stock' : v.preorder || (!product.variants && product.preorder) ? 'available for order' : 'out of stock',
@@ -135,4 +167,4 @@ function buildCsv(products, options) {
   return { csv: lines.join('\n') + '\n', count: rows.length, skipped: products.filter((p) => !imageOf(p, options.origin)).length };
 }
 
-module.exports = { buildCsv, rowsFor, storyOf, COLUMNS };
+module.exports = { buildCsv, rowsFor, storyOf, plainText, COLUMNS };
