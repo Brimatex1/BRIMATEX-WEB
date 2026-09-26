@@ -331,6 +331,10 @@ export interface ConversionsApiStatus {
   configured: boolean;
   /** FACEBOOK_TEST_EVENT_CODE is set: events land in Events Manager's "Test events". */
   testMode: boolean;
+  /** Where the access token comes from - the dashboard, .env, or none. The token itself is never sent. */
+  tokenSource: 'dashboard' | 'env' | null;
+  /** The token's last four characters, to tell two tokens apart. */
+  tokenLast4: string | null;
   lastResult: {
     ok: boolean;
     at: string;

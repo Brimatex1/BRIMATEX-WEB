@@ -21,6 +21,8 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
   const [capi, setCapi] = useState<ConversionsApiStatus | null>(null);
   const [testing, setTesting] = useState(false);
   const [testCode, setTestCode] = useState('');
+  const [capiToken, setCapiToken] = useState('');
+  const [savingToken, setSavingToken] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -54,6 +56,34 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
       toast.error(err instanceof Error ? err.message : 'تعذّر الحفظ');
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** Write-only: the field empties after a save, and the server keeps the token. */
+  async function saveToken() {
+    setSavingToken(true);
+    try {
+      const { conversionsApi } = await api.adminSaveCapiToken(token, capiToken.trim());
+      setCapi((prev) => ({ ...conversionsApi, lastResult: conversionsApi.lastResult ?? prev?.lastResult ?? null }));
+      setCapiToken('');
+      toast.success('حُفظ المفتاح على الخادم — عمليات الشراء تُرسل لميتا من الآن');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'تعذّر حفظ المفتاح');
+    } finally {
+      setSavingToken(false);
+    }
+  }
+
+  async function clearToken() {
+    setSavingToken(true);
+    try {
+      const { conversionsApi } = await api.adminClearCapiToken(token);
+      setCapi(conversionsApi);
+      toast.success('حُذف المفتاح من لوحة الإدارة');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'تعذّر الحذف');
+    } finally {
+      setSavingToken(false);
     }
   }
 
@@ -182,8 +212,52 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
           </div>
           <p className="text-xs text-muted-foreground">
             يرسل كل عملية شراء من الموقع إلى ميتا من الخادم مباشرة — لا يحجبها مانع الإعلانات ولا
-            قيود آيفون. يُفعَّل بوضع مفتاح FACEBOOK_CAPI_TOKEN في ملف .env على الخادم.
+            قيود آيفون.
           </p>
+
+          {/* The token: write-only - saved on the server, never shown again */}
+          <form
+            className="space-y-1.5 pt-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void saveToken();
+            }}
+          >
+            <Label htmlFor="fb-capi-token">مفتاح Conversions API</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="fb-capi-token"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                dir="ltr"
+                value={capiToken}
+                onChange={(e) => setCapiToken(e.target.value)}
+                placeholder={capi?.tokenLast4 ? `محفوظ — ينتهي بـ ${capi.tokenLast4}` : 'EAA…'}
+                className="h-9 min-w-0 flex-1"
+              />
+              <Button type="submit" size="sm" loading={savingToken} disabled={!capiToken.trim()}>
+                {capi?.tokenLast4 ? 'استبدال' : 'حفظ المفتاح'}
+              </Button>
+              {capi?.tokenSource === 'dashboard' && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive"
+                  disabled={savingToken}
+                  onClick={() => void clearToken()}
+                >
+                  حذف
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              من Events Manager ← SHOP - Brimatex ← الإعدادات ← Conversions API ← Generate access token.
+              يُحفظ على الخادم فقط ولا يظهر مرة ثانية.
+              {capi?.tokenSource === 'env' && ' المفتاح الحالي من ملف .env على الخادم — مفتاح يُحفظ هنا يحلّ محله.'}
+            </p>
+          </form>
           {capi?.lastResult && (
             <p className={capi.lastResult.ok ? 'text-xs text-muted-foreground' : 'text-xs text-destructive'}>
               آخر إرسال ({new Date(capi.lastResult.at).toLocaleString('ar-LY')}):{' '}
@@ -191,8 +265,12 @@ export function FacebookPixelSettingsPanel({ token }: FacebookPixelSettingsPanel
             </p>
           )}
           {capi?.configured && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+              <Label htmlFor="fb-test-code" className="w-full">
+                رمز الاختبار (ليس المفتاح)
+              </Label>
               <Input
+                id="fb-test-code"
                 aria-label="رمز الاختبار من Events Manager"
                 dir="ltr"
                 value={testCode}

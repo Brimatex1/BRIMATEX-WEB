@@ -347,6 +347,20 @@ export const api = {
       jsonBody({ testEventCode }, token)
     ),
 
+  /** Saves the Conversions API token on the server. Write-only: it never comes back. */
+  adminSaveCapiToken: (token: string, capiToken: string) =>
+    request<{ conversionsApi: ConversionsApiStatus }>('/api/admin/settings/facebook-pixel/capi-token', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ token: capiToken }),
+    }),
+
+  adminClearCapiToken: (token: string) =>
+    request<{ conversionsApi: ConversionsApiStatus }>('/api/admin/settings/facebook-pixel/capi-token', {
+      method: 'DELETE',
+      ...authHeaders(token),
+    }),
+
   adminClearFacebookPixel: (token: string) =>
     request<{ facebookPixel: FacebookPixelSettings }>('/api/admin/settings/facebook-pixel', {
       method: 'DELETE',

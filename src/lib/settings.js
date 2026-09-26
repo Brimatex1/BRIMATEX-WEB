@@ -149,6 +149,44 @@ function clearFacebookPixel() {
 }
 
 /**
+ * The Conversions API access token (Events Manager > dataset > Settings >
+ * Conversions API > Generate access token). A secret, unlike the Pixel ID:
+ * set from the dashboard or FACEBOOK_CAPI_TOKEN in .env, the dashboard's
+ * winning, and never sent back to a browser - the dashboard only learns that
+ * one is set, where from, and its last four characters to tell two apart.
+ */
+const ENV_CAPI_TOKEN = process.env.FACEBOOK_CAPI_TOKEN || '';
+
+function getCapiToken() {
+  return readFile().conversionsApi?.token || ENV_CAPI_TOKEN || '';
+}
+
+function readPublicCapiToken() {
+  const stored = readFile().conversionsApi?.token || '';
+  const token = stored || ENV_CAPI_TOKEN;
+  return {
+    hasToken: Boolean(token),
+    source: stored ? 'dashboard' : ENV_CAPI_TOKEN ? 'env' : null,
+    last4: token ? token.slice(-4) : null,
+  };
+}
+
+function saveCapiToken(token) {
+  const data = readFile();
+  data.conversionsApi = { token: String(token).trim(), updatedAt: new Date().toISOString() };
+  writeFile(data);
+  return readPublicCapiToken();
+}
+
+/** Drops the dashboard's token - FACEBOOK_CAPI_TOKEN in .env, if any, applies again. */
+function clearCapiToken() {
+  const data = readFile();
+  delete data.conversionsApi;
+  writeFile(data);
+  return readPublicCapiToken();
+}
+
+/**
  * The support phone number isn't a secret either — it's the number printed
  * on the button itself — so like the Pixel ID it's returned to the browser
  * as-is.
@@ -209,6 +247,10 @@ module.exports = {
   clearOdoo,
   readPublicFacebookPixel,
   saveFacebookPixel,
+  getCapiToken,
+  readPublicCapiToken,
+  saveCapiToken,
+  clearCapiToken,
   clearFacebookPixel,
   readPublicWhatsappSupport,
   saveWhatsappSupport,

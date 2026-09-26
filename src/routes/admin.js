@@ -487,6 +487,35 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, { facebookPixel: saved });
     }
 
+    // The Conversions API token: write-only. Saved on the server, never sent
+    // back - the answer says only that one is set, and its last four characters.
+    if (req.method === 'PUT' && url.pathname === '/api/admin/settings/facebook-pixel/capi-token') {
+      if (!(await requireAdmin(req, res))) return;
+      let payload;
+      try {
+        payload = JSON.parse(await readBody(req));
+      } catch {
+        return sendJson(res, 400, { error: 'JSON غير صالح' });
+      }
+      const token = String(payload.token || '').trim();
+      // Meta's access tokens: letters and digits, well over a hundred of them
+      // in practice - a test code (TEST…) or a Pixel ID pasted here by mistake
+      // is refused instead of silently breaking every send.
+      if (!/^[A-Za-z0-9_-]{60,1000}$/.test(token) || /^TEST/i.test(token)) {
+        return sendJson(res, 400, {
+          error: 'هذا ليس مفتاح Conversions API — انسخه من Events Manager ← الإعدادات ← Generate access token',
+        });
+      }
+      settings.saveCapiToken(token);
+      return sendJson(res, 200, { conversionsApi: metaCapi.status() });
+    }
+
+    if (req.method === 'DELETE' && url.pathname === '/api/admin/settings/facebook-pixel/capi-token') {
+      if (!(await requireAdmin(req, res))) return;
+      settings.clearCapiToken();
+      return sendJson(res, 200, { conversionsApi: metaCapi.status() });
+    }
+
     // Sends one test event (Events Manager > Test events code) - never live data.
     if (req.method === 'POST' && url.pathname === '/api/admin/settings/facebook-pixel/test') {
       if (!(await requireAdmin(req, res))) return;

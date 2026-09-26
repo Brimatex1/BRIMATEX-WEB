@@ -181,6 +181,22 @@ async function main() {
     ok('لوحة الإدارة: مفعّل وآخر إرسال ناجح', st.json?.conversionsApi?.configured && st.json.conversionsApi.lastResult?.ok === true, JSON.stringify(st.json?.conversionsApi));
     ok('المفتاح لا يظهر في لوحة الإدارة', !JSON.stringify(st.json).includes(TOKEN));
 
+    section('2ب. مفتاح من لوحة الإدارة');
+    const DASH_TOKEN = 'EAAdashboard' + 'x'.repeat(80) + 'Z9k2';
+    ok('المصدر قبل الحفظ: ملف البيئة', st.json?.conversionsApi?.tokenSource === 'env' && st.json.conversionsApi.tokenLast4 === TOKEN.slice(-4), JSON.stringify(st.json?.conversionsApi));
+    ok('رمز اختبار بدل المفتاح يُرفض (400)', (await req('PUT', '/api/admin/settings/facebook-pixel/capi-token', { token: 'TEST12345' }, auth)).status === 400);
+    ok('رقم البكسل بدل المفتاح يُرفض (400)', (await req('PUT', '/api/admin/settings/facebook-pixel/capi-token', { token: PIXEL }, auth)).status === 400);
+    ok('الحفظ للمدير فقط (401)', (await req('PUT', '/api/admin/settings/facebook-pixel/capi-token', { token: DASH_TOKEN })).status === 401);
+    const saved = await req('PUT', '/api/admin/settings/facebook-pixel/capi-token', { token: DASH_TOKEN }, auth);
+    ok('الحفظ ينجح، والمصدر: اللوحة، آخر 4 أحرف', saved.status === 200 && saved.json?.conversionsApi?.tokenSource === 'dashboard' && saved.json.conversionsApi.tokenLast4 === 'Z9k2', JSON.stringify(saved.json));
+    const after = await req('GET', '/api/admin/settings/facebook-pixel', null, auth);
+    ok('المفتاح لا يرجع أبداً — لا في الحفظ ولا في القراءة', !JSON.stringify(saved.json).includes(DASH_TOKEN) && !JSON.stringify(after.json).includes(DASH_TOKEN));
+    const viaDash = await req('POST', '/api/admin/settings/facebook-pixel/test', { testEventCode: 'TEST777' }, auth);
+    ok('الإرسال بمفتاح اللوحة', viaDash.json?.ok === true && received[received.length - 1]?.body?.access_token === DASH_TOKEN);
+    received.pop();
+    const cleared = await req('DELETE', '/api/admin/settings/facebook-pixel/capi-token', null, auth);
+    ok('الحذف يرجّع مفتاح ملف البيئة', cleared.json?.conversionsApi?.tokenSource === 'env' && cleared.json.conversionsApi.configured === true);
+
     const badCode = await req('POST', '/api/admin/settings/facebook-pixel/test', { testEventCode: 'hello' }, auth);
     ok('حدث تجريبي: رمز بلا TEST يُرفض ولا يُرسل', badCode.json?.ok === false && received.length === 1, JSON.stringify(badCode.json));
     const conn = await req('POST', '/api/admin/settings/facebook-pixel/test', { testEventCode: 'test12345' }, auth);

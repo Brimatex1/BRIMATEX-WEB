@@ -13,10 +13,11 @@
  * (`purchase-<order name>`), so Meta counts one purchase, not two (48 h window;
  * Meta keeps the first copy it receives).
  *
- * Configuration (the token is a secret - it lives only in the server's .env):
+ * Configuration. The access token (Events Manager > dataset > Settings >
+ * Conversions API > Generate access token) is a secret: it is set from the
+ * dashboard - stored on the server only, never shown again - or, failing
+ * that, as FACEBOOK_CAPI_TOKEN in the server's .env (lib/settings.js).
  *
- *   FACEBOOK_CAPI_TOKEN        Events Manager > dataset > Settings >
- *                              Conversions API > Generate access token
  *   FACEBOOK_TEST_EVENT_CODE   optional; routes events to Events Manager's
  *                              "Test events" tab instead of live data
  *   FACEBOOK_GRAPH_VERSION     optional; defaults to GRAPH_VERSION below
@@ -39,7 +40,10 @@ const { toInternational } = require('./whatsapp-cloud');
 /** Latest Graph API version as of July 2026. */
 const GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v26.0';
 const GRAPH_URL = process.env.FACEBOOK_GRAPH_URL || 'https://graph.facebook.com';
-const TOKEN = process.env.FACEBOOK_CAPI_TOKEN || '';
+// The access token: set from the dashboard, or FACEBOOK_CAPI_TOKEN in .env
+// (lib/settings.js) - read on every send, so a new one applies at once.
+const settings = require('./settings');
+const token = () => settings.getCapiToken();
 const TEST_EVENT_CODE = process.env.FACEBOOK_TEST_EVENT_CODE || '';
 const TIMEOUT_MS = 8000;
 
@@ -47,11 +51,18 @@ const TIMEOUT_MS = 8000;
 let lastResult = null;
 
 function isConfigured() {
-  return Boolean(TOKEN);
+  return Boolean(token());
 }
 
 function status() {
-  return { configured: isConfigured(), testMode: Boolean(TEST_EVENT_CODE), lastResult };
+  const t = settings.readPublicCapiToken();
+  return {
+    configured: isConfigured(),
+    testMode: Boolean(TEST_EVENT_CODE),
+    tokenSource: t.source,
+    tokenLast4: t.last4,
+    lastResult,
+  };
 }
 
 const sha256 = (value) => crypto.createHash('sha256').update(value, 'utf8').digest('hex');
@@ -168,7 +179,7 @@ async function send(datasetId, events) {
   // proxy or error log that records addresses.
   const body = {
     data: events,
-    access_token: TOKEN,
+    access_token: token(),
     ...(TEST_EVENT_CODE ? { test_event_code: TEST_EVENT_CODE } : {}),
   };
   const url = `${GRAPH_URL}/${GRAPH_VERSION}/${encodeURIComponent(datasetId)}/events`;
@@ -213,7 +224,7 @@ async function send(datasetId, events) {
  * "Missing Permission" even when sending works.)
  */
 async function sendTestEvent(datasetId, testEventCode, { sourceUrl, userAgent, ip }) {
-  if (!isConfigured()) return { ok: false, error: 'FACEBOOK_CAPI_TOKEN غير موجود في ملف .env على الخادم' };
+  if (!isConfigured()) return { ok: false, error: 'لا يوجد مفتاح Conversions API — ضعه في لوحة الإدارة' };
   if (!datasetId) return { ok: false, error: 'لا يوجد رقم بكسل محفوظ' };
   if (!/^TEST[A-Z0-9]{2,20}$/i.test(testEventCode || '')) {
     return { ok: false, error: 'رمز الاختبار يبدأ بـ TEST — انسخه من Events Manager > Test events' };
@@ -229,7 +240,7 @@ async function sendTestEvent(datasetId, testEventCode, { sourceUrl, userAgent, i
         user_data: dropEmpty({ client_ip_address: ip, client_user_agent: userAgent, country: hashed('ly') }),
       },
     ],
-    access_token: TOKEN,
+    access_token: token(),
     test_event_code: testEventCode.toUpperCase(),
   };
   try {
