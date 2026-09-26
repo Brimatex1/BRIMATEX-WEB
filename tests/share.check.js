@@ -6,7 +6,7 @@
 // - text from the catalogue is escaped, never markup
 // - files are still served as files
 // - robots.txt and sitemap.xml are real files, listing every product
-// - the feed lists one row per size, in dollars at the Pixel's rate, with the
+// - the feed lists one row per size, in dinars as the site sells them, with the
 //   ids the Pixel reports, and leaves out products with no picture
 //
 // Runs with the rest: npm test
@@ -137,10 +137,10 @@ function unitPart() {
   ok('سطر لكل مقاس', count === 2 && lines.length === 3, csv);
   ok('المنتج بلا صورة مستبعد', skipped === 1 && !csv.includes('No Picture'));
   ok('المعرّف والمجموعة كما يرسلها البكسل', lines[1].startsWith('"202","202"') && lines[2].startsWith('"203","202"'), lines[1]);
-  ok('السعر بالدولار بسعر 8', lines[1].includes('"80.00 USD"') && lines[2].includes('"90.00 USD"'));
+  ok('السعر بالدينار كما يبيعه الموقع، حتى مع سعر صرف البكسل', lines[1].includes('"640.00 LYD"') && lines[2].includes('"720.00 LYD"') && !csv.includes('USD'), lines[1]);
   ok('المخزون', lines[1].includes('"in stock"') && lines[2].includes('"out of stock"'));
   ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/uploads/products/202-1.png"') && lines[1].includes('"https://brimatex.ly/product/202"'));
-  ok('بلا سعر صرف: بالدينار', metaFeed.buildCsv([product], { origin, lydPerUsd: 0 }).csv.includes('"640.00 LYD"'));
+  ok('بلا سعر صرف: بالدينار كذلك', metaFeed.buildCsv([product], { origin, lydPerUsd: 0 }).csv.includes('"640.00 LYD"'));
 }
 
 (async () => {
@@ -223,7 +223,7 @@ function unitPart() {
     const feed = await req('GET', '/feeds/meta-catalog.csv');
     const row = feed.text.trim().split('\n')[1] || '';
     ok('الكتالوج: المنتج بصورته', row.startsWith(`"${p.id}","${p.id}"`) && row.includes(uploaded), row);
-    ok('الكتالوج: بالدولار', row.includes(`"${(p.price / 8).toFixed(2)} USD"`), row);
+    ok('الكتالوج: بالدينار', row.includes(`"${Number(p.price).toFixed(2)} LYD"`), row);
     ok('صفحة المنتج: og:image', meta((await req('GET', `/product/${p.id}`)).text, 'og:image') === `http://127.0.0.1:${PORT}${uploaded}`);
     await req('DELETE', `/api/admin/products/${p.id}/image`, null, admin);
   } finally {

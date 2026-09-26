@@ -10,9 +10,12 @@
  * - One row per size, grouped by item_group_id. The ids are the ones the
  *   Pixel and the Conversions API report (the card's id, a size's id), which
  *   is how Meta ties a visit or a purchase to an item here.
- * - Prices in US dollars at the dashboard's rate, like the Pixel: Meta does not
- *   accept dinars (see src/lib/settings.js). Without a rate set, dinars are
- *   written as they are, and Meta will flag them.
+ * - Prices in Libyan dinars, as the site sells them: Commerce Manager takes
+ *   LYD for a catalogue, and a catalogue ad shows this price on the ad - a
+ *   Libyan customer should read 355 د.ل there, not $44.38. The Pixel still
+ *   reports in dollars at the dashboard's rate (src/lib/settings.js): Meta
+ *   needs a supported currency to measure value, and it ties an event to an
+ *   item here by id, not by currency.
  * - A product with no picture is left out: Meta rejects an item without one.
  */
 'use strict';
@@ -39,13 +42,12 @@ function csvCell(value) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-function money(lyd, lydPerUsd) {
-  if (lydPerUsd > 0) return `${(lyd / lydPerUsd).toFixed(2)} USD`;
+function money(lyd) {
   return `${Number(lyd).toFixed(2)} LYD`;
 }
 
 /** Rows for one product card: one per size, or the card itself when it has no sizes. */
-function rowsFor(product, { origin, lydPerUsd }) {
+function rowsFor(product, { origin }) {
   const image = imageOf(product, origin);
   if (!image) return [];
   const link = `${origin}/product/${product.id}`;
@@ -61,7 +63,7 @@ function rowsFor(product, { origin, lydPerUsd }) {
     description,
     availability: v.inStock === false ? 'out of stock' : 'in stock',
     condition: 'new',
-    price: money(v.price, lydPerUsd),
+    price: money(v.price),
     link,
     image_link: image,
     brand: 'Brimatex',
