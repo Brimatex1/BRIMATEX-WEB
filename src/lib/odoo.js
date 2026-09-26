@@ -519,6 +519,9 @@ async function createSaleOrder(customer, items, note, discount = null) {
   const orderId = await call('sale.order', 'create', [
     {
       partner_id: partnerId,
+      // No salesperson: Odoo would name the API's own user (or the contact's
+      // salesperson) - a shop order is nobody's sale. The invoice follows.
+      user_id: false,
       ...(pricelistId ? { pricelist_id: pricelistId } : {}),
       ...(marks ? { tag_ids: [[4, marks.orderTag]], source_id: marks.source } : {}),
       order_line: orderLines,

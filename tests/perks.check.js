@@ -161,6 +161,7 @@ async function odooPart() {
     ok('العلامات تُنشأ باسم E-COMMERCE', markCreates.length === 3 && markCreates.every((c) => c.args[0]?.name === 'E-COMMERCE'), JSON.stringify(markCreates));
     const tagged = calls.find((c) => c.model === 'res.partner' && c.method === 'write')?.args;
     ok('وسم الزبون يُضاف دون مسح وسومه', JSON.stringify(tagged) === JSON.stringify([[55], { category_id: [[4, 31]] }]), JSON.stringify(tagged));
+    ok('بلا مندوب مبيعات', creates[0]?.args[0]?.user_id === false, JSON.stringify(creates[0]?.args[0]?.user_id));
     ok('وسم الطلب ومصدره', JSON.stringify(creates[0]?.args[0]?.tag_ids) === '[[4,32]]' && creates[0]?.args[0]?.source_id === 33);
 
     const created = calls.find((c) => c.model === 'product.product' && c.method === 'create')?.args[0];
