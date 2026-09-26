@@ -141,6 +141,22 @@ function unitPart() {
   ok('المخزون', lines[1].includes('"in stock"') && lines[2].includes('"out of stock"'));
   ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/uploads/products/202-1.png"') && lines[1].includes('"https://brimatex.ly/product/202"'));
   ok('بلا سعر صرف: بالدينار كذلك', metaFeed.buildCsv([product], { origin, lydPerUsd: 0 }).csv.includes('"640.00 LYD"'));
+
+  // The whole story per mattress reaches Meta, not just a line
+  const full = { ...product, id: 400, description: 'وصف <المرتبة> & تفاصيلها.', iconFeatures: ['warranty-6', 'pressure-30', 'anti-allergy'], warrantyYears: 6, layers: ['طبقة ميموري فوم', 'إسفنج ضغط 30'], variants: undefined };
+  const [row] = metaFeed.rowsFor(full, { origin });
+  ok('الوصف: المميزات والضمان والمكوّنات', row.description.includes('المميزات: ضغط إسفنج 30، مضاد للحساسية.') && row.description.includes('ضمان المصنع 6 سنوات') && row.description.includes('مكوّنات المرتبة: طبقة ميموري فوم، إسفنج ضغط 30.'), row.description);
+  ok('أيقونة الضمان لا تتكرر بين المميزات', !row.description.includes('المميزات: ضمان'));
+  ok('الوصف المنسّق: قوائم، والنص مهرّب', row.rich_text_description.includes('<ul><li>ضغط إسفنج 30</li>') && row.rich_text_description.includes('<ol><li>طبقة ميموري فوم</li>') && row.rich_text_description.includes('وصف &lt;المرتبة&gt; &amp; تفاصيلها.'), row.rich_text_description);
+  ok('الفئة وتصنيف المراتب والضمان كوسوم', row.custom_label_1 === 'ضمان 6 سنوات' && row.google_product_category.endsWith('Mattresses'));
+  const bare = metaFeed.rowsFor({ id: 401, name: 'X', price: 10, image: '/x.png' }, { origin })[0];
+  ok('منتج بلا تفاصيل: وصف افتراضي، بلا أقسام فارغة', bare.description.startsWith('مرتبة بريماتكس') && !bare.rich_text_description.includes('<h3>'), bare.rich_text_description);
+
+  // The labels the feed writes are the product page's own (web/src/lib/icons.ts)
+  const { FEATURE_LABELS } = require('../src/lib/featureLabels');
+  const iconsTs = fs.readFileSync(path.join(__dirname, '..', 'web', 'src', 'lib', 'icons.ts'), 'utf8');
+  const webLabels = Object.fromEntries([...iconsTs.matchAll(/^\s*'([a-z0-9-]+)': \{ key: '[a-z0-9-]+', file: '[^']+', label: '([^']+)' \}/gm)].map((m) => [m[1], m[2]]));
+  ok('تسميات المميزات = تسميات صفحة المنتج', Object.keys(webLabels).length > 20 && JSON.stringify(webLabels) === JSON.stringify(FEATURE_LABELS), Object.keys(webLabels).filter((k) => webLabels[k] !== FEATURE_LABELS[k]).join(', '));
 }
 
 (async () => {
