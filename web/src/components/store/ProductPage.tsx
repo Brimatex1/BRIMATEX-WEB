@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
 import { canOrder, leadText } from '@/lib/preorder';
+import { cn } from '@/lib/utils';
 import { openSupport } from '@/lib/support';
 import { formatPrice, isComingSoon } from '@/lib/utils';
 import type { Product } from '@/types';
@@ -192,16 +193,33 @@ export function ProductPage({
                 aria-label="المقاس"
                 className="flex-wrap justify-start gap-2"
               >
-                {variants.map((v) => (
-                  <ToggleGroupItem
-                    key={v.id}
-                    value={String(v.id)}
-                    disabled={!canOrder(v)}
-                    className="h-auto min-w-[88px] rounded-md border px-3 py-2 text-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-                  >
-                    {v.label}
-                  </ToggleGroupItem>
-                ))}
+                {variants.map((v) => {
+                  // In stock stands out - a green edge and "متوفّر" - from a size made to order.
+                  const ready = v.inStock !== false;
+                  return (
+                    <ToggleGroupItem
+                      key={v.id}
+                      value={String(v.id)}
+                      disabled={!canOrder(v)}
+                      aria-label={`${v.label} — ${ready ? 'متوفّر' : v.preorder ? 'طلب مسبق' : 'نفد المخزون'}`}
+                      className={cn(
+                        'group h-auto min-w-[96px] flex-col gap-0.5 rounded-md border px-3 py-2 text-sm data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground',
+                        ready && 'border-success/60 bg-success/5'
+                      )}
+                    >
+                      <span className="font-medium">{v.label}</span>
+                      <span
+                        className={cn(
+                          'flex items-center gap-1 text-[11px] leading-4 group-data-[state=on]:text-primary-foreground/85',
+                          ready ? 'font-semibold text-success' : 'text-muted-foreground'
+                        )}
+                      >
+                        {ready && <span className="size-1.5 rounded-full bg-success group-data-[state=on]:bg-primary-foreground" aria-hidden="true" />}
+                        {ready ? 'متوفّر' : v.preorder ? 'طلب مسبق' : 'نفد'}
+                      </span>
+                    </ToggleGroupItem>
+                  );
+                })}
               </ToggleGroup>
             </div>
           )}
