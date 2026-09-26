@@ -129,6 +129,67 @@ async function readInBatches(model, ids, kwargs) {
   return result;
 }
 
+/**
+ * The retail price list - where Odoo keeps each size's price. A size's
+ * price is its item there; the product card's own price (lst_price) is only
+ * the fallback for a size the list does not name. The card price is one
+ * figure for every size, so reading it alone sold a 200x200 at a 90x190's
+ * price. ODOO_PRICELIST_ID picks another list; otherwise it is found by name.
+ */
+const RETAIL_PRICELIST_NAME = 'أسعار المراتب - التجزئة';
+const PRICELIST_TTL_MS = 10 * 60 * 1000;
+let pricelistCache = { id: undefined, at: 0 };
+
+async function retailPricelistId() {
+  const configured = Number(process.env.ODOO_PRICELIST_ID);
+  if (Number.isInteger(configured) && configured > 0) return configured;
+  if (pricelistCache.id !== undefined && Date.now() - pricelistCache.at < PRICELIST_TTL_MS) return pricelistCache.id;
+  let rows = await call('product.pricelist', 'search_read', [[['name', '=', RETAIL_PRICELIST_NAME]]], { fields: ['id'], limit: 1 });
+  if (!rows.length) {
+    rows = await call('product.pricelist', 'search_read', [[['name', 'ilike', 'التجزئة']]], { fields: ['id'], limit: 1 });
+  }
+  pricelistCache = { id: rows[0]?.id ?? null, at: Date.now() };
+  if (!pricelistCache.id) console.error('[Odoo] no retail price list found - using the product cards\' prices');
+  return pricelistCache.id;
+}
+
+/** Odoo datetimes are UTC "YYYY-MM-DD HH:MM:SS". */
+function odooTime(value) {
+  return value ? Date.parse(String(value).replace(' ', 'T') + 'Z') : null;
+}
+
+/**
+ * The list's fixed prices, by size and by product: items that apply to one
+ * piece today. A size's own item wins over one for its whole product.
+ */
+async function listPrices(pricelistId, variantIds, templateIds) {
+  const byVariant = new Map();
+  const byTemplate = new Map();
+  if (!pricelistId) return { byVariant, byTemplate };
+  const items = await searchReadAll(
+    'product.pricelist.item',
+    [
+      ['pricelist_id', '=', pricelistId],
+      '|',
+      ['product_id', 'in', variantIds],
+      ['product_tmpl_id', 'in', templateIds],
+    ],
+    { fields: ['applied_on', 'product_id', 'product_tmpl_id', 'compute_price', 'fixed_price', 'min_quantity', 'date_start', 'date_end'] }
+  );
+  const now = Date.now();
+  for (const item of items) {
+    if (item.compute_price !== 'fixed' || !(Number(item.fixed_price) > 0)) continue;
+    if (Number(item.min_quantity) > 1) continue;
+    const start = odooTime(item.date_start);
+    const end = odooTime(item.date_end);
+    if ((start && start > now) || (end && end < now)) continue;
+    const id = (field) => (Array.isArray(item[field]) ? item[field][0] : item[field]);
+    if (item.applied_on === '0_product_variant' && id('product_id')) byVariant.set(id('product_id'), Number(item.fixed_price));
+    else if (item.applied_on === '1_product' && id('product_tmpl_id')) byTemplate.set(id('product_tmpl_id'), Number(item.fixed_price));
+  }
+  return { byVariant, byTemplate };
+}
+
 /** The Odoo product category the shop sells from; its children are the tiers. */
 const SHOP_CATEGORY = 'Mattresses';
 
@@ -216,6 +277,9 @@ async function fetchProducts() {
     fields: ['id', 'default_code', 'lst_price', 'qty_available', 'product_template_attribute_value_ids'],
   });
 
+  // Each size's price from the retail price list (see retailPricelistId).
+  const prices = await listPrices(await retailPricelistId(), variantIds, templates.map((t) => t.id));
+
   const ptavIds = [...new Set(variants.flatMap((v) => v.product_template_attribute_value_ids))];
   const ptavNameById = new Map();
   if (ptavIds.length > 0) {
@@ -236,8 +300,9 @@ async function fetchProducts() {
         // still a usable (if ugly) label rather than a blank option.
         label: v.product_template_attribute_value_ids.map((id) => ptavNameById.get(id) || id).join(' / '),
         sku: v.default_code || '',
-        // lst_price, not list_price: the variant's own price, attribute extras included.
-        price: v.lst_price,
+        // The retail price list's price for this size; the card's lst_price (the
+        // variant's own, attribute extras included) only when the list has none.
+        price: prices.byVariant.get(v.id) ?? prices.byTemplate.get(t.id) ?? v.lst_price,
         stock: typeof v.qty_available === 'number' ? v.qty_available : null,
         inStock: typeof v.qty_available === 'number' ? v.qty_available > 0 : true,
       });
@@ -368,9 +433,13 @@ async function createSaleOrder(customer, items, note, discount = null) {
     ]);
   }
 
+  // The order is priced on the same list the shop shows, whatever the
+  // customer's own default list - so Odoo's total is the one they saw.
+  const pricelistId = await retailPricelistId().catch(() => null);
   const orderId = await call('sale.order', 'create', [
     {
       partner_id: partnerId,
+      ...(pricelistId ? { pricelist_id: pricelistId } : {}),
       order_line: orderLines,
       note: note ? String(note) : false,
     },

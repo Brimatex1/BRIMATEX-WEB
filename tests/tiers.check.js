@@ -74,6 +74,21 @@ function answer(model, method, args) {
     return TEMPLATES.filter((t) => !(noEconomy && t.categ_id[0] === 16));
   }
   if (model === 'product.product' && method === 'read') return args[0].map((id) => VARIANTS[id]).filter(Boolean);
+  // The retail price list: one size priced on its own, one product for all its sizes,
+  // and items the shop must skip - a quantity break, an expired price, a percentage rule.
+  if (model === 'product.pricelist' && method === 'search_read') {
+    return JSON.stringify(args[0]).includes('أسعار المراتب - التجزئة') ? [{ id: 9 }] : [];
+  }
+  if (model === 'product.pricelist.item' && method === 'search_read') {
+    if (!JSON.stringify(args[0]).includes('["pricelist_id","=",9]')) return [];
+    return [
+      { applied_on: '0_product_variant', product_id: [101, 'CMF-1'], product_tmpl_id: [1, 'x'], compute_price: 'fixed', fixed_price: 795, min_quantity: 0, date_start: false, date_end: false },
+      { applied_on: '0_product_variant', product_id: [102, 'CMF-2'], product_tmpl_id: [1, 'x'], compute_price: 'fixed', fixed_price: 99, min_quantity: 5, date_start: false, date_end: false },
+      { applied_on: '0_product_variant', product_id: [102, 'CMF-2'], product_tmpl_id: [1, 'x'], compute_price: 'fixed', fixed_price: 88, min_quantity: 0, date_start: false, date_end: '2020-01-01 00:00:00' },
+      { applied_on: '1_product', product_id: false, product_tmpl_id: [3, 'Hotel'], compute_price: 'fixed', fixed_price: 1485, min_quantity: 0, date_start: false, date_end: false },
+      { applied_on: '0_product_variant', product_id: [202, 'BRD-2'], product_tmpl_id: [2, 'x'], compute_price: 'percentage', fixed_price: 0, min_quantity: 0, date_start: false, date_end: false },
+    ];
+  }
   if (model === 'product.template.attribute.value' && method === 'read')
     return args[0].map((id) => ({ id, name: `مقاس ${id}` }));
   return [];
@@ -127,7 +142,12 @@ function answer(model, method, args) {
     const bordo = byName['Daily Mattress'];
     ok('المقاس بلا سعر لا يظهر', bordo?.variants?.length === 2 && !bordo.variants.some((v) => v.id === 201), JSON.stringify(bordo?.variants));
     ok('هوية البطاقة أول مقاس مسعّر', bordo?.id === 202 && bordo.price === 150, `${bordo?.id} ${bordo?.price}`);
-    ok('السعر من lst_price', byName['Comfort Mattress']?.variants?.[1]?.price === 720);
+    const comfort = byName['Comfort Mattress'];
+    ok('سعر المقاس من قائمة أسعار التجزئة', comfort?.variants?.find((v) => v.id === 101)?.price === 795, JSON.stringify(comfort?.variants));
+    ok('بند بكمية دنيا أو منتهي لا يُعتمد: سعر البطاقة', comfort?.variants?.find((v) => v.id === 102)?.price === 720);
+    ok('بند للمنتج كله يسعّر مقاساته', byName['Hotel Mattress']?.price === 1485);
+    ok('قاعدة بنسبة لا تُعتمد: سعر البطاقة', byName['Daily Mattress']?.variants?.find((v) => v.id === 202)?.price === 150);
+    ok('يقرأ قائمة التجزئة بالاسم', calls.some((c) => c.model === 'product.pricelist'));
 
     hasRoot = false;
     ok('بلا فئة Mattresses: لا منتجات', (await odooLib.fetchProducts()).length === 0);

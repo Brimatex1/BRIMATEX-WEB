@@ -99,6 +99,7 @@ async function odooPart() {
         else if (model === 'res.partner' && method === 'create') result = 55;
         else if (model === 'product.product' && method === 'search') result = productCreates ? [9001] : [];
         else if (model === 'product.product' && method === 'create') (productCreates++, (result = 9001));
+        else if (model === 'product.pricelist' && method === 'search_read') result = [{ id: 9 }];
         else if (model === 'sale.order' && method === 'create') result = 800;
         else if (model === 'sale.order' && method === 'read') result = [{ id: 800, name: 'S00800', amount_total: 1757.5 }];
         else result = [];
@@ -135,6 +136,7 @@ async function odooPart() {
     ok('بدون ضرائب (tax_ids فارغ)', JSON.stringify(discountLine?.tax_ids) === '[[6,0,[]]]');
     ok('اسم السطر يذكر القسيمة', /BRX-FIRST-5/.test(discountLine?.name || ''));
     ok('الإجمالي من أودو', result.total === 1757.5);
+    ok('الطلب على قائمة أسعار التجزئة، لا قائمة الزبون', creates[0]?.args[0]?.pricelist_id === 9, JSON.stringify(creates[0]?.args[0]?.pricelist_id));
 
     const created = calls.find((c) => c.model === 'product.product' && c.method === 'create')?.args[0];
     ok('منتج الخصم: خدمة، لا يُشترى، بلا ضرائب', created?.type === 'service' && created?.purchase_ok === false && created?.default_code === 'BRX-DISCOUNT');
