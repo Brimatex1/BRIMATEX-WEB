@@ -11,6 +11,13 @@ import { tiersOf } from '@/lib/tiers';
 import { cn } from '@/lib/utils';
 import type { Banner, Perks, Product, SectionId, User } from '@/types';
 
+/** The tier cards' columns by how many tiers there are - whole strings, so Tailwind sees them. */
+const TIER_COLUMNS: Record<number, string> = {
+  1: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+};
+
 interface HomePageProps {
   user: User | null;
   products: Product[];
@@ -198,7 +205,7 @@ export function HomePage({
     ) ?? null;
 
   const tiers = useMemo(() => tiersOf(products), [products]);
-  const newest = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 8), [products]);
+  const newest = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 6), [products]);
   const firstName = user?.name?.trim().split(/\s+/)[0];
 
   return (
@@ -210,7 +217,7 @@ export function HomePage({
       </section>
 
       {/* ── The shop's promises ── */}
-      <section aria-label="لماذا بريماتكس" className="-mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section aria-label="لماذا بريماتكس" className="-mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {PROMISES.map(({ Icon, title, body }) => (
           <div key={title} className="flex flex-col items-center gap-2 rounded-lg border bg-card p-4 text-center md:flex-row md:gap-3 md:text-start">
             <span className="grid size-10 shrink-0 place-items-center rounded-full bg-secondary text-secondary-foreground">
@@ -253,7 +260,9 @@ export function HomePage({
       {tiers.length > 0 && (
         <section>
           <SectionHeading title="تسوّق حسب الفئة" />
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {/* One row, as many columns as tiers: a leftover empty cell (or a tier
+              alone on the last row, on a phone) looked broken */}
+          <div className={cn('grid gap-3 md:gap-4', TIER_COLUMNS[tiers.length] ?? 'grid-cols-2 lg:grid-cols-4')}>
             {tiers.map(({ tier, items }) => (
               <a
                 key={tier.key}
@@ -267,12 +276,12 @@ export function HomePage({
               >
                 <Card className="overflow-hidden transition-shadow group-hover:shadow-md">
                   <ProductImage product={items[0]} className="aspect-[4/3] transition-transform duration-300 group-hover:scale-[1.03]" />
-                  <CardContent className="flex items-center justify-between p-4">
-                    <span>
-                      <span className="block font-semibold">مراتب {tier.name}</span>
+                  <CardContent className="flex items-center justify-between gap-1 p-3 md:p-4">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold md:text-base">مراتب {tier.name}</span>
                       <span className="text-xs text-muted-foreground">{items.length} {items.length === 1 ? 'مرتبة' : 'مراتب'}</span>
                     </span>
-                    <ArrowLeft className="size-4 text-muted-foreground transition-transform group-hover:-translate-x-1" aria-hidden="true" />
+                    <ArrowLeft className="hidden size-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-x-1 sm:block" aria-hidden="true" />
                   </CardContent>
                 </Card>
               </a>
@@ -293,9 +302,11 @@ export function HomePage({
             </Button>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          // Two columns on a phone, three from a tablet up: six mattresses fill
+          // whole rows at every width, where four columns left two on the last.
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             {loading
-              ? [0, 1, 2, 3].map((i) => <ProductCardSkeleton key={i} />)
+              ? [0, 1, 2].map((i) => <ProductCardSkeleton key={i} />)
               : newest.map((p) => (
                   <ProductCard
                     key={p.id}
