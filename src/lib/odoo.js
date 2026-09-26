@@ -7,6 +7,7 @@
 const settings = require('./settings');
 const http = require('./http');
 const { isSellable } = require('./sellable');
+const { toInternational } = require('./whatsapp-cloud');
 
 // Read per call rather than captured at boot, so saving settings from the
 // dashboard takes effect without a restart.
@@ -358,26 +359,53 @@ async function fetchProducts() {
  * The order previously set partner_id to the database name, which is not a
  * partner id at all — orders could never have been created against a real Odoo.
  */
+/**
+ * Every way one Libyan number is written in Odoo's contacts - 0912345678,
+ * +218912345678, 218912345678, 00218912345678 - so a returning customer is
+ * found whichever form their contact was saved in.
+ */
+function phoneForms(phone) {
+  const raw = String(phone || '').trim();
+  const intl = toInternational(raw);
+  const local = intl.slice(3);
+  return [...new Set([raw, `+${intl}`, intl, `00${intl}`, `0${local}`, local])].filter(Boolean);
+}
+
 async function findOrCreatePartner(customer) {
   const phone = String(customer.phone || '').trim();
+  const name = String(customer.name || '').trim();
+  const city = String(customer.city || '').trim();
+  const street = String(customer.address || '').trim();
 
   if (phone) {
-    const existing = await call(
-      'res.partner',
-      'search_read',
-      [[['phone', '=', phone]]],
-      { fields: ['id'], limit: 1 }
-    );
-    if (existing?.[0]?.id) return existing[0].id;
+    // `search` then `read`, never `search_read`: this Odoo answers
+    // res.partner's search_read with every contact, whatever the domain, so
+    // each order went to the contact that sorts first - one named ".".
+    const [id] = await call('res.partner', 'search', [[['phone', 'in', phoneForms(phone)]]], {
+      limit: 1,
+      order: 'id desc',
+    });
+    if (id) {
+      // A returning customer: their contact gets what it is missing - a real
+      // name when it has none, the city and address when empty - so the
+      // order and the invoice show who and where. Nothing filled is replaced.
+      const [found] = await call('res.partner', 'read', [[id]], { fields: ['name', 'street', 'city'] });
+      const fill = {};
+      if (name && !/\p{L}/u.test(found?.name || '')) fill.name = name;
+      if (street && !found?.street) fill.street = street;
+      if (city && !found?.city) fill.city = city;
+      if (Object.keys(fill).length) await call('res.partner', 'write', [[id], fill]);
+      return id;
+    }
   }
 
   return call('res.partner', 'create', [
     {
-      name: String(customer.name || '').trim() || 'عميل',
-      phone,
+      name: name || 'عميل',
+      phone: phone ? `+${toInternational(phone)}` : false,
       email: customer.email ? String(customer.email).trim() : false,
-      city: String(customer.city || '').trim() || false,
-      street: String(customer.address || '').trim() || false,
+      city: city || false,
+      street: street || false,
     },
   ]);
 }

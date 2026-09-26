@@ -86,6 +86,9 @@ async function startTestServer({ port, env = {} } = {}) {
       ODOO_DB: '',
       ODOO_USERNAME: '',
       ODOO_API_KEY: '',
+      // An Odoo connection saved on this machine (settings.local.json) would
+      // otherwise win over the blanks above and reach the real Odoo.
+      ODOO_IGNORE_STORED: '1',
       WHATSAPP_TOKEN: '',
       // Never report test orders to the real Meta dataset.
       FACEBOOK_CAPI_TOKEN: '',

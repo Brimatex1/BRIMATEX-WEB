@@ -51,7 +51,9 @@ function writeFile(data) {
 
 /** Stored settings win; anything blank falls back to the environment. */
 function getOdoo() {
-  const stored = readFile().odoo || {};
+  // The test servers set ODOO_IGNORE_STORED: a connection saved on this
+  // machine must never let a test place orders in the real Odoo.
+  const stored = process.env.ODOO_IGNORE_STORED === '1' ? {} : readFile().odoo || {};
   return {
     url: (stored.url || ENV_ODOO.url || '').replace(/\/+$/, ''),
     db: stored.db || ENV_ODOO.db || '',

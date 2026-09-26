@@ -118,6 +118,7 @@ function answer(model, method, args) {
   const settingsFile = path.join(__dirname, '..', 'src', 'data', 'settings.local.json');
   const before = fs.existsSync(settingsFile) ? fs.readFileSync(settingsFile) : null;
   process.env.DATABASE_URL = '';
+  process.env.ODOO_IGNORE_STORED = '1'; // never the connection saved on this machine
   process.env.ODOO_URL = `http://127.0.0.1:${ODOO_PORT}`;
   process.env.ODOO_DB = 'test';
   process.env.ODOO_USERNAME = 'test';

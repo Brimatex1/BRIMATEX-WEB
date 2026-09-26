@@ -85,6 +85,7 @@ async function odooPart() {
   section('1. سطر الخصم في أودو');
   const calls = [];
   let productCreates = 0;
+  let existingPartner = null;
   const odoo = http.createServer((r, res) => {
     let text = '';
     r.on('data', (c) => (text += c));
@@ -95,7 +96,9 @@ async function odooPart() {
       else {
         const [, , , model, method, args] = params.args;
         calls.push({ model, method, args });
-        if (model === 'res.partner' && method === 'search') result = [];
+        if (model === 'res.partner' && method === 'search') result = existingPartner ? [existingPartner.id] : [];
+        else if (model === 'res.partner' && method === 'read') result = existingPartner ? [existingPartner] : [];
+        else if (model === 'res.partner' && method === 'write') result = true;
         else if (model === 'res.partner' && method === 'create') result = 55;
         else if (model === 'product.product' && method === 'search') result = productCreates ? [9001] : [];
         else if (model === 'product.product' && method === 'create') (productCreates++, (result = 9001));
@@ -116,6 +119,7 @@ async function odooPart() {
   const before = fs.existsSync(settingsFile) ? fs.readFileSync(settingsFile) : null;
 
   process.env.DATABASE_URL = '';
+  process.env.ODOO_IGNORE_STORED = '1'; // never the connection saved on this machine
   process.env.ODOO_URL = `http://127.0.0.1:${ODOO_PORT}`;
   process.env.ODOO_DB = 'test';
   process.env.ODOO_USERNAME = 'test';
@@ -138,6 +142,15 @@ async function odooPart() {
     ok('الإجمالي من أودو', result.total === 1757.5);
     ok('الطلب على قائمة أسعار التجزئة، لا قائمة الزبون', creates[0]?.args[0]?.pricelist_id === 9, JSON.stringify(creates[0]?.args[0]?.pricelist_id));
 
+    // The customer: looked up with `search` (Odoo's res.partner search_read ignores
+    // the domain), by every form of the number; a new one is saved in full.
+    const lookup = calls.find((c) => c.model === 'res.partner' && c.method === 'search');
+    ok('الزبون يُبحث عنه بـ search لا search_read', lookup && !calls.some((c) => c.model === 'res.partner' && c.method === 'search_read'));
+    ok('بكل صيغ الرقم', ['0912345678', '+218912345678', '218912345678'].every((f) => JSON.stringify(lookup?.args).includes(f)), JSON.stringify(lookup?.args));
+    const newPartner = calls.find((c) => c.model === 'res.partner' && c.method === 'create')?.args[0];
+    ok('زبون جديد: اسمه ورقمه ومدينته وعنوانه', newPartner?.name === 'زبون' && newPartner?.phone === '+218912345678' && newPartner?.city === 'طرابلس' && newPartner?.street === 'شارع', JSON.stringify(newPartner));
+    ok('والطلب باسمه', creates[0]?.args[0]?.partner_id === 55);
+
     const created = calls.find((c) => c.model === 'product.product' && c.method === 'create')?.args[0];
     ok('منتج الخصم: خدمة، لا يُشترى، بلا ضرائب', created?.type === 'service' && created?.purchase_ok === false && created?.default_code === 'BRX-DISCOUNT');
 
@@ -154,6 +167,20 @@ async function odooPart() {
     await odooLib.createSaleOrder(customer, [{ productId: 7747, quantity: 1, price: 470 }], '', null);
     const priced = calls.find((c) => c.model === 'sale.order' && c.method === 'create')?.args[0]?.order_line || [];
     ok('سعر المقاس من المتجر يُكتب على السطر كما هو', priced[0]?.[2]?.price_unit === 470, JSON.stringify(priced));
+
+    // A returning customer whose contact has no real name and no address.
+    existingPartner = { id: 1597, name: '.', street: false, city: 'مصراتة' };
+    calls.length = 0;
+    await odooLib.createSaleOrder(customer, items, '', null);
+    const write = calls.find((c) => c.model === 'res.partner' && c.method === 'write')?.args;
+    const order2 = calls.find((c) => c.model === 'sale.order' && c.method === 'create')?.args[0];
+    ok('زبون موجود: الطلب على جهة اتصاله', order2?.partner_id === 1597 && !calls.some((c) => c.model === 'res.partner' && c.method === 'create'));
+    ok('يُكمَل الناقص: الاسم والعنوان', JSON.stringify(write) === JSON.stringify([[1597], { name: 'زبون', street: 'شارع' }]), JSON.stringify(write));
+    existingPartner = { id: 1597, name: 'محمد', street: 'قديم', city: 'مصراتة' };
+    calls.length = 0;
+    await odooLib.createSaleOrder(customer, items, '', null);
+    ok('وما كان مكتوباً لا يُستبدل', !calls.some((c) => c.model === 'res.partner' && c.method === 'write'));
+    existingPartner = null;
   } finally {
     odoo.closeAllConnections();
     odoo.close();
