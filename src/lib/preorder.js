@@ -54,4 +54,19 @@ function preorderNote(items, products, config) {
   return `طلب مسبق — ${leadText(config.days)}: ${[...new Set(names)].join('، ')}`;
 }
 
-module.exports = { withPreorder, preorderNote, leadText };
+/**
+ * Reads back what preorderNote wrote on an order: the days to make it, 0 when
+ * made to order with no set time, null when nothing in it is a pre-order.
+ * Lets the order tracking tell the customer when the mattress should be ready.
+ */
+function leadDaysFromNote(note) {
+  const text = String(note || '');
+  if (!text.includes('طلب مسبق —')) return null;
+  const n = text.match(/يُصنع خلال (\d+)/);
+  if (n) return Number(n[1]);
+  if (text.includes('يُصنع خلال يومين')) return 2;
+  if (text.includes('يُصنع خلال يوم')) return 1;
+  return 0;
+}
+
+module.exports = { withPreorder, preorderNote, leadText, leadDaysFromNote };

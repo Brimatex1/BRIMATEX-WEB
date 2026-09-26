@@ -222,6 +222,11 @@ export interface OrderSummary {
   address: string;
   placedAt: string;
   paidAt: string | null;
+  /** The delivery slip that took it out of the warehouse (e.g. FFG/OUT/00231), and when. */
+  shipmentName?: string | null;
+  shippedAt?: string | null;
+  /** Made to order: days to make it (0 = no set time); null when nothing in it is. */
+  leadDays?: number | null;
 }
 
 export type Role = 'customer' | 'admin';

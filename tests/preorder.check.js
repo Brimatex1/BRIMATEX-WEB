@@ -8,7 +8,7 @@
 // schema.org's PreOrder, and the Odoo order's note names what has to be made.
 //
 // Runs with the rest: npm test
-const { withPreorder, preorderNote, leadText } = require('../src/lib/preorder');
+const { withPreorder, preorderNote, leadText, leadDaysFromNote } = require('../src/lib/preorder');
 const metaFeed = require('../src/lib/metaFeed');
 const share = require('../src/lib/share');
 
@@ -55,6 +55,9 @@ ok('بلا مدة: null', withPreorder(catalogue, { enabled: true, days: null })
 
 console.log('\n\x1b[1m2. الكلمات\x1b[0m');
 ok('العدد بصيغته', [leadText(null), leadText(1), leadText(2), leadText(7), leadText(14)].join('|') === 'يُصنع على الطلب|يُصنع خلال يوم|يُصنع خلال يومين|يُصنع خلال 7 أيام|يُصنع خلال 14 يوماً');
+// The order tracking reads the days back from the note: every form leadText writes.
+ok('المدة تُقرأ من الملاحظة', [0, 1, 2, 7, 14].every((d) => leadDaysFromNote(`ملاحظة\nطلب مسبق — ${leadText(d)}: مرتبة`) === d));
+ok('ملاحظة بلا طلب مسبق → null', leadDaysFromNote('اتصلوا بعد العصر') === null && leadDaysFromNote('') === null);
 
 console.log('\n\x1b[1m3. ملاحظة الطلب في أودو\x1b[0m');
 const items = [{ productId: 10, quantity: 1 }, { productId: 11, quantity: 1 }, { productId: 20, quantity: 2 }];

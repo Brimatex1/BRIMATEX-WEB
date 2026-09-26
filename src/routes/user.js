@@ -14,6 +14,7 @@
 const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const perks = require('../lib/perks');
+const { leadDaysFromNote } = require('../lib/preorder');
 const avatar = require('../lib/avatar');
 const { sendJson, readBody } = require('../lib/respond');
 
@@ -108,6 +109,8 @@ async function handleUserRoutes(req, res, url) {
       // The delivery slip that took it out of the warehouse, and when.
       shipmentName: o.shipmentName || null,
       shippedAt: o.shippedAt || null,
+      // Made to order: the days it takes, for "ready around ..." on the tracking.
+      leadDays: leadDaysFromNote(o.note),
     }));
 
     return sendJson(res, 200, { orders: result });
