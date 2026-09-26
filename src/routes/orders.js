@@ -171,7 +171,13 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       if (odoo.isConfigured()) {
         let odooResult;
         try {
-          odooResult = await odoo.createSaleOrder(order.customer, order.items, note, discount);
+          // Each line carries the catalogue's price - the one the customer saw.
+          const pricedItems = order.items.map((i) => ({
+            productId: i.productId,
+            quantity: i.quantity,
+            price: priceById.get(i.productId) || 0,
+          }));
+          odooResult = await odoo.createSaleOrder(order.customer, pricedItems, note, discount);
         } catch (err) {
           await releaseVoucher();
           throw err;

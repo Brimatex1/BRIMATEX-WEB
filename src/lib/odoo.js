@@ -421,10 +421,17 @@ async function createSaleOrder(customer, items, note, discount = null) {
 
   // Odoo one2many syntax: one [0, 0, values] tuple per line. These used to be
   // spread into a single tuple, collapsing every item into one malformed line.
+  // `price` is the shop's own price for the size (set by the orders route from
+  // the catalogue, never by the client): written on the line, Odoo keeps the
+  // figure the customer saw instead of recomputing it from whichever list it picks.
   const orderLines = items.map((item) => [
     0,
     0,
-    { product_id: item.productId, product_uom_qty: item.quantity },
+    {
+      product_id: item.productId,
+      product_uom_qty: item.quantity,
+      ...(Number(item.price) > 0 ? { price_unit: Number(item.price) } : {}),
+    },
   ]);
   if (discount && discount.amount > 0) {
     orderLines.push([

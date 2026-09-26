@@ -148,6 +148,12 @@ async function odooPart() {
     await odooLib.createSaleOrder(customer, items, '', null);
     const plain = calls.find((c) => c.model === 'sale.order' && c.method === 'create')?.args[0]?.order_line || [];
     ok('بدون قسيمة: لا سطر خصم', plain.length === 1);
+    ok('بلا سعر من المتجر: أودو يسعّر السطر', plain[0]?.[2]?.price_unit === undefined);
+
+    calls.length = 0;
+    await odooLib.createSaleOrder(customer, [{ productId: 7747, quantity: 1, price: 470 }], '', null);
+    const priced = calls.find((c) => c.model === 'sale.order' && c.method === 'create')?.args[0]?.order_line || [];
+    ok('سعر المقاس من المتجر يُكتب على السطر كما هو', priced[0]?.[2]?.price_unit === 470, JSON.stringify(priced));
   } finally {
     odoo.closeAllConnections();
     odoo.close();
