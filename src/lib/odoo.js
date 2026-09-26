@@ -598,6 +598,42 @@ async function readInvoice(invoiceId) {
   };
 }
 
+/**
+ * Where each sale order stands in Odoo - the order's state, how far its
+ * delivery went, and its customer invoice - keyed by order id. This is what
+ * the team moves: they confirm the order, validate the delivery when it
+ * leaves, and record the payment on the invoice. Orders gone from Odoo are
+ * left out.
+ */
+async function readOrdersProgress(orderIds) {
+  const result = new Map();
+  if (!orderIds.length) return result;
+  // `search` first: `read` fails outright on an id that no longer exists.
+  const ids = await call('sale.order', 'search', [[['id', 'in', orderIds]]]);
+  if (!ids.length) return result;
+  const orders = await readInBatches('sale.order', ids, { fields: ['state', 'delivery_status', 'invoice_ids'] });
+  const invoiceIds = [...new Set(orders.flatMap((o) => o.invoice_ids || []))];
+  const invoices = invoiceIds.length
+    ? await readInBatches('account.move', invoiceIds, { fields: ['name', 'state', 'payment_state', 'move_type'] })
+    : [];
+  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
+  for (const o of orders) {
+    // The latest customer invoice still standing (not a refund, not cancelled).
+    const invoice = (o.invoice_ids || [])
+      .map((id) => invoiceById.get(id))
+      .filter((i) => i && i.move_type === 'out_invoice' && i.state !== 'cancel')
+      .sort((a, b) => b.id - a.id)[0];
+    result.set(o.id, {
+      state: o.state || '',
+      deliveryStatus: o.delivery_status || '',
+      invoice: invoice
+        ? { id: invoice.id, name: invoice.name, state: invoice.state, paymentState: invoice.payment_state || '' }
+        : null,
+    });
+  }
+  return result;
+}
+
 async function recordPayment(invoiceId, amount) {
   await call('account.payment', 'create', [
     {
@@ -698,6 +734,7 @@ module.exports = {
   createSaleOrder,
   getInvoiceStatus,
   readInvoice,
+  readOrdersProgress,
   recordPayment,
   createHelpdeskTicket,
 };

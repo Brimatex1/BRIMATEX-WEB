@@ -25,12 +25,20 @@ function stageOf(order) {
   const invoice = String(order?.invoiceStatus || '');
   if (invoice === 'cancel' || invoice === 'cancelled') return 'cancelled';
   if (order?.paymentStatus === 'paid') return 'done';
-  if (invoice === 'posted' || invoice === 'confirmed' || invoice === 'delivered') return 'shipping';
+  // 'confirmed': the order is confirmed in Odoo (or from the dashboard) and
+  // is being prepared - it has not left yet. The app shows it as in review
+  // until its next build learns the stage; the notification goes out now.
+  if (invoice === 'confirmed') return 'confirmed';
+  if (invoice === 'posted' || invoice === 'delivered') return 'shipping';
   return 'review';
 }
 
 /** No message for 'review': that is where every order starts, so it is not news. */
 const MESSAGES = {
+  confirmed: (name) => ({
+    title: 'تم تأكيد طلبك',
+    body: `أكّدنا طلبك ${name} وبدأنا تجهيزه. نخبرك عند الشحن.`,
+  }),
   shipping: (name) => ({
     title: 'طلبك في الطريق 🚚',
     body: `طلبك ${name} خرج للتوصيل. يتصل بك المندوب لتأكيد الموعد.`,

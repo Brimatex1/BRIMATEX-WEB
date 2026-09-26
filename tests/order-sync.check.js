@@ -10,7 +10,7 @@
 // no real invoice.
 //
 // Runs with the rest: npm test
-const { syncOrderStatuses, updatesFromInvoice, needsCheck } = require('../src/lib/orderSync');
+const { syncOrderStatuses, updatesFromInvoice, updatesFromOrder, stageFromOrder, needsCheck } = require('../src/lib/orderSync');
 const realPush = require('../src/lib/push');
 
 let pass = 0;
@@ -165,6 +165,85 @@ group('6. وضعٌ تجريبي بلا أودو');
   });
   check('لا فحص ولا إشعار', summary.checked === 0 && summary.notified === 0);
   check('مُعلَّمة كمتخطّاة', summary.skipped === 1);
+}
+
+group('7. طلبات الموقع والتطبيق: تتبع الطلب نفسه في أودو');
+// The team's steps: confirm the order, validate its delivery when it leaves,
+// record the payment on the invoice when the cash comes back.
+const progress = (state, deliveryStatus = 'pending', invoice = null) => ({ state, deliveryStatus, invoice });
+check('عرض سعر → قيد المراجعة', stageFromOrder(progress('draft')) === 'review');
+check('طلب مؤكَّد → مؤكَّد', stageFromOrder(progress('sale')) === 'confirmed');
+check('التسليم تأكّد → في الطريق', stageFromOrder(progress('sale', 'full')) === 'shipping');
+check('تسليم جزئي → في الطريق', stageFromOrder(progress('sale', 'partial')) === 'shipping');
+check('فاتورة بلا دفع → ما زال في الطريق', stageFromOrder(progress('sale', 'full', { id: 9, name: 'INV/1', state: 'posted', paymentState: 'not_paid' })) === 'shipping');
+check('الدفع تسجّل → مكتمل', stageFromOrder(progress('sale', 'full', { id: 9, name: 'INV/1', state: 'posted', paymentState: 'paid' })) === 'done');
+check('دفع ينتظر مطابقة البنك → مكتمل', stageFromOrder(progress('sale', 'full', { id: 9, name: 'INV/1', state: 'posted', paymentState: 'in_payment' })) === 'done');
+check('طلب ملغى → ملغى', stageFromOrder(progress('cancel')) === 'cancelled');
+{
+  const u = updatesFromOrder(progress('sale', 'full', { id: 9, name: 'INV/2026/0009', state: 'posted', paymentState: 'not_paid' }));
+  check('رقم الفاتورة يُحفظ ليراه الزبون', u.invoiceName === 'INV/2026/0009' && u.odooInvoiceId === 9);
+  const draft = updatesFromOrder(progress('sale', 'pending', { id: 9, name: '/', state: 'draft', paymentState: 'not_paid' }));
+  check('فاتورة مسوّدة بلا رقم لا تُحفظ', draft.invoiceName === undefined);
+  check('وحالاته بمفردات التطبيق', draft.invoiceStatus === 'confirmed' && draft.paymentStatus === 'unpaid');
+}
+check('طلب له رقم في أودو ولا فاتورة → يُسأل عنه', needsCheck({ odooOrderId: 525, invoiceStatus: 'draft' }, realPush.stageOf));
+{
+  const h = harness([
+    { orderName: 'S00409', odooOrderId: 525, invoiceStatus: 'draft', paymentStatus: 'unpaid' },
+    { orderName: 'S00410', odooOrderId: 526, invoiceStatus: 'confirmed', paymentStatus: 'unpaid' },
+    { orderName: 'S00411', odooOrderId: 527, invoiceStatus: 'posted', paymentStatus: 'unpaid' },
+    { orderName: 'S00412', odooOrderId: 528, invoiceStatus: 'draft', paymentStatus: 'unpaid' },
+    { orderName: 'S00413', odooOrderId: 529, invoiceStatus: 'draft', paymentStatus: 'unpaid' },
+  ]);
+  let rounds = 0;
+  const odoo = {
+    isConfigured: () => true,
+    readInvoice: async () => { throw new Error('يجب ألّا يُنادى'); },
+    readOrdersProgress: async (ids) => {
+      rounds++;
+      const all = {
+        525: progress('sale'),
+        526: progress('sale', 'full'),
+        527: progress('sale', 'full', { id: 40, name: 'INV/2026/0040', state: 'posted', paymentState: 'paid' }),
+        528: progress('cancel'),
+        // 529 is gone from Odoo.
+      };
+      return new Map(ids.filter((id) => all[id]).map((id) => [id, all[id]]));
+    },
+  };
+  const summary = await syncOrderStatuses({ odoo, orders: h.orders, push: h.push });
+  const stageSent = (name) => h.sent.find((s) => s.orderName === name)?.stage;
+  check('كل الطلبات في طلب واحد لأودو', rounds === 1);
+  check('تأكيد الطلب → إشعار «تم تأكيد طلبك»', stageSent('S00409') === 'confirmed');
+  check('التسليم → إشعار «في الطريق»', stageSent('S00410') === 'shipping');
+  check('الدفع → إشعار «تم التسليم»، ورقم الفاتورة', stageSent('S00411') === 'done' && h.store[2].invoiceName === 'INV/2026/0040' && Boolean(h.store[2].paidAt));
+  check('الإلغاء → إشعار «أُلغي»', stageSent('S00412') === 'cancelled');
+  check('طلب اختفى من أودو يُسجَّل فشلاً ولا يوقف الباقي', summary.failed === 1 && !h.sent.some((s) => s.orderName === 'S00413'));
+  const again = await syncOrderStatuses({ odoo, orders: h.orders, push: h.push });
+  check('التشغيل التالي صامت', again.changed === 0 && h.sent.length === 4, `changed=${again.changed} sent=${h.sent.length}`);
+}
+{
+  const h = harness([{ orderName: 'S00500', odooOrderId: 600, invoiceStatus: 'draft', paymentStatus: 'unpaid' }]);
+  const summary = await syncOrderStatuses({
+    odoo: { isConfigured: () => true, readOrdersProgress: async () => { throw new Error('انقطاع شبكة'); } },
+    orders: h.orders,
+    push: h.push,
+  });
+  check('أودو لا يرد → فشل مُسجَّل بلا استثناء ولا تحديث', summary.failed === 1 && h.store[0].invoiceStatus === 'draft');
+}
+{
+  const old = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+  const h = harness([{ orderName: 'S00050', odooOrderId: 70, placedAt: old, invoiceStatus: 'draft', paymentStatus: 'unpaid' }]);
+  await syncOrderStatuses({
+    odoo: { isConfigured: () => true, readOrdersProgress: async () => new Map([[70, progress('sale', 'full')]]) },
+    orders: h.orders,
+    push: h.push,
+  });
+  check('طلب عمره أكثر من شهر يتحدّث بلا إشعار', h.store[0].invoiceStatus === 'posted' && h.sent.length === 0);
+}
+{
+  const confirmedMsg = realPush.stageOf({ invoiceStatus: 'confirmed' });
+  check('«مؤكَّد» مرحلة لها إشعارها، لا «في الطريق»', confirmedMsg === 'confirmed');
 }
 
 console.log('\n' + '─'.repeat(52));
