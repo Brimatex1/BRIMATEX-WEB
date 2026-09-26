@@ -37,24 +37,22 @@ function stageOf(order) {
 const MESSAGES = {
   confirmed: (name) => ({
     title: 'تم تأكيد طلبك',
-    body: `أكّدنا طلبك ${name} وبدأنا تجهيزه. نخبرك عند الشحن.`,
+    body: `أكّدنا طلبك ${name} وبدأنا تجهيزه. سنخبرك عند الشحن.`,
   }),
   // Sent when the warehouse validates the order's delivery slip in Odoo: the
-  // goods have left with the driver. The slip's number is the team's own
-  // reference for the shipment.
-  shipping: (name, order) => ({
-    title: 'طلبك في الطريق 🚚',
-    body: order?.shipmentName
-      ? `طلبك ${name} طلع من المخزن مع السائق (إذن التسليم ${order.shipmentName}). يتصل بك قبل الوصول.`
-      : `طلبك ${name} خرج للتوصيل. يتصل بك المندوب لتأكيد الموعد.`,
+  // goods have left with the driver. The slip's number is the warehouse's own
+  // reference - never shown to the customer.
+  shipping: (name) => ({
+    title: 'طلبك في الطريق إليك 🚚',
+    body: `طلبك ${name} في الطريق إليك. سيتصل بك السائق قبل الوصول.`,
   }),
   done: (name) => ({
-    title: 'تم تسليم طلبك ✅',
-    body: `اكتمل طلبك ${name}. نتمنى لك نوماً هنيئاً — ورأيك يهمّنا.`,
+    title: 'تم توصيل طلبك ✅',
+    body: `تم توصيل طلبك ${name}. رأيك يهمّنا.`,
   }),
   cancelled: (name) => ({
-    title: 'أُلغي طلبك',
-    body: `أُلغي طلبك ${name}. اكتب لخدمة العملاء من التطبيق إن كان هذا غير متوقّع.`,
+    title: 'تم إلغاء الطلب',
+    body: `تم إلغاء طلبك ${name}. تواصل معنا لإعادة الطلب أو اختيار موعد آخر.`,
   }),
 };
 

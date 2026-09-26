@@ -1,3 +1,4 @@
+import { formatPrice } from '@/lib/utils';
 import type { OrderSummary } from '@/types';
 
 /**
@@ -17,115 +18,155 @@ export function stageOf(order: Pick<OrderSummary, 'invoiceStatus' | 'paymentStat
   return 'review';
 }
 
+/**
+ * What the customer is told: the stage, with "confirmed" split in two - a
+ * mattress made to order is being made, anything else is being prepared.
+ */
+export type Status = 'review' | 'preparing' | 'making' | 'shipping' | 'done' | 'cancelled';
+
+export function statusOf(order: OrderSummary): Status {
+  const stage = stageOf(order);
+  if (stage === 'confirmed') return order.leadDays != null ? 'making' : 'preparing';
+  return stage;
+}
+
+/** "الاثنين 5 أكتوبر" - the weekday without the comma the locale puts after it. */
+export function formatDay(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('ar-LY', { weekday: 'long', day: 'numeric', month: 'long' }).replace('،', '');
+}
+
+/** "السبت 20 سبتمبر · 7:29 م" */
+export function formatMoment(iso: string | null | undefined): string | null {
+  const day = formatDay(iso);
+  if (!day) return null;
+  const time = new Date(iso as string).toLocaleTimeString('ar-LY', { hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
+
+interface Context {
+  /** When a made-to-order mattress should be ready. */
+  expected: string | null;
+  /** The amount due on delivery, when there is one. */
+  due: number | null;
+  /** When it was delivered. */
+  deliveredAt: string | null;
+}
+
+/**
+ * Every status's words, in one place: the badge (also the active step's
+ * name), the headline, and the line under it (null: no second line).
+ */
+export const STATUS: Record<Status, { badge: string; title: string; sub: (c: Context) => string | null }> = {
+  review: {
+    badge: 'بانتظار التأكيد',
+    title: 'استلمنا طلبك',
+    sub: () => 'سنتصل بك قريباً لتأكيد العنوان وموعد التوصيل.',
+  },
+  preparing: {
+    badge: 'قيد التجهيز',
+    title: 'نجهّز طلبك',
+    sub: (c) => (c.expected ? `التوصيل المتوقع: ${c.expected}` : null),
+  },
+  making: {
+    badge: 'قيد التصنيع',
+    title: 'نصنع مرتبتك الآن',
+    sub: (c) => (c.expected ? `جاهزة في موعد أقصاه ${c.expected}` : null),
+  },
+  shipping: {
+    badge: 'في الطريق',
+    title: 'طلبك في الطريق إليك',
+    sub: (c) => `سيتصل بك السائق قبل الوصول.${c.due ? ` الدفع عند الاستلام: ${formatPrice(c.due)} د.ل` : ''}`,
+  },
+  done: {
+    badge: 'تم التوصيل',
+    title: 'تم توصيل طلبك',
+    sub: (c) => c.deliveredAt,
+  },
+  cancelled: {
+    badge: 'ملغى',
+    title: 'تم إلغاء الطلب',
+    sub: () => 'تواصل معنا لإعادة الطلب أو اختيار موعد آخر.',
+  },
+};
+
+/** Shown under a delivered order's tracker. */
+export const AFTER_DELIVERY_TIP = '💡 اقلب مرتبتك كل 3 أشهر لتدوم أطول.';
+
 export type StepState = 'done' | 'current' | 'upcoming';
 
 export interface TrackStep {
-  key: Exclude<Stage, 'cancelled'>;
-  /** The step's name on the tracker. */
+  key: 'review' | 'confirmed' | 'shipping' | 'done';
   label: string;
-  /** The detail panel: what this step means for this order. */
-  title: string;
-  body: string;
-  /** A real date only - never an invented one. */
+  /** When it happened - a real date only, never an invented one. */
   when: string | null;
-  /** References the customer can quote to us: invoice, delivery slip. */
-  refs: { label: string; value: string }[];
+  /** Documents the customer can quote to us: the invoice. */
+  docs: { label: string; value: string }[];
   state: StepState;
 }
 
 export interface Tracking {
-  stage: Stage;
-  /** The big line at the top: where the order is now. */
+  status: Status;
+  badge: string;
   headline: string;
-  sub: string;
+  sub: string | null;
   steps: TrackStep[];
   /** Index of the current step (the last reached one). */
   current: number;
-  /** A made-to-order mattress: when it should be ready, while still being made. */
-  readyBy: string | null;
 }
 
-export function formatDay(iso: string | null | undefined, withTime = false): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('ar-LY', {
-    weekday: withTime ? undefined : 'long',
-    month: 'long',
-    day: 'numeric',
-    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
-  });
-}
-
-const ORDER: TrackStep['key'][] = ['review', 'confirmed', 'shipping', 'done'];
+const STEP_KEYS: TrackStep['key'][] = ['review', 'confirmed', 'shipping', 'done'];
 
 export function trackingOf(order: OrderSummary): Tracking {
   const stage = stageOf(order);
-  const current = stage === 'cancelled' ? 0 : ORDER.indexOf(stage);
+  const status = statusOf(order);
+  const current = stage === 'cancelled' ? 0 : STEP_KEYS.indexOf(stage);
   const leadDays = order.leadDays ?? null;
-  const readyBy =
+  const expected =
     leadDays && (stage === 'review' || stage === 'confirmed')
       ? formatDay(new Date(new Date(order.placedAt).getTime() + leadDays * 86_400_000).toISOString())
       : null;
-  const madeToOrder = leadDays !== null;
   // Odoo's invoice number; the demo store's own "INV-123456" is not one to quote.
   const invoice = order.invoiceName && !order.invoiceName.startsWith('INV-') ? order.invoiceName : null;
-
-  const state = (i: number): StepState => (i < current ? 'done' : i === current ? (stage === 'done' ? 'done' : 'current') : 'upcoming');
-
-  const steps: TrackStep[] = [
-    {
-      key: 'review',
-      label: 'استلمناه',
-      title: 'استلمنا طلبك',
-      body: 'وصل طلبك إلينا. الفريق يراجعه ويتصل بك لتأكيد العنوان والموعد.',
-      when: formatDay(order.placedAt, true),
-      refs: [],
-      state: state(0),
-    },
-    {
-      key: 'confirmed',
-      label: madeToOrder ? 'يُصنع' : 'نجهّزه',
-      title: madeToOrder ? 'مرتبتك تُصنع لك' : 'نجهّز طلبك',
-      body: madeToOrder
-        ? `أكّدنا طلبك، ومرتبتك تُصنع لك خصيصاً${leadDays ? ` خلال ${leadDays} ${leadDays > 10 ? 'يوماً' : 'أيام'}` : ''}. نخبرك أول ما تطلع من المخزن.`
-        : 'أكّدنا طلبك ونجهّزه في المخزن. نخبرك أول ما يطلع مع السائق.',
-      when: readyBy ? `جاهزة تقريباً ${readyBy}` : null,
-      refs: [],
-      state: state(1),
-    },
-    {
-      key: 'shipping',
-      label: 'في الطريق',
-      title: 'طلبك في الطريق',
-      body: 'طلع من المخزن مع السائق. يتصل بك قبل الوصول، والدفع عند الاستلام.',
-      when: formatDay(order.shippedAt, true),
-      refs: [
-        ...(order.shipmentName ? [{ label: 'إذن التسليم', value: order.shipmentName }] : []),
-        ...(invoice ? [{ label: 'الفاتورة', value: invoice }] : []),
-      ],
-      state: state(2),
-    },
-    {
-      key: 'done',
-      label: 'وصل',
-      title: 'تم التسليم',
-      body: 'وصلت مرتبتك. نوماً هنيئاً، وتذكّر تقليبها كل ثلاثة أشهر.',
-      when: formatDay(order.paidAt, true),
-      refs: invoice ? [{ label: 'الفاتورة', value: invoice }] : [],
-      state: state(3),
-    },
-  ];
-
-  const HEAD: Record<Stage, [string, string]> = {
-    review: ['استلمنا طلبك', 'نراجعه ونتصل بك قريباً لتأكيده.'],
-    confirmed: madeToOrder
-      ? ['مرتبتك تُصنع', readyBy ? `جاهزة تقريباً ${readyBy}.` : 'نخبرك أول ما تطلع من المخزن.']
-      : ['نجهّز طلبك', 'نخبرك أول ما يطلع مع السائق.'],
-    shipping: ['طلبك في الطريق', 'السائق يتصل بك قبل الوصول.'],
-    done: ['وصل طلبك', 'نوماً هنيئاً.'],
-    cancelled: ['أُلغي الطلب', 'تواصل معنا ونرتّب لك طلباً بديلاً أو موعداً أنسب.'],
+  const docs = invoice ? [{ label: 'الفاتورة', value: invoice }] : [];
+  const context: Context = {
+    expected,
+    due: order.paymentStatus !== 'paid' && order.total > 0 ? order.total : null,
+    deliveredAt: formatMoment(order.paidAt),
   };
 
-  return { stage, headline: HEAD[stage][0], sub: HEAD[stage][1], steps, current, readyBy };
+  const state = (i: number): StepState =>
+    i < current ? 'done' : i === current ? (stage === 'done' ? 'done' : 'current') : 'upcoming';
+
+  const steps: TrackStep[] = [
+    { key: 'review', label: 'تم الطلب', when: formatMoment(order.placedAt), docs: [], state: state(0) },
+    {
+      key: 'confirmed',
+      label: STATUS[leadDays != null ? 'making' : 'preparing'].badge,
+      when: null,
+      docs: [],
+      state: state(1),
+    },
+    { key: 'shipping', label: STATUS.shipping.badge, when: formatMoment(order.shippedAt), docs, state: state(2) },
+    { key: 'done', label: STATUS.done.badge, when: formatMoment(order.paidAt), docs, state: state(3) },
+  ];
+
+  return {
+    status,
+    badge: STATUS[status].badge,
+    headline: STATUS[status].title,
+    sub: STATUS[status].sub(context),
+    steps,
+    current,
+  };
+}
+
+/** "منتج واحد" / "منتجان" / "3 منتجات" / "11 منتجاً" */
+export function itemsText(n: number): string {
+  if (n === 1) return 'منتج واحد';
+  if (n === 2) return 'منتجان';
+  if (n >= 3 && n <= 10) return `${n} منتجات`;
+  return `${n} منتجاً`;
 }

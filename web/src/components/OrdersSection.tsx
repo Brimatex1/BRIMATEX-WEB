@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
-import { stageOf, type Stage } from '@/lib/orderStatus';
+import { STATUS, itemsText, statusOf, type Status } from '@/lib/orderStatus';
 import { openSupport } from '@/lib/support';
 import { cn, formatPrice } from '@/lib/utils';
 import type { OrderSummary, Product, User } from '@/types';
@@ -24,21 +24,23 @@ interface OrdersSectionProps {
 // and the server picks the change up every few minutes.
 const REFRESH_MS = 60_000;
 
-const STAGE_BADGE: Record<Stage, { label: string; className: string }> = {
-  review: { label: 'قيد المراجعة', className: 'bg-muted text-muted-foreground' },
-  confirmed: { label: 'قيد التجهيز', className: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' },
-  shipping: { label: 'في الطريق', className: 'bg-primary/10 text-primary' },
-  done: { label: 'وصل', className: 'bg-success/10 text-success' },
-  cancelled: { label: 'ملغى', className: 'bg-destructive/10 text-destructive' },
+// The badge's colour per status; its words come from STATUS in lib/orderStatus.ts.
+const BADGE_TONE: Record<Status, string> = {
+  review: 'bg-muted text-muted-foreground',
+  preparing: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  making: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  shipping: 'bg-primary/10 text-primary',
+  done: 'bg-success/10 text-success',
+  cancelled: 'bg-destructive/10 text-destructive',
 };
 
 function sinceText(at: number | null, now: number): string {
   if (!at) return '';
   const min = Math.floor((now - at) / 60_000);
-  if (min < 1) return 'محدّث الآن';
-  if (min === 1) return 'محدّث قبل دقيقة';
-  if (min === 2) return 'محدّث قبل دقيقتين';
-  return min <= 10 ? `محدّث قبل ${min} دقائق` : `محدّث قبل ${min} دقيقة`;
+  if (min < 1) return 'آخر تحديث: الآن';
+  if (min === 1) return 'آخر تحديث: قبل دقيقة';
+  if (min === 2) return 'آخر تحديث: قبل دقيقتين';
+  return min <= 10 ? `آخر تحديث: قبل ${min} دقائق` : `آخر تحديث: قبل ${min} دقيقة`;
 }
 
 function formatDate(iso: string): string {
@@ -140,7 +142,7 @@ export function OrdersSection({
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">طلباتي</h1>
           <p className="text-sm text-muted-foreground">
-            تابع كل طلب خطوة بخطوة، من التجهيز حتى يوصلك.
+            تابع حالة طلباتك وموعد توصيلها.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
@@ -154,12 +156,12 @@ export function OrdersSection({
               aria-label="تحديث حالة الطلبات"
             >
               <RefreshCw className={cn(refreshing && 'animate-spin')} />
-              {refreshing ? 'نحدّث…' : sinceText(updatedAt, now)}
+              {refreshing ? 'جارٍ التحديث…' : sinceText(updatedAt, now)}
             </Button>
           )}
           {/* A late or wrong delivery is the question here - the topic comes chosen */}
           <Button variant="outline" size="sm" className="gap-2" onClick={() => openSupport({ topic: 'order' })}>
-            <MessageCircle /> فيه مشكلة في طلب؟
+            <MessageCircle /> تحتاج مساعدة؟
           </Button>
         </div>
       </div>
@@ -201,8 +203,7 @@ export function OrdersSection({
       {!loading && !error && orders.length > 0 && (
         <div className="space-y-4 pb-12">
           {orders.map((order) => {
-            const stage = stageOf(order);
-            const badge = STAGE_BADGE[stage];
+            const status = statusOf(order);
             const expanded = open[order.orderName] ?? false;
             const count = order.items.reduce((n, i) => n + i.quantity, 0);
             return (
@@ -217,7 +218,7 @@ export function OrdersSection({
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5">
-                      <Badge className={cn('border-transparent', badge.className)}>{badge.label}</Badge>
+                      <Badge className={cn('border-transparent', BADGE_TONE[status])}>{STATUS[status].badge}</Badge>
                       <strong className="font-heading text-lg tabular text-highlight">{formatPrice(order.total)} د.ل</strong>
                     </div>
                   </div>
@@ -233,18 +234,18 @@ export function OrdersSection({
                       onClick={() => setOpen((o) => ({ ...o, [order.orderName]: !expanded }))}
                       aria-expanded={expanded}
                     >
-                      المنتجات ({count})
+                      {itemsText(count)}
                       <ChevronDown className={cn('size-4 transition-transform', expanded && 'rotate-180')} aria-hidden="true" />
                     </button>
                     {/* A cancelled order already has its "contact us" in the tracker. */}
-                    {stage !== 'cancelled' && (
+                    {status !== 'cancelled' && (
                       <Button
                         variant="ghost"
                         size="sm"
                         className="gap-2"
                         onClick={() => openSupport({ topic: 'order', orderName: order.orderName })}
                       >
-                        <MessageCircle /> اسألنا عن هذا الطلب
+                        <MessageCircle /> مساعدة بخصوص الطلب
                       </Button>
                     )}
                   </div>
