@@ -37,6 +37,10 @@ let lydPerUsd: number | null = null;
  */
 export function initPixel(pixelId: string, rate?: number | null) {
   if (initialized || !pixelId || typeof window === 'undefined') return;
+  // Only the live shop reports: a copy running on a developer's machine or a
+  // test server sent its visits to the same Pixel (Events Manager listed
+  // localhost and 127.0.0.1 beside brimatex.ly).
+  if (!isLiveHost(window.location.hostname)) return disablePixel();
   initialized = true;
   lydPerUsd = rate && rate > 0 ? rate : null;
 
@@ -72,6 +76,12 @@ function send(event: string, params?: Params, options?: Options) {
   }
   if (options) window.fbq?.('track', event, params, options);
   else window.fbq?.('track', event, params);
+}
+
+/** The shop's own address - brimatex.ly or a subdomain of it. */
+export function isLiveHost(hostname: string) {
+  const host = hostname.toLowerCase();
+  return host === 'brimatex.ly' || host.endsWith('.brimatex.ly');
 }
 
 /** No Pixel configured (or its config failed to load): stop holding events. */
