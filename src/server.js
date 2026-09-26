@@ -35,6 +35,7 @@ const odooStatus = require('./lib/odooStatus');
 const { getProducts, visibleOnly, productLookup } = require('./lib/catalogue');
 const { PHOTO_PREFIX } = require('./lib/productPhotos');
 const { withPreorder } = require('./lib/preorder');
+const { sendBody, sendFile } = require('./lib/compress');
 const { sendJson, readBody } = require('./lib/respond');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
@@ -401,7 +402,7 @@ async function handleApi(req, res, url) {
 const SHELL_CSP =
   "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; connect-src 'self' https://www.facebook.com";
 
-function serveStatic(res, urlPath) {
+async function serveStatic(req, res, urlPath) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
   let filePath = path.join(PUBLIC_DIR, safePath === '/' ? 'index.html' : safePath);
   if (!filePath.startsWith(PUBLIC_DIR)) {
@@ -440,8 +441,8 @@ function serveStatic(res, urlPath) {
     // a month spares a returning visitor 140 kB on every page.
     headers['Cache-Control'] = 'public, max-age=2592000';
   }
-  res.writeHead(200, headers);
-  fs.createReadStream(filePath).pipe(res);
+  // Text is sent compressed, from a per-deploy cache (src/lib/compress.js).
+  await sendFile(req, res, filePath, headers);
 }
 
 /**
@@ -503,14 +504,13 @@ async function serveShell(req, res, url) {
   // still the app (it shows its home), but not indexed as a page.
   const status = seo.statusFor(url.pathname, products);
   if (status === 404) html = html.replace('</head>', '    <meta name="robots" content="noindex" />\n  </head>');
-  res.writeHead(status, {
+  sendBody(req, res, status, {
     'Content-Type': 'text/html; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'SAMEORIGIN',
     'Content-Security-Policy': SHELL_CSP,
     'Cache-Control': 'no-cache',
-  });
-  res.end(html);
+  }, html);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -530,15 +530,13 @@ const server = http.createServer(async (req, res) => {
         origin: originOf(req),
         lydPerUsd: Number(settings.readPublicFacebookPixel().lydPerUsd) || 0,
       });
-      res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.end(csv);
+      // Compressed too: Meta's fetcher takes gzip, and the feed is a few hundred kB.
+      sendBody(req, res, 200, { 'Content-Type': 'text/csv; charset=utf-8', 'Cache-Control': 'no-cache' }, csv);
     } else if (req.method === 'GET' && url.pathname === '/robots.txt') {
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.end(seo.robots(originOf(req)));
+      sendBody(req, res, 200, { 'Content-Type': 'text/plain; charset=utf-8' }, seo.robots(originOf(req)));
     } else if (req.method === 'GET' && url.pathname === '/sitemap.xml') {
       // src/lib/seo.js - built from the catalogue, so a new product is listed at once.
-      res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.end(seo.sitemap(await publicProducts(), originOf(req)));
+      sendBody(req, res, 200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-cache' }, seo.sitemap(await publicProducts(), originOf(req)));
     } else if (/\.[a-z0-9]{2,5}$/i.test(url.pathname) && isShell(url.pathname)) {
       // A missing file (/logo.png, /old.js) is a 404, not the home page.
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' });
@@ -546,7 +544,7 @@ const server = http.createServer(async (req, res) => {
     } else if ((req.method === 'GET' || req.method === 'HEAD') && isShell(url.pathname)) {
       await serveShell(req, res, url);
     } else {
-      serveStatic(res, url.pathname);
+      await serveStatic(req, res, url.pathname);
     }
   } catch (err) {
     console.error(`[error] ${req.method} ${url.pathname}:`, err.message);

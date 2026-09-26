@@ -11,15 +11,17 @@
  */
 'use strict';
 
+const { sendBody } = require('./compress');
+
 function sendJson(res, status, payload) {
-  res.writeHead(status, {
+  // Compressed when the browser takes it (src/lib/compress.js) - the catalogue is tens of kB.
+  sendBody(res.req, res, status, {
     'Content-Type': 'application/json; charset=utf-8',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'SAMEORIGIN',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-  });
-  res.end(JSON.stringify(payload));
+  }, JSON.stringify(payload));
 }
 
 /**
