@@ -76,10 +76,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Use Node.js 20.x
+    # 22.x، لا 20.x: tests/matching.check.js يستورد web/src/lib/pixelMatch.ts
+    # مباشرة (نفس الكود الذي يشغّله المتصفح)، وNode 20 لا يقرأ ملفات .ts.
+    - name: Use Node.js 22.x
       uses: actions/setup-node@v4
       with:
-        node-version: 20.x
+        node-version: 22.x
 
     - name: Install dependencies
       run: npm ci
