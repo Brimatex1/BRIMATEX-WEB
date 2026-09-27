@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel';
 import { api } from '@/lib/api';
+import { DEFAULT_RULES, formatPoints, openLoyalty, pointsToNextVoucher } from '@/lib/loyalty';
 import { QUESTIONS } from '@/lib/mattressQuiz';
 import { tiersOf } from '@/lib/tiers';
 import { cn } from '@/lib/utils';
@@ -231,6 +232,9 @@ export function HomePage({
         ))}
       </section>
 
+      {/* ── The loyalty programme: an invitation for a visitor, the balance for a customer ── */}
+      <LoyaltyStrip user={user} perks={perks} onNavigate={onNavigate} />
+
       {/* ── A reward just earned: shown once, then it lives under vouchers ── */}
       {newReward && (
         <Card className="border-primary/20 bg-secondary/40">
@@ -338,5 +342,76 @@ export function HomePage({
         </Card>
       </section>
     </div>
+  );
+}
+
+/**
+ * Points and vouchers on the home page. A visitor learns there is something
+ * to earn; a customer sees their balance filling towards the next voucher.
+ */
+function LoyaltyStrip({
+  user,
+  perks,
+  onNavigate,
+}: {
+  user: User | null;
+  perks: Perks | null;
+  onNavigate: (section: SectionId) => void;
+}) {
+  const rules = perks?.points.rules ?? DEFAULT_RULES;
+  if (!user) {
+    return (
+      <Card className="overflow-hidden border-accent/60 bg-gradient-to-l from-accent/25 via-accent/10 to-transparent">
+        <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+            <Gift className="size-6" aria-hidden="true" />
+          </span>
+          <div className="flex-1 space-y-1">
+            <p className="text-lg font-bold">كل دينار تدفعه = نقطة</p>
+            <p className="text-sm text-muted-foreground">
+              كل {formatPoints(rules.stepPoints)} نقطة بخصم {rules.stepValue} د.ل، وقسيمة 5% بعد أول طلب. سجّل قبل أن تطلب لتُحسب لك.
+            </p>
+          </div>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Button className="flex-1 sm:flex-none" onClick={() => onNavigate('auth')}>
+              سجّل الآن
+            </Button>
+            <Button variant="outline" className="flex-1 sm:flex-none" onClick={openLoyalty}>
+              كيف تعمل؟
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!perks) return null;
+  const balance = perks.points.balance;
+  const gap = pointsToNextVoucher(balance, rules);
+  const ratio = Math.min(1, balance / rules.stepPoints);
+  return (
+    <Card className="border-accent/60 bg-accent/10">
+      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        <div className="flex-1 space-y-2">
+          <p className="flex items-baseline justify-between gap-3">
+            <span className="font-semibold">نقاطك</span>
+            <span className="text-2xl font-bold text-primary">{formatPoints(balance)}</span>
+          </p>
+          <div className="h-2 overflow-hidden rounded-full bg-background" aria-hidden="true">
+            <div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${ratio * 100}%` }} />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {gap === 0
+              ? `رصيدك يكفي لقسيمة ${rules.stepValue} د.ل - بدّلها الآن.`
+              : `باقي ${formatPoints(gap)} نقطة على قسيمة ${rules.stepValue} د.ل.`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={() => onNavigate('points')}>نقاطي</Button>
+          <Button variant="outline" onClick={() => onNavigate('vouchers')}>
+            قسائمي
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

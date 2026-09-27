@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BadgeCheck, HandCoins, MessageCircle, ShieldCheck, ShoppingBag, Truck } from 'lucide-react';
+import { BadgeCheck, HandCoins, MessageCircle, ShieldCheck, ShoppingBag, Star, Truck } from 'lucide-react';
 
 import { ProductCard, ProductImage, TierBadge, WishlistButton } from '@/components/store/ProductCard';
 import { ProductReviewsSection } from '@/components/store/ProductReviewsSection';
@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
 import { arrivalText } from '@/lib/delivery';
+import { formatPoints, openLoyalty, pointsFor, pointsValue } from '@/lib/loyalty';
 import { canOrder, leadText } from '@/lib/preorder';
 import { cn } from '@/lib/utils';
 import { openSupport } from '@/lib/support';
@@ -194,6 +195,20 @@ export function ProductPage({
                 <Truck className="size-4 shrink-0 text-primary" aria-hidden="true" />
                 {arrivalText(inStock ? 0 : product.leadDays)}
               </p>
+            )}
+            {/* What this size earns - a tap explains the programme. */}
+            {orderable && (
+              <button
+                type="button"
+                onClick={openLoyalty}
+                className="flex items-center gap-2 text-start text-sm underline-offset-4 hover:underline"
+              >
+                <Star className="size-4 shrink-0 fill-accent text-accent-foreground" aria-hidden="true" />
+                <span>
+                  تكسب <strong>{formatPoints(pointsFor(price))} نقطة</strong> مع هذا المقاس
+                  <span className="text-muted-foreground"> (≈ {formatPrice(pointsValue(pointsFor(price)))} د.ل على طلبك القادم)</span>
+                </span>
+              </button>
             )}
             {sku && <p className="text-xs text-muted-foreground">رمز المنتج: {sku}</p>}
           </div>

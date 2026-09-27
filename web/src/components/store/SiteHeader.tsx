@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { ChevronDown, Heart, LayoutDashboard, Menu, Package, Search, ShoppingBag, Star, Ticket, User as UserIcon } from 'lucide-react';
 
 import { BrimatexLogo } from '@/components/BrimatexLogo';
+import { AnnouncementBar } from '@/components/store/AnnouncementBar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,11 +17,13 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { openSupport } from '@/lib/support';
 import { cn } from '@/lib/utils';
-import type { SectionId, Tier, User } from '@/types';
+import type { Perks, SectionId, Tier, User } from '@/types';
 
 interface SiteHeaderProps {
   section: SectionId;
   user: User | null;
+  /** The signed-in customer's points and vouchers, for the bar at the top. */
+  perks: Perks | null;
   cartCount: number;
   tiers: Tier[];
   onNavigate: (section: SectionId) => void;
@@ -48,7 +51,7 @@ const MAIN_LINKS: { id: SectionId; label: string }[] = [
  * the logo, the main links with the tiers in a menu, search, and the
  * wishlist, account and cart. On a phone the links move into a side menu.
  */
-export function SiteHeader({ section, user, cartCount, tiers, onNavigate, onOpenTier, onSearch, onOpenCart }: SiteHeaderProps) {
+export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate, onOpenTier, onSearch, onOpenCart }: SiteHeaderProps) {
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const active = mainLinkFor(section);
@@ -67,12 +70,7 @@ export function SiteHeader({ section, user, cartCount, tiers, onNavigate, onOpen
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="bg-primary text-primary-foreground">
-        <p className="mx-auto max-w-7xl px-4 py-1.5 text-center text-xs md:text-sm">
-          الدفع عند الاستلام · توصيل مجاني
-          <span className="hidden sm:inline"> لباب بيتك · ضمان حتى 10 سنوات لبعض المنتجات</span>
-        </p>
-      </div>
+      <AnnouncementBar user={user} perks={perks} onNavigate={onNavigate} />
 
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 md:gap-6 md:px-6">
         {/* ── Phone: the side menu ── */}

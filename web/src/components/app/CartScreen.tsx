@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Check, HandCoins, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
+import { Check, HandCoins, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Star, Trash2, Truck } from 'lucide-react';
 
 import { CheckoutForm } from '@/components/CheckoutForm';
 import { ArrivalLine, PreorderNotice, PreorderTag } from '@/components/store/PreorderNotice';
+import { formatPoints, openLoyalty, pointsFor } from '@/lib/loyalty';
 import { findProduct, ProductImage, productLinkClick } from '@/components/store/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -221,6 +222,17 @@ export function CartScreen({
       <div className="mb-6 space-y-1">
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">سلة المشتريات</h1>
         <p className="text-sm text-muted-foreground">{count} قطعة · الدفع عند الاستلام</p>
+        <button
+          type="button"
+          onClick={openLoyalty}
+          className="flex items-center gap-2 pt-1 text-start text-sm underline-offset-4 hover:underline"
+        >
+          <Star className="size-4 shrink-0 fill-accent text-accent-foreground" aria-hidden="true" />
+          <span>
+            هذا الطلب يكسبك <strong>{formatPoints(pointsFor(total))} نقطة</strong>
+            {!user && <span className="text-muted-foreground"> - سجّل دخولك قبل الطلب لتُحسب لك</span>}
+          </span>
+        </button>
         {/* With a pre-order, its notice below already gives the date. */}
         {preorders.length === 0 && <ArrivalLine leadDays={0} className="pt-1" />}
       </div>

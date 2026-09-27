@@ -14,6 +14,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { usePerks } from '@/hooks/usePerks';
+import { LoyaltyDialog } from '@/components/store/LoyaltyDialog';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
@@ -224,6 +225,7 @@ export default function App() {
       <SiteHeader
         section={section}
         user={auth.user}
+        perks={loyalty.perks}
         cartCount={cart.count}
         tiers={tiers}
         onNavigate={navigate}
@@ -231,6 +233,8 @@ export default function App() {
         onSearch={(q) => go({ section: 'shop', category: 'all', query: q })}
         onOpenCart={() => setCartOpen(true)}
       />
+
+      <LoyaltyDialog user={auth.user} perks={loyalty.perks} onNavigate={navigate} />
 
       <CartSheet
         open={cartOpen}
