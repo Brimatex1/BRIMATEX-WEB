@@ -406,8 +406,21 @@ async function handleApi(req, res, url) {
   sendJson(res, 404, { error: 'Not found' });
 }
 
+// Meta's Pixel sends a copy of its events through Meta's "openbridge" (its
+// Conversions API gateway), whose addresses come in the Pixel's own
+// configuration from connect.facebook.net - today one on AWS and a fallback
+// on Google Cloud. The owner chose to let them through: these exact two
+// hosts, not all of AWS or Google Cloud. If Meta moves them, the console
+// will say so (a blocked connect-src) and they are updated here. The Pixel
+// also frames facebook.com for some of its checks.
+const META_OPENBRIDGE = [
+  'https://dv-c3e594c6d429469e90b54478358619c3.ecs.us-east-1.on.aws',
+  'https://bded8a3c6ae-1-1053047382554.us-central1.run.app',
+];
+
 const SHELL_CSP =
-  "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; connect-src 'self' https://www.facebook.com";
+  "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; " +
+  `connect-src 'self' https://www.facebook.com ${META_OPENBRIDGE.join(' ')}; frame-src https://www.facebook.com`;
 
 async function serveStatic(req, res, urlPath) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
