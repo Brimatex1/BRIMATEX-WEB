@@ -129,7 +129,9 @@ export const api = {
     /** Website only - lets the server report the purchase to Meta (lib/pixel.ts). */
     tracking?: { eventSourceUrl: string; fbp?: string; fbc?: string },
     /** One of the signed-in customer's vouchers; the server checks and applies it. */
-    voucherCode?: string | null
+    voucherCode?: string | null,
+    /** Same on every retry of one checkout, so a retry cannot order twice. */
+    requestId?: string
   ) =>
     request<OrderResult>(
       '/api/orders',
@@ -141,6 +143,7 @@ export const api = {
           channel: 'web',
           tracking,
           ...(voucherCode ? { voucherCode } : {}),
+          ...(requestId ? { requestId } : {}),
         },
         token
       )

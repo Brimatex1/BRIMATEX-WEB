@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
 import { trackingContext } from '@/lib/pixel';
 import { discountLabel } from '@/components/app/perks';
-import { cn, formatPrice, phoneIsValid } from '@/lib/utils';
+import { cn, formatPrice, phoneIsValid, toLatinDigits } from '@/lib/utils';
 import type { CartLine, Customer, OrderResult, User, Voucher } from '@/types';
 import { setPixelPerson } from '@/lib/pixel';
 
@@ -33,6 +33,12 @@ function estimateDiscount(v: Voucher, subtotal: number): number {
   return Math.round(Math.min(subtotal, amount) * 100) / 100;
 }
 
+function newRequestId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `web-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers = [], notice }: CheckoutFormProps) {
   const [voucherCode, setVoucherCode] = useState<string | null>(null);
   const subtotal = lines.reduce((n, l) => n + l.price * l.qty, 0);
@@ -51,7 +57,17 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
 
   const savedAddresses = user?.addresses ?? [];
 
+  /**
+   * One key per checkout attempt, repeated on every retry: when the network
+   * drops after the order was placed, "confirm" again returns that order
+   * instead of placing a second one (src/routes/orders.js). Going back to
+   * the cart and returning makes a new form, and a new key.
+   */
+  const requestId = useRef(newRequestId());
+
   function update(key: keyof typeof form, value: string) {
+    // Digits typed on an Arabic keyboard are stored as 0-9, as Odoo and WhatsApp expect them.
+    if (key === 'phone') value = toLatinDigits(value);
     setForm((prev) => ({ ...prev, [key]: value }));
     if (key in errors) {
       setErrors((prev) => {
@@ -74,7 +90,10 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
     if (Object.keys(next).length) {
       const first = Object.keys(next)[0] as FieldKey;
       document.getElementById(`co-${first}`)?.focus();
-      toast.error('يرجى تعبئة الحقول المطلوبة');
+      // One field wrong says which: "fill in the required fields" under a form
+      // that is all filled in reads as a broken page.
+      const messages = Object.values(next);
+      toast.error(messages.length === 1 ? messages[0] : 'يرجى تعبئة الحقول المطلوبة');
       return false;
     }
     return true;
@@ -97,7 +116,8 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
         form.note.trim(),
         token,
         trackingContext(),
-        chosen?.code ?? null
+        chosen?.code ?? null,
+        requestId.current
       );
       // Advanced Matching: the Purchase that follows carries who ordered (hashed).
       await setPixelPerson({ id: user?.id, name: form.name, phone: form.phone, city: form.city });
