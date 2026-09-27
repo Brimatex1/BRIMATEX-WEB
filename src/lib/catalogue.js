@@ -21,6 +21,7 @@ const { photoFor } = require('./productPhotos');
 const { detailsFor } = require('./productDetails');
 const odooStatus = require('./odooStatus');
 const { isOfferable } = require('./sellable');
+const { sortSizes } = require('./sizes');
 
 const DEMO_PRODUCTS = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'data', 'demo-products.json'), 'utf8')
@@ -48,7 +49,11 @@ function invalidate() {
  */
 async function withOverrides(products) {
   const all = await productOverrides.getAllOverrides();
-  return products.map((p) => {
+  return products.map((raw) => {
+    // Sizes in the owner's order - the main ones first (src/lib/sizes.js) - for
+    // the site, the app and Meta's catalogue alike. The card's own id stays
+    // Odoo's first size: links, reviews and overrides are keyed by it.
+    const p = raw.variants ? { ...raw, variants: sortSizes(raw.variants) } : raw;
     const o = all[String(p.id)];
     // The printed catalogue's details, shipped with the site (src/lib/productDetails.js):
     // what the dashboard sets wins, and an empty dashboard field falls back to them.

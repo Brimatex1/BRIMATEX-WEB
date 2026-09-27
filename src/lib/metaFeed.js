@@ -26,6 +26,7 @@
 
 const { imageOf } = require('./share');
 const { featureLabels } = require('./featureLabels');
+const { isMainSize } = require('./sizes');
 
 const COLUMNS = [
   'id',
@@ -44,6 +45,7 @@ const COLUMNS = [
   'google_product_category',
   'custom_label_0',
   'custom_label_1',
+  'custom_label_2',
 ];
 
 /** Google's taxonomy, which Meta reads too: Furniture > Beds & Accessories > Mattresses. */
@@ -156,6 +158,9 @@ function rowsFor(product, { origin }) {
     // For product sets and ad targeting: the tier, and the warranty in years.
     custom_label_0: product.tier ? product.tier.name : '',
     custom_label_1: product.warrantyYears ? `ضمان ${product.warrantyYears} سنوات` : '',
+    // The owner's main sizes (src/lib/sizes.js) - a product set of these alone
+    // keeps ads on the sizes most homes buy.
+    custom_label_2: v.label ? (isMainSize(v.label) ? 'مقاس أساسي' : 'مقاس إضافي') : '',
   }));
 }
 

@@ -161,12 +161,18 @@ export function trackPageView() {
   track('PageView');
 }
 
+/**
+ * A product page: reported as the size it opens on - the first of the
+ * owner's main sizes (src/lib/sizes.js on the server orders them) - so the
+ * catalogue ads show the size most homes buy.
+ */
 export function trackViewContent(product: Product) {
+  const size = product.variants?.[0];
   track('ViewContent', {
-    content_ids: [product.id],
+    content_ids: [size?.id ?? product.id],
     content_type: 'product',
     content_name: product.name,
-    value: product.price,
+    value: size?.price ?? product.price,
     currency: CURRENCY_ISO,
   });
 }
