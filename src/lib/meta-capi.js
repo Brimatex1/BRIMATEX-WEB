@@ -264,6 +264,12 @@ function cleanCustomData(eventName, params, lydPerUsd) {
     // The reference keeps num_items for InitiateCheckout and search_string for Search.
     num_items: eventName === 'InitiateCheckout' && Number.isInteger(params.num_items) ? params.num_items : undefined,
     search_string: eventName === 'Search' && typeof params.search_string === 'string' ? params.search_string.slice(0, 200) : undefined,
+    // Our own property on Contact: a WhatsApp order from a product, or a
+    // question through the support form - as the Pixel's copy says.
+    contact_channel:
+      eventName === 'Contact' && ['whatsapp_order', 'support_form'].includes(params.contact_channel)
+        ? params.contact_channel
+        : undefined,
   });
 }
 

@@ -285,13 +285,20 @@ async function main() {
       event_source_url: 'https://brimatex.ly/product/1',
       custom_data: { content_ids: [product.id], content_type: 'product', value: 800, currency: 'LYD', num_items: 3, junk: 'x' },
     }, { ...browser, Authorization: auth.Authorization });
+    await req('POST', '/api/meta/events', {
+      event_name: 'Contact',
+      event_id: 'Contact.1700000000002.wa7788',
+      event_source_url: 'https://brimatex.ly/product/1',
+      custom_data: { content_ids: [7747], content_type: 'product', value: 470, currency: 'LYD', contact_channel: 'whatsapp_order' },
+    }, browser);
     ok('اسم غير معروف يُرفض (400)', (await req('POST', '/api/meta/events', { event_name: 'Purchase', event_id: 'Purchase.1.abcdef' }, browser)).status === 400);
     ok('رقم حدث غير صالح يُرفض (400)', (await req('POST', '/api/meta/events', { event_name: 'PageView', event_id: 'x' }, browser)).status === 400);
     const bot = await req('POST', '/api/meta/events', { event_name: 'PageView', event_id: 'PageView.1.botbot' }, { 'User-Agent': 'Googlebot/2.1' });
     ok('الزواحف تُقبل ولا تُرسل (204)', bot.status === 204);
     await wait(3000);
-    ok('الحدثان في دفعة واحدة إلى ميتا', received.length === 1 && received[0].body.data?.length === 2, JSON.stringify(received.map((r) => r.body.data?.length)));
-    const [pvE, vcE] = received[0]?.body?.data || [];
+    ok('الأحداث الثلاثة في دفعة واحدة إلى ميتا', received.length === 1 && received[0].body.data?.length === 3, JSON.stringify(received.map((r) => r.body.data?.length)));
+    const [pvE, vcE, waE] = received[0]?.body?.data || [];
+    ok('طلب واتساب: Contact بالمقاس والقيمة وقناة whatsapp_order', waE?.event_name === 'Contact' && waE.custom_data?.contact_channel === 'whatsapp_order' && waE.custom_data.content_ids?.[0] === '7747' && waE.custom_data.value === Math.round((470 / 8) * 100) / 100, JSON.stringify(waE?.custom_data));
     ok('نفس اسم الحدث ورقمه من المتصفح (لإزالة التكرار)', pvE?.event_name === 'PageView' && pvE.event_id === 'PageView.1700000000000.abc123');
     ok('IP ونوع المتصفح وfbp من الخادم', pvE?.user_data?.client_user_agent === 'Mozilla/5.0 (iPhone) Safari' && pvE.user_data.fbp === 'fb.1.1700000000000.555' && Boolean(pvE.user_data.client_ip_address));
     ok('الرابط والمصدر', pvE?.event_source_url === 'https://brimatex.ly/shop' && pvE.referrer_url === 'https://l.facebook.com/');

@@ -3,6 +3,7 @@ import { BadgeCheck, HandCoins, MessageCircle, ShieldCheck, ShoppingBag, Truck }
 
 import { ProductCard, ProductImage, TierBadge, WishlistButton } from '@/components/store/ProductCard';
 import { ProductReviewsSection } from '@/components/store/ProductReviewsSection';
+import { WhatsAppOrderButton, type WhatsAppOrderItem } from '@/components/store/WhatsAppOrder';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -85,6 +86,17 @@ export function ProductPage({
   const cartProduct: Product = selected
     ? { ...product, id: selected.id, price: selected.price, sku: selected.sku, stock: selected.stock, inStock: selected.inStock, preorder: selected.preorder }
     : product;
+  // The size on screen, for "order on WhatsApp".
+  const whatsAppItem: WhatsAppOrderItem = {
+    id: selected?.id ?? product.id,
+    productId: product.id,
+    name: product.name,
+    label: selected?.label,
+    sku,
+    price,
+    preorder,
+    leadDays: product.leadDays,
+  };
   const features = resolveFeatureIcons(product.iconFeatures);
   const layers = product.layers ?? [];
 
@@ -226,6 +238,14 @@ export function ProductPage({
 
           {/* Larger screens: the buttons in the flow; phones: a bar fixed at the bottom */}
           <div className="hidden gap-3 md:flex">{buyButtons}</div>
+          {orderable && (
+            <div className="space-y-1.5">
+              <WhatsAppOrderButton item={whatsAppItem} />
+              <p className="text-center text-xs text-muted-foreground">
+                تفضّل واتساب؟ نرسل للفريق المرتبة والمقاس والسعر، ويؤكّدون معك الطلب.
+              </p>
+            </div>
+          )}
 
           <ul className="space-y-2.5 rounded-lg bg-muted/60 p-4">
             {PROMISES.map(({ Icon, text }) => (
@@ -331,7 +351,10 @@ export function ProductPage({
 
       {/* ── Phone: the buy bar ── */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-        <div className="flex gap-2">{buyButtons}</div>
+        <div className="flex gap-2">
+          {orderable && <WhatsAppOrderButton item={whatsAppItem} compact />}
+          {buyButtons}
+        </div>
       </div>
     </div>
   );

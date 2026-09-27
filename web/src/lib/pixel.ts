@@ -215,7 +215,25 @@ export function trackPurchase(order: OrderResult, lines: CartLine[]) {
 
 /** A message sent to customer care - Meta's standard event for a customer reaching out. */
 export function trackContact() {
-  track('Contact');
+  track('Contact', { contact_channel: 'support_form' });
+}
+
+/**
+ * "Order on WhatsApp" on a product: a Contact carrying the size, as a cart
+ * line would - so catalogue ads credit the product - and contact_channel
+ * "whatsapp_order", which tells it apart from a question to customer care
+ * (a custom conversion in Events Manager can count these alone).
+ */
+export function trackWhatsAppOrder(item: { id: number; name: string; price: number }) {
+  track('Contact', {
+    content_ids: [item.id],
+    content_type: 'product',
+    content_name: item.name,
+    contents: [{ id: item.id, quantity: 1, delivery_category: 'home_delivery' }],
+    value: item.price,
+    currency: CURRENCY_ISO,
+    contact_channel: 'whatsapp_order',
+  });
 }
 
 /* ------------------------------------------------ Conversions API context */
