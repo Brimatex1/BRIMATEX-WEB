@@ -69,7 +69,11 @@ export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate,
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    // Its own view-transition name: the header holds still while the page below it changes.
+    <header
+      className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      style={{ viewTransitionName: 'site-header' }}
+    >
       <AnnouncementBar user={user} perks={perks} onNavigate={onNavigate} />
 
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 md:gap-6 md:px-6">

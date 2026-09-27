@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { DEFAULT_RULES, formatPoints, openLoyalty, pointsToNextVoucher } from '@/lib/loyalty';
 import { QUESTIONS } from '@/lib/mattressQuiz';
 import { tiersOf } from '@/lib/tiers';
+import { revealIndex, useReveal } from '@/lib/useReveal';
 import { cn } from '@/lib/utils';
 import type { Banner, Perks, Product, SectionId, User } from '@/types';
 
@@ -206,6 +207,10 @@ export function HomePage({
     ) ?? null;
 
   const tiers = useMemo(() => tiersOf(products), [products]);
+  // Sections below the first screen come in as they scroll into view (lib/useReveal.ts).
+  const tiersRef = useReveal<HTMLElement>();
+  const newestRef = useReveal<HTMLElement>();
+  const quizRef = useReveal<HTMLElement>();
   const newest = useMemo(() => [...products].sort((a, b) => b.id - a.id).slice(0, 6), [products]);
   const firstName = user?.name?.trim().split(/\s+/)[0];
 
@@ -262,21 +267,22 @@ export function HomePage({
 
       {/* ── The tiers ── */}
       {tiers.length > 0 && (
-        <section>
+        <section ref={tiersRef}>
           <SectionHeading title="تسوّق حسب الفئة" />
           {/* One row, as many columns as tiers: a leftover empty cell (or a tier
               alone on the last row, on a phone) looked broken */}
           <div className={cn('grid gap-3 md:gap-4', TIER_COLUMNS[tiers.length] ?? 'grid-cols-2 lg:grid-cols-4')}>
-            {tiers.map(({ tier, items }) => (
+            {tiers.map(({ tier, items }, i) => (
               <a
                 key={tier.key}
+                style={revealIndex(i)}
                 href={`/shop?category=${encodeURIComponent(tier.key)}`}
                 onClick={(e) => {
                   if (e.button !== 0 || e.metaKey || e.ctrlKey) return;
                   e.preventDefault();
                   onOpenTier(tier.key);
                 }}
-                className="group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="reveal-item group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Card className="overflow-hidden transition-shadow group-hover:shadow-md">
                   <ProductImage product={items[0]} className="aspect-[4/3] transition-transform duration-300 group-hover:scale-[1.03]" />
@@ -295,7 +301,7 @@ export function HomePage({
       )}
 
       {/* ── The newest mattresses ── */}
-      <section>
+      <section ref={newestRef}>
         <SectionHeading title="وصل حديثاً" action="عرض الكل" onAction={() => onNavigate('shop')} />
         {error ? (
           <Card className="p-8 text-center">
@@ -311,23 +317,24 @@ export function HomePage({
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
             {loading
               ? [0, 1, 2].map((i) => <ProductCardSkeleton key={i} />)
-              : newest.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    saved={isSaved(p.id)}
-                    wishlistPending={wishlistPending === p.id}
-                    onOpen={onOpen}
-                    onToggleWishlist={onToggleWishlist}
-                  />
+              : newest.map((p, i) => (
+                  <div key={p.id} className="reveal-item [&>*]:h-full" style={revealIndex(i)}>
+                    <ProductCard
+                      product={p}
+                      saved={isSaved(p.id)}
+                      wishlistPending={wishlistPending === p.id}
+                      onOpen={onOpen}
+                      onToggleWishlist={onToggleWishlist}
+                    />
+                  </div>
                 ))}
           </div>
         )}
       </section>
 
       {/* ── The quiz ── */}
-      <section>
-        <Card className="overflow-hidden border-0 bg-secondary">
+      <section ref={quizRef}>
+        <Card className="reveal-item overflow-hidden border-0 bg-secondary">
           <CardContent className="flex flex-col items-start gap-5 p-8 md:flex-row md:items-center md:justify-between md:p-10">
             <div className="space-y-2">
               <h2 className="text-2xl font-bold text-secondary-foreground">مش متأكد شن تختار؟</h2>

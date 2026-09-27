@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 
 import { CartScreen } from '@/components/app/CartScreen';
@@ -100,6 +101,20 @@ export default function App() {
     void setPixelPerson(u ? { id: u.id, name: u.name, phone: u.phone, city: u.addresses?.[0]?.city } : null);
   }, [auth.user]);
 
+  /**
+   * Swaps the screen inside a View Transition where the browser has them - a
+   * short crossfade (index.css) instead of a jump; elsewhere it just swaps.
+   */
+  function withTransition(update: () => void) {
+    type Transition = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> };
+    const doc = document as Document & { startViewTransition?: (callback: () => void) => Transition };
+    if (!doc.startViewTransition) return update();
+    const transition = doc.startViewTransition(() => flushSync(update));
+    // A second tap before the fade ends skips the first one: the page still
+    // changes, only its fade is dropped - not an error worth a console line.
+    for (const p of [transition.ready, transition.finished, transition.updateCallbackDone]) p.catch(() => {});
+  }
+
   /** Puts a route on screen. Shared by in-app navigation and the back button. */
   function show(route: Route) {
     setSection(route.section);
@@ -108,7 +123,8 @@ export default function App() {
       setShopCategory(route.category ?? 'all');
       setShopQuery(route.query ?? '');
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // At once: the new page fades in already at its top - a smooth scroll under the fade reads as a jolt.
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     // Every screen change is a virtual page load, so it gets its own PageView.
     trackPageView();
   }
@@ -116,7 +132,7 @@ export default function App() {
   function go(route: Route) {
     window.history.pushState(null, '', routePath(route));
     depth.current += 1;
-    show(route);
+    withTransition(() => show(route));
   }
 
   function navigate(next: SectionId) {
@@ -127,7 +143,7 @@ export default function App() {
   useEffect(() => {
     const onPop = () => {
       depth.current = Math.max(0, depth.current - 1);
-      show(parseRoute(window.location));
+      withTransition(() => show(parseRoute(window.location)));
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);

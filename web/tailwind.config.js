@@ -1,5 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // hover: styles apply only where a pointer really hovers - a tap on a phone
+  // no longer leaves a card zoomed or a button lit.
+  future: { hoverOnlyWhenSupported: true },
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
@@ -118,6 +121,11 @@ export default {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      transitionTimingFunction: {
+        'out-strong': 'var(--ease-out)',
+        'in-out-strong': 'var(--ease-in-out)',
+        drawer: 'var(--ease-drawer)',
+      },
       keyframes: {
         'accordion-down': {
           from: { height: '0' },
@@ -145,7 +153,7 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'fade-up': 'fade-up 0.26s cubic-bezier(0.4, 0, 0.2, 1)',
+        'fade-up': 'fade-up 0.26s var(--ease-out)',
         pop: 'pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         shimmer: 'shimmer 1.6s infinite',
       },

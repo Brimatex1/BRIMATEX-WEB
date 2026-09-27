@@ -151,6 +151,11 @@
     --surface-calm: var(--brand-porcelain);
 
     --radius: 0.75rem;
+
+    /* Motion: strong curves - the built-in ones are too weak. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* entering, exiting, most UI */
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* moving on screen */
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* sheets and drawers (iOS) */
   }
 
   .dark {
@@ -219,15 +224,49 @@
   }
 }
 
+/*
+ * Reduced motion means fewer and gentler, not none: nothing moves or scales,
+ * but fades stay - they help follow what changed. Keyframed motion (sheets,
+ * dialogs, the cart's pop) is cut; transitions keep opacity and colour only.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition-property: opacity, color, background-color, border-color !important;
     scroll-behavior: auto !important;
   }
+  .reveal-item {
+    transform: none !important;
+  }
+}
+
+/*
+ * Moving between pages: a short crossfade (View Transitions - the browser
+ * does it, no library). The header has its own name, so it stays put while
+ * the page under it changes.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 220ms;
+  animation-timing-function: var(--ease-out);
+}
+
+/*
+ * Home-page sections come in once, as they scroll into view - items one after
+ * another (lib/useReveal.ts sets data-revealed and each item's --i).
+ */
+.reveal-item {
+  transition:
+    opacity 300ms var(--ease-out),
+    transform 300ms var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 50ms);
+}
+[data-reveal='pending'] .reveal-item {
+  opacity: 0;
+  transform: translateY(12px);
 }
 
 /* Sideways rows scroll without a visible bar, as in the app. */

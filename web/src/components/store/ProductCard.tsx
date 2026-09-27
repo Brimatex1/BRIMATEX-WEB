@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { Heart } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -29,14 +29,22 @@ export function productLinkClick(e: MouseEvent<HTMLAnchorElement>, open: () => v
 
 /** The photo uploaded from the dashboard, or the name's first letter on a quiet surface. */
 export function ProductImage({ product, className }: { product: Product; className?: string }) {
+  // The photo fades in over the grey once it has loaded, instead of popping in
+  // line by line. One already in the cache is complete at mount and shows at once.
+  const [loaded, setLoaded] = useState(false);
   return (
     <div className={cn('grid place-items-center overflow-hidden bg-muted', className)}>
       {product.image ? (
         <img
+          ref={(img) => {
+            if (img?.complete && img.naturalWidth > 0 && !loaded) setLoaded(true);
+          }}
           src={product.image}
           alt={product.tier ? `${product.name}، مرتبة ${product.tier.name}` : product.name}
-          className="size-full object-cover"
+          className={cn('size-full object-cover transition-opacity duration-300 ease-out-strong', loaded ? 'opacity-100' : 'opacity-0')}
           loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
         />
       ) : (
         <span aria-hidden="true" className="text-5xl font-bold text-primary/15">
@@ -106,9 +114,9 @@ export function ProductCard({
   const hasSizes = Boolean(product.variants && product.variants.length > 1);
   const out = product.inStock === false;
   return (
-    <Card className="group relative overflow-hidden transition-shadow hover:shadow-md">
+    <Card className="group relative overflow-hidden transition-[box-shadow,transform] duration-300 ease-out-strong hover:-translate-y-0.5 hover:shadow-md">
       <div className="relative">
-        <ProductImage product={product} className="aspect-square transition-transform duration-300 group-hover:scale-[1.02]" />
+        <ProductImage product={product} className="aspect-square [&_img]:transition-[opacity,transform] [&_img]:duration-300 [&_img]:ease-out-strong group-hover:[&_img]:scale-[1.04]" />
         {out && (
           <Badge variant="secondary" className="absolute start-3 top-3 bg-background/90 text-foreground">
             {product.preorder ? 'طلب مسبق' : 'نفد المخزون'}
