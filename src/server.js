@@ -232,8 +232,10 @@ const handleAdminRoutes = createAdminRoutes({ requireAdmin, deleteUploadedFile }
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
-    // With pre-orders on, out-of-stock mattresses are marked orderable (src/lib/preorder.js).
-    return sendJson(res, 200, { ...result, products: withPreorder(visibleOnly(result.products), settings.readPreorder()) });
+    // With pre-orders on, out-of-stock mattresses are marked orderable (src/lib/preorder.js);
+    // each carries its rating when it has reviews (src/lib/perks.js).
+    const products = withPreorder(visibleOnly(result.products), settings.readPreorder());
+    return sendJson(res, 200, { ...result, products: await perksLib.withRatings(products) });
   }
 
   // A product's reviews, from customers who bought it (src/lib/perks.js). A

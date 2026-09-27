@@ -81,6 +81,8 @@ export interface Product {
   id: number;
   name: string;
   price: number;
+  /** Its visible reviews, all sizes together - absent until it has one. */
+  rating?: { average: number; count: number };
   sku?: string;
   description?: string;
   /** Real quantity from Odoo; null when no stock source is configured. */

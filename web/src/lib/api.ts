@@ -202,6 +202,12 @@ export const api = {
   /* Loyalty - one balance for the website and the app (src/lib/perks.js). */
 
   getPerks: (token: string) => request<Perks>('/api/user/perks', authHeaders(token)),
+  /** The reviews this customer wrote - which products of which order they have rated. */
+  myReviews: (token: string) =>
+    request<{ reviews: { productId: number; orderName: string; rating: number }[] }>('/api/user/reviews', authHeaders(token)),
+  /** A review of a product from one of the customer's own orders (src/lib/perks.js addReview). */
+  postReview: (token: string, body: { productId: number; orderName: string; rating: number; comment: string }) =>
+    request<{ review: unknown }>('/api/user/reviews', jsonBody(body, token)),
 
   /** Whole steps of 250 points only; the server re-checks the balance. */
   redeemPoints: (token: string, points: number) =>

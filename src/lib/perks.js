@@ -326,6 +326,23 @@ async function publicReviews(productIds) {
   };
 }
 
+/**
+ * Each product's rating - the average and count of its visible reviews, all
+ * its sizes together - for the stars on cards and under a product's name.
+ * Returns a copy of the products with `rating` set where there are reviews.
+ */
+async function withRatings(products) {
+  const reviews = (await store.listAllReviews()).filter((r) => !r.hidden);
+  if (!reviews.length) return products;
+  return products.map((p) => {
+    const ids = new Set([p.id, ...(p.variants ?? []).map((v) => v.id)].map(Number));
+    const mine = reviews.filter((r) => ids.has(Number(r.productId)));
+    if (!mine.length) return p;
+    const average = Math.round((mine.reduce((t, r) => t + r.rating, 0) / mine.length) * 10) / 10;
+    return { ...p, rating: { average, count: mine.length } };
+  });
+}
+
 /** Every review for the dashboard, hidden ones included, with the author's full name and phone. */
 async function adminReviews() {
   const reviews = await store.listAllReviews();
@@ -364,6 +381,7 @@ module.exports = {
   listReviews,
   addReview,
   publicReviews,
+  withRatings,
   adminReviews,
   setReviewHidden,
 };

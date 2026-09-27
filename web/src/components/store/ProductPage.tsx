@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BadgeCheck, HandCoins, MessageCircle, ShieldCheck, ShoppingBag, Star, Truck } from 'lucide-react';
 
 import { ProductCard, ProductImage, TierBadge, WishlistButton } from '@/components/store/ProductCard';
-import { ProductReviewsSection } from '@/components/store/ProductReviewsSection';
+import { ProductReviewsSection, RatingLine } from '@/components/store/ProductReviewsSection';
 import { WhatsAppOrderButton, type WhatsAppOrderItem } from '@/components/store/WhatsAppOrder';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -179,6 +179,19 @@ export function ProductPage({
           <div className="space-y-3">
             <TierBadge product={product} />
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{product.name}</h1>
+            {/* The stars take you down to what the customers said. */}
+            {product.rating && (
+              <a
+                href="#reviews"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="inline-flex w-fit rounded-sm underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <RatingLine rating={product.rating} />
+              </a>
+            )}
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-3xl font-bold text-primary">{formatPrice(price)} د.ل</p>
               {inStock ? (

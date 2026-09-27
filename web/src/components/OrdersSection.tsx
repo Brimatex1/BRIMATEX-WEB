@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, MessageCircle, Package, RefreshCw } from 'lucide-react';
+import { Check, ChevronDown, MessageCircle, Package, RefreshCw, Star } from 'lucide-react';
 
 import { OrderTracker } from '@/components/OrderTracker';
+import { ReviewDialog } from '@/components/ReviewDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,16 @@ const BADGE_TONE: Record<Status, string> = {
   cancelled: 'bg-destructive/10 text-destructive',
 };
 
+/** The mattresses in an order, as product cards - a line holds the size bought. */
+function productsOf(order: OrderSummary, products: Product[]): Product[] {
+  const found = new Map<number, Product>();
+  for (const item of order.items) {
+    const card = products.find((p) => p.id === item.productId || (p.variants ?? []).some((v) => v.id === item.productId));
+    if (card) found.set(card.id, card);
+  }
+  return [...found.values()];
+}
+
 function sinceText(at: number | null, now: number): string {
   if (!at) return '';
   const min = Math.floor((now - at) / 60_000);
@@ -64,6 +75,21 @@ export function OrdersSection({
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const hasOrders = useRef(false);
+  // "orderName:productId" of what this customer has already reviewed.
+  const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [reviewing, setReviewing] = useState<{ orderName: string; product: Product } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .myReviews(token)
+      .then((r) => setReviewed(new Set(r.reviews.map((x) => `${x.orderName}:${x.productId}`))))
+      .catch(() => {});
+  }, [token]);
+
+  /** Reviewed - of this order, the card or any of its sizes. */
+  const isReviewed = (orderName: string, product: Product) =>
+    [product.id, ...(product.variants ?? []).map((v) => v.id)].some((id) => reviewed.has(`${orderName}:${id}`));
 
   /** `quiet`: a background check - keeps what is shown, and says nothing if it fails. */
   const load = useCallback(
@@ -227,6 +253,29 @@ export function OrdersSection({
                 <CardContent className="space-y-3 text-sm">
                   <OrderTracker order={order} />
 
+                  {/* Delivered: a review of each mattress in it, until written. */}
+                  {status === 'done' &&
+                    productsOf(order, products).map((product) =>
+                      isReviewed(order.orderName, product) ? (
+                        <p key={product.id} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <Check className="size-4 text-success" aria-hidden="true" /> قيّمت {product.name} - شكراً لك
+                        </p>
+                      ) : (
+                        <div
+                          key={product.id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300/60 bg-amber-50 p-3 dark:bg-amber-500/10"
+                        >
+                          <p className="text-sm">
+                            <span className="font-semibold">كيف كانت {product.name}؟</span>
+                            <span className="block text-xs text-muted-foreground">رأيك يساعد غيرك، وأول تقييم يعطيك قسيمة 5%.</span>
+                          </p>
+                          <Button size="sm" className="gap-1.5" onClick={() => setReviewing({ orderName: order.orderName, product })}>
+                            <Star className="fill-current" /> قيّمها
+                          </Button>
+                        </div>
+                      )
+                    )}
+
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                     <button
                       type="button"
@@ -267,6 +316,18 @@ export function OrdersSection({
             );
           })}
         </div>
+      )}
+      {token && (
+        <ReviewDialog
+          open={reviewing !== null}
+          onOpenChange={(open) => !open && setReviewing(null)}
+          token={token}
+          orderName={reviewing?.orderName ?? ''}
+          product={reviewing?.product ?? null}
+          onReviewed={(productId) =>
+            setReviewed((prev) => new Set(prev).add(`${reviewing?.orderName}:${productId}`))
+          }
+        />
       )}
     </section>
   );

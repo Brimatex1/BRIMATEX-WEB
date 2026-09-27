@@ -95,6 +95,11 @@ function req(method, p, body, token) {
     const r = shown.reviews.find((x) => x.id === added.json.review.id);
     ok('يظهر مباشرة ويُحسب', shown.count === before.count + 1 && typeof shown.average === 'number' && r?.comment === 'مريحة جداً');
     ok('الاسم الأول فقط', r?.name === 'سالم', r?.name);
+    // The stars on cards and under a product's name come with the catalogue itself.
+    const listed = (await req('GET', '/api/products')).json.products.find((x) => x.id === p.id);
+    ok('التقييم في قائمة المنتجات: المتوسط والعدد', listed?.rating?.count === shown.count && listed.rating.average === shown.average, JSON.stringify(listed?.rating));
+    const unrated = (await req('GET', '/api/products')).json.products.find((x) => x.id !== p.id && !x.rating);
+    ok('منتج بلا تقييمات: بلا rating', Boolean(unrated));
     ok('بلا هاتف ولا معرّف المستخدم', !('phone' in r) && !('userId' in r) && !JSON.stringify(shown).includes(customer.phone));
 
     ok('زبون لا يرى قائمة المدير (403)', (await req('GET', '/api/admin/reviews', null, buyer)).status === 403);

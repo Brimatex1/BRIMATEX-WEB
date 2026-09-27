@@ -22,6 +22,25 @@ export function Stars({ value, size = 16 }: { value: number; size?: number }) {
   );
 }
 
+/** "تقييم واحد" / "تقييمان" / "3 تقييمات" / "12 تقييماً" */
+export function reviewsText(n: number): string {
+  if (n === 1) return 'تقييم واحد';
+  if (n === 2) return 'تقييمان';
+  if (n >= 3 && n <= 10) return `${n} تقييمات`;
+  return `${n} تقييماً`;
+}
+
+/** ★★★★★ 4.8 (12 تقييماً) - under a product's name, on its card and its page. */
+export function RatingLine({ rating, size = 14, className }: { rating: { average: number; count: number }; size?: number; className?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-1.5 text-sm', className)}>
+      <Stars value={rating.average} size={size} />
+      <span className="font-semibold tabular">{rating.average.toFixed(1)}</span>
+      <span className="text-muted-foreground">({reviewsText(rating.count)})</span>
+    </span>
+  );
+}
+
 const dateOf = (iso: string) => new Date(iso).toLocaleDateString('ar-LY', { year: 'numeric', month: 'long', day: 'numeric' });
 
 /**
@@ -51,7 +70,8 @@ export function ProductReviewsSection({ productId }: { productId: number }) {
   }));
 
   return (
-    <Card>
+    // id: the stars under the product's name scroll here.
+    <Card id="reviews" className="scroll-mt-32">
       <CardHeader>
         <CardTitle className="text-lg">آراء الزبائن</CardTitle>
       </CardHeader>

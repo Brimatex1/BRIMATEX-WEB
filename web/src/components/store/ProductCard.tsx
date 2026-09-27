@@ -1,6 +1,7 @@
 import { useState, type MouseEvent } from 'react';
 import { Heart } from 'lucide-react';
 
+import { RatingLine } from '@/components/store/ProductReviewsSection';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { cn, formatPrice } from '@/lib/utils';
@@ -138,6 +139,7 @@ export function ProductCard({
         >
           {product.name}
         </a>
+        {product.rating && <RatingLine rating={product.rating} size={12} className="text-xs" />}
         <p className="flex items-baseline gap-1.5">
           {hasSizes && <span className="text-xs text-muted-foreground">يبدأ من</span>}
           <span className="text-lg font-bold text-primary">{formatPrice(priceFrom(product))} د.ل</span>
