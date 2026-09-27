@@ -38,6 +38,7 @@ function serverUserData(customer, userId) {
     { label: 'زبون مسجّل', person: { id: 'u_42', name: 'محمد  علي بن سالم', phone: '0912345678', city: 'طرابلس' } },
     { label: 'زائر بلا حساب، رقم دولي', person: { name: 'Sara', phone: '+218 92-123-4567', city: 'بني وليد' } },
     { label: 'اسم واحد، رقم بـ 00218', person: { name: 'أحمد', phone: '00218913334444', city: 'Benghazi.' } },
+    { label: 'اسم مركّب، صفر بعد 218', person: { name: 'عبد الله الفيتوري', phone: '+218 091 555 1234', city: 'مصراتة' } },
   ];
 
   for (const { label, person } of cases) {
@@ -47,7 +48,8 @@ function serverUserData(customer, userId) {
     ok('الهاتف: نفس البصمة', web.ph === srv.ph?.[0], `${web.ph} / ${srv.ph}`);
     ok('الاسم الأول: نفس البصمة', web.fn === srv.fn);
     ok('اسم العائلة: نفس البصمة', (web.ln ?? undefined) === (srv.ln ?? undefined));
-    ok('المدينة: نفس البصمة', web.ct === srv.ct);
+    // The server also sends the city as typed (Meta takes a list); the Latin form comes first.
+    ok('المدينة: نفس البصمة', web.ct === srv.ct?.[0]);
     ok('الدولة: نفس البصمة', web.country === srv.country);
     ok('المعرّف الثابت: نفس البصمة', web.external_id === srv.external_id?.[0]);
     const flat = JSON.stringify(web);

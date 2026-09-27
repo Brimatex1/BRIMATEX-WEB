@@ -81,19 +81,30 @@ async function hashed(value: string | null | undefined): Promise<string | undefi
   return v ? sha256(v) : undefined;
 }
 
-/** 0912345678 / +218912345678 / 00218912345678 -> 218912345678, as on the server. */
+/** 0912345678 / +218912345678 / 00218912345678 / +218 091... -> 218912345678, as on the server. */
 export function toInternational(phone: string): string {
   const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('00218')) return digits.slice(2);
-  if (digits.startsWith('218')) return digits;
-  if (digits.startsWith('0')) return `218${digits.slice(1)}`;
-  return `218${digits}`;
+  let intl: string;
+  if (digits.startsWith('00218')) intl = digits.slice(2);
+  else if (digits.startsWith('218')) intl = digits;
+  else intl = `218${digits.replace(/^0+/, '')}`;
+  return intl.replace(/^2180+/, '218');
+}
+
+/**
+ * First and last name, as the server splits them: a compound first name
+ * ("عبد الله", "أبو بكر") is one name - written joined, "عبدالله".
+ */
+export function nameParts(name: string | null | undefined): { first: string; last: string } {
+  const words = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length > 1 && /^(عبد|ابو|أبو)$/.test(words[0])) words.splice(0, 2, words[0] + words[1]);
+  const [first = '', ...rest] = words;
+  return { first, last: rest.length ? rest[rest.length - 1] : '' };
 }
 
 /** The person's hashed fields, in the keys fbq('init') takes. Empty fields are left out. */
 export async function matchData(person: PixelPerson): Promise<Record<string, string>> {
-  const [first, ...rest] = String(person.name ?? '').trim().split(/\s+/);
-  const last = rest.length ? rest[rest.length - 1] : '';
+  const { first, last } = nameParts(person.name);
   const digits = String(person.phone ?? '').replace(/\D/g, '');
   const ph = digits ? await sha256(toInternational(digits)) : undefined;
 

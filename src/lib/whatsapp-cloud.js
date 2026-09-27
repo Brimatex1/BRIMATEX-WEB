@@ -34,13 +34,15 @@ function isConfigured() {
  *
  *   0912345678  ->  218912345678
  *   +218912345678 / 00218912345678 -> 218912345678
+ *   +218 0912345678 -> 218912345678 (the local 0 typed after the code)
  */
 function toInternational(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
-  if (digits.startsWith('00218')) return digits.slice(2);
-  if (digits.startsWith('218')) return digits;
-  if (digits.startsWith('0')) return `218${digits.slice(1)}`;
-  return `218${digits}`;
+  let intl;
+  if (digits.startsWith('00218')) intl = digits.slice(2);
+  else if (digits.startsWith('218')) intl = digits;
+  else intl = `218${digits.replace(/^0+/, '')}`;
+  return intl.replace(/^2180+/, '218');
 }
 
 /**

@@ -125,7 +125,7 @@ async function main() {
   ok('الهاتف: 218 بدون الصفر ثم مشفّر', ud.ph[0] === sha('218912345678'), ud.ph[0]);
   ok('الدولة ly مشفّرة', ud.country === sha('ly'));
   ok('الاسم الأول والأخير مشفّران', ud.fn === sha('محمد') && ud.ln === sha('سالم'));
-  ok('المدينة بالحروف اللاتينية ثم مشفّرة: طرابلس → tripoli', ud.ct === sha('tripoli'));
+  ok('المدينة بالحروف اللاتينية ثم مشفّرة: طرابلس → tripoli، ومعها كما كُتبت', ud.ct[0] === sha('tripoli') && ud.ct[1] === sha('طرابلس'), JSON.stringify(ud.ct));
   ok('البريد: صغير ومقصوص ثم مشفّر', ud.em[0] === sha('a@b.ly'));
   ok('external_id = الهاتف المشفّر للزائر', ud.external_id[0] === sha('218912345678'));
   ok('IP الحقيقي من أول قفزة', ud.client_ip_address === '41.208.1.1', ud.client_ip_address);
@@ -151,7 +151,21 @@ async function main() {
     ok('رابط خارج الموقع يُستبدل بصفحة الدفع', bare.event_source_url === 'https://brimatex.ly/checkout', bare.event_source_url);
     ok('referrer_url يُرسل', bare.referrer_url === 'https://www.facebook.com/');
     ok('fbc بصيغة غير صحيحة لا يُرسل', !('fbc' in bare.user_data));
-    ok('مصراتة → misrata', bare.user_data.ct === sha('misrata'));
+    ok('مصراتة → misrata', bare.user_data.ct[0] === sha('misrata'));
+    ok('IP غير صالح لا يُرسل', !('client_ip_address' in bare.user_data) || bare.user_data.client_ip_address === '1.1.1.1');
+  }
+  {
+    const ev2 = capi.buildPurchase({
+      req: { headers: { 'user-agent': 'x', 'x-forwarded-for': 'not-an-ip' }, socket: { remoteAddress: '::ffff:41.208.9.9' } },
+      orderName: 'S2',
+      customer: { name: 'عبد الله الفيتوري', phone: '+218 091 555 1234', city: 'Tripoli' },
+      items: [{ productId: 1, quantity: 1 }],
+      total: 10,
+    });
+    ok('IPv4 خلف مقبس IPv6 يُرسل IPv4، والمزيّف يُتجاهل', ev2.user_data.client_ip_address === '41.208.9.9', ev2.user_data.client_ip_address);
+    ok('الاسم المركّب: عبدالله', ev2.user_data.fn === sha('عبدالله'));
+    ok('صفر بعد 218 يُحذف', ev2.user_data.ph[0] === sha('218915551234'));
+    ok('مدينة مكتوبة باللاتيني: شكل واحد', ev2.user_data.ct.length === 1 && ev2.user_data.ct[0] === sha('tripoli'));
   }
   const raw = JSON.stringify(ev);
   ok('لا رقم هاتف خام في الحدث', !/0912345678|218912345678|091-234/.test(raw));

@@ -34,6 +34,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const net = require('net');
 const { postRaw } = require('./http');
 const { toInternational } = require('./whatsapp-cloud');
 const { metaCity } = require('./metaCity');
@@ -79,9 +80,28 @@ function hashedName(value) {
   return hashed(String(value || '').replace(/[\p{P}\p{S}]/gu, ''));
 }
 
-/** City: Latin, lowercase, no punctuation, no spaces - "طرابلس" -> "tripoli" (lib/metaCity.js). */
+/**
+ * City: Latin, lowercase, no punctuation, no spaces - "طرابلس" -> "tripoli"
+ * (lib/metaCity.js). Meta takes a list here, so a mapped city also goes as the
+ * customer wrote it: a Facebook account may keep its city either way.
+ */
 function hashedCity(value) {
-  return hashed(metaCity(value));
+  const latin = metaCity(value);
+  const asTyped = String(value || '').trim().toLowerCase().replace(/[\p{P}\p{S}\s]/gu, '');
+  const forms = [...new Set([latin, asTyped].filter(Boolean))];
+  return forms.length ? forms.map(sha256) : undefined;
+}
+
+/**
+ * First and last name. A compound first name ("عبد الله", "أبو بكر") is one
+ * name, written joined - "عبدالله" - not "عبد". Same split as the browser's
+ * web/src/lib/pixelMatch.ts.
+ */
+function nameParts(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length > 1 && /^(عبد|ابو|أبو)$/.test(words[0])) words.splice(0, 2, words[0] + words[1]);
+  const [first = '', ...rest] = words;
+  return { first, last: rest.length ? rest[rest.length - 1] : '' };
 }
 
 /** Phone: digits with the country code, no leading zeros - 0912345678 -> 218912345678. */
@@ -96,9 +116,18 @@ function cookie(req, name) {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-/** The customer's real IP: the first hop of X-Forwarded-For behind the proxy. */
+/**
+ * The customer's real IP: the first hop of X-Forwarded-For behind the proxy,
+ * else the socket's. Meta wants a valid IPv4 or IPv6 address with no spaces;
+ * an IPv4 seen through an IPv6 socket (::ffff:41.208.1.1) goes as the IPv4.
+ */
 function clientIp(req) {
-  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+  const candidates = [(req.headers['x-forwarded-for'] || '').split(',')[0], req.socket?.remoteAddress];
+  for (const raw of candidates) {
+    const ip = String(raw || '').trim().replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
+    if (net.isIP(ip)) return ip;
+  }
+  return undefined;
 }
 
 // Where website events come from; event_source_url must be on the verified domain.
@@ -154,8 +183,7 @@ function money(lyd, lydPerUsd) {
  */
 function buildPurchase({ req, orderName, customer, items, total, userId, tracking, lydPerUsd, prices }) {
 
-  const [first, ...rest] = String(customer.name || '').trim().split(/\s+/);
-  const last = rest.length ? rest[rest.length - 1] : '';
+  const { first, last } = nameParts(customer.name);
   const phoneHash = hashedPhone(customer.phone);
 
   const user_data = dropEmpty({
