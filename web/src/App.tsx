@@ -57,6 +57,12 @@ export default function App() {
 
   /** The cart drawer, opened from the header's bag and after adding a mattress. */
   const [cartOpen, setCartOpen] = useState(false);
+  /**
+   * The cart page opens on the delivery form, not the list: "buy now" and the
+   * drawer's "checkout" already showed what is in the cart, and one more
+   * "checkout" tap on the same list was one more place to drop off.
+   */
+  const [checkoutNow, setCheckoutNow] = useState(false);
   /** Screens opened inside the site this visit - "back" leaves it only at zero. */
   const depth = useRef(0);
 
@@ -144,13 +150,19 @@ export default function App() {
     go({ section: 'product', productId: product.id });
   }
 
-  function handleAdd(product: Product) {
+  function goToCheckout() {
+    setCartOpen(false);
+    setCheckoutNow(true);
+    navigate('cart');
+  }
+
+  function handleAdd(product: Product, { openCart = true } = {}) {
     const existing = cart.lines.find((l) => l.id === product.id);
     cart.add(product);
     trackAddToCart(product);
     // The drawer shows what was added, and the way to checkout, without leaving the page.
     if (existing) toast.success(`تم تحديث الكمية: ${product.name}`);
-    else setCartOpen(true);
+    else if (openCart) setCartOpen(true);
 
     setJustAddedId(product.id);
     window.setTimeout(() => setJustAddedId((id) => (id === product.id ? null : id)), 1200);
@@ -228,10 +240,7 @@ export default function App() {
         products={catalogue.products}
         onSetQty={cart.setQty}
         onRemove={cart.remove}
-        onCheckout={() => {
-          setCartOpen(false);
-          navigate('cart');
-        }}
+        onCheckout={goToCheckout}
       />
 
       <main id="main" className="flex-1">
@@ -311,8 +320,9 @@ export default function App() {
               onOpenShop={openTier}
               onAdd={handleAdd}
               onBuyNow={(p) => {
-                handleAdd(p);
-                navigate('cart');
+                // No drawer: it opened over the cart page and asked for "checkout" twice.
+                handleAdd(p, { openCart: false });
+                goToCheckout();
               }}
               onToggleWishlist={handleToggleWishlist}
               onOpenProduct={openProduct}
@@ -365,6 +375,8 @@ export default function App() {
               void loyalty.refresh();
             }}
             vouchers={loyalty.activeVouchers}
+            startAtCheckout={checkoutNow}
+            onCheckoutStarted={() => setCheckoutNow(false)}
             onAdd={handleAdd}
             onOpen={openProduct}
             onToggleWishlist={handleToggleWishlist}

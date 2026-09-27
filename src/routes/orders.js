@@ -25,6 +25,15 @@ const { getProducts, productLookup } = require('../lib/catalogue');
 const { preorderNote } = require('../lib/preorder');
 const { sendJson, readBody } = require('../lib/respond');
 
+/**
+ * Arabic-Indic (٠١٢…) and Persian (۰۱۲…) digits as 0-9 - what a phone set to
+ * Arabic types. Same as toLatinDigits in web/src/lib/utils.ts; done here too so
+ * every client's orders reach Odoo and WhatsApp with a dialable number.
+ */
+function toLatinDigits(value) {
+  return value.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) & 0xf));
+}
+
 /** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('order-route-not-handled');
 
@@ -93,6 +102,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       } catch {
         return sendJson(res, 400, { error: 'JSON غير صالح' });
       }
+      if (typeof order?.customer?.phone === 'string') order.customer.phone = toLatinDigits(order.customer.phone);
       const result = await getProducts();
       const validationError = validateOrder(order, result.products);
       if (validationError) return sendJson(res, 400, { error: validationError });

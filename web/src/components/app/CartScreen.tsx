@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, HandCoins, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
 
 import { CheckoutForm } from '@/components/CheckoutForm';
@@ -25,6 +25,9 @@ interface CartScreenProps {
   onClear: () => void;
   /** Usable vouchers, offered at checkout. */
   vouchers: Voucher[];
+  /** Open on the delivery form - coming from "buy now" or the drawer's checkout. */
+  startAtCheckout?: boolean;
+  onCheckoutStarted?: () => void;
   onAdd: (product: Product) => void;
   onOpen: (product: Product) => void;
   onToggleWishlist: (product: Product) => void;
@@ -65,6 +68,8 @@ export function CartScreen({
   onRemove,
   onClear,
   vouchers,
+  startAtCheckout = false,
+  onCheckoutStarted,
   onAdd,
   onOpen,
   onToggleWishlist,
@@ -100,6 +105,13 @@ export function CartScreen({
     setCheckingOut(true);
     window.scrollTo({ top: 0 });
   }
+
+  useEffect(() => {
+    if (!startAtCheckout) return;
+    if (lines.length > 0) checkout();
+    onCheckoutStarted?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startAtCheckout]);
 
   if (result) {
     return (

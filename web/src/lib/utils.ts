@@ -45,6 +45,15 @@ export function formatPrice(value: number | string): string {
  */
 const PHONE_RE = /^\+?[\d\s-]{9,17}$/;
 
+/**
+ * Arabic-Indic (٠١٢…) and Persian (۰۱۲…) digits as 0-9. A phone set to Arabic
+ * types ٠٩١٢٣٤٥٦٧٨, and those digits used to fail the check above - the
+ * customer was told their number was invalid and never finished the order.
+ */
+export function toLatinDigits(value: string): string {
+  return value.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) & 0xf));
+}
+
 export function phoneIsValid(phone: string): boolean {
   if (!PHONE_RE.test(phone)) return false;
   const digits = phone.replace(/\D/g, '').length;
