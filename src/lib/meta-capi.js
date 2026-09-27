@@ -36,6 +36,7 @@
 const crypto = require('crypto');
 const { postRaw } = require('./http');
 const { toInternational } = require('./whatsapp-cloud');
+const { metaCity } = require('./metaCity');
 
 /** Latest Graph API version as of July 2026. */
 const GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v26.0';
@@ -78,9 +79,9 @@ function hashedName(value) {
   return hashed(String(value || '').replace(/[\p{P}\p{S}]/gu, ''));
 }
 
-/** City: lowercase, no punctuation, no spaces. */
+/** City: Latin, lowercase, no punctuation, no spaces - "طرابلس" -> "tripoli" (lib/metaCity.js). */
 function hashedCity(value) {
-  return hashed(String(value || '').replace(/[\p{P}\p{S}\s]/gu, ''));
+  return hashed(metaCity(value));
 }
 
 /** Phone: digits with the country code, no leading zeros - 0912345678 -> 218912345678. */
@@ -100,6 +101,32 @@ function clientIp(req) {
   return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
 }
 
+// Where website events come from; event_source_url must be on the verified domain.
+const SITE_URL = 'https://brimatex.ly/';
+
+/**
+ * A URL on the shop's own site, or undefined. Meta rejects an event_source_url
+ * off the verified domain, and the browser's copy is only a claim.
+ */
+function siteUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    return /(^|\.)brimatex\.ly$/.test(url.hostname) ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Meta's click ID format, fb.<subdomain index>.<creation ms>.<fbclid>; anything else is dropped. */
+function validFbc(value) {
+  return /^fb\.\d\.\d{10,13}\..+$/.test(String(value || '')) ? value : undefined;
+}
+
+/** Meta's browser ID format, fb.<subdomain index>.<creation ms>.<random>. */
+function validFbp(value) {
+  return /^fb\.\d\.\d{10,13}\.\d+$/.test(String(value || '')) ? value : undefined;
+}
+
 function dropEmpty(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== ''));
 }
@@ -115,9 +142,15 @@ function money(lyd, lydPerUsd) {
  * Builds the Purchase event. Exported separately so tests can check the payload
  * without a network call.
  *
- * `tracking` comes from the website's checkout: { eventSourceUrl, fbp, fbc }.
- * The browser's copies of _fbp/_fbc are used only when the request cookies are
- * missing - they are the same values when both exist.
+ * `tracking` comes from the website's checkout: { eventSourceUrl, referrerUrl,
+ * fbp, fbc }. The browser's copies of _fbp/_fbc are used only when the request
+ * cookies are missing - they are the same values when both exist.
+ *
+ * Follows Meta's parameter reference
+ * (developers.facebook.com/documentation/ads-commerce/conversions-api/parameters):
+ * event_source_url is required for website events, so the checkout page is
+ * the fallback; num_items belongs to InitiateCheckout only; each item carries
+ * its delivery_category (home_delivery - the shop delivers to the door).
  */
 function buildPurchase({ req, orderName, customer, items, total, userId, tracking, lydPerUsd, prices }) {
 
@@ -137,8 +170,8 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
     external_id: userId ? [hashed(`user:${userId}`)] : phoneHash ? [phoneHash] : undefined,
     client_ip_address: clientIp(req),
     client_user_agent: req.headers['user-agent'],
-    fbp: cookie(req, '_fbp') || tracking?.fbp,
-    fbc: cookie(req, '_fbc') || tracking?.fbc,
+    fbp: validFbp(cookie(req, '_fbp')) || validFbp(tracking?.fbp),
+    fbc: validFbc(cookie(req, '_fbc')) || validFbc(tracking?.fbc),
   });
 
   const contents = items.map((i) => {
@@ -147,6 +180,7 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
       id: String(i.productId),
       quantity: i.quantity,
       item_price: price !== undefined ? money(price, lydPerUsd).value : undefined,
+      delivery_category: 'home_delivery',
     });
   });
 
@@ -155,14 +189,14 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
     event_time: Math.floor(Date.now() / 1000),
     event_id: `purchase-${orderName}`,
     action_source: 'website',
-    event_source_url: tracking?.eventSourceUrl,
+    event_source_url: siteUrl(tracking?.eventSourceUrl) || siteUrl(req.headers.referer) || `${SITE_URL}checkout`,
+    referrer_url: tracking?.referrerUrl ? String(tracking.referrerUrl).slice(0, 500) : undefined,
     user_data,
     custom_data: dropEmpty({
       ...money(Number(total) || 0, lydPerUsd),
       content_type: 'product',
       content_ids: items.map((i) => String(i.productId)),
       contents,
-      num_items: items.reduce((n, i) => n + (Number(i.quantity) || 0), 0),
       order_id: orderName,
     }),
   });

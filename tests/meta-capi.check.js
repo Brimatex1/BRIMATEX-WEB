@@ -125,7 +125,7 @@ async function main() {
   ok('الهاتف: 218 بدون الصفر ثم مشفّر', ud.ph[0] === sha('218912345678'), ud.ph[0]);
   ok('الدولة ly مشفّرة', ud.country === sha('ly'));
   ok('الاسم الأول والأخير مشفّران', ud.fn === sha('محمد') && ud.ln === sha('سالم'));
-  ok('المدينة مشفّرة', ud.ct === sha('طرابلس'));
+  ok('المدينة بالحروف اللاتينية ثم مشفّرة: طرابلس → tripoli', ud.ct === sha('tripoli'));
   ok('البريد: صغير ومقصوص ثم مشفّر', ud.em[0] === sha('a@b.ly'));
   ok('external_id = الهاتف المشفّر للزائر', ud.external_id[0] === sha('218912345678'));
   ok('IP الحقيقي من أول قفزة', ud.client_ip_address === '41.208.1.1', ud.client_ip_address);
@@ -134,6 +134,25 @@ async function main() {
   ok('القيمة بالدولار: 106 ÷ 8', ev.custom_data.value === 13.25 && ev.custom_data.currency === 'USD');
   ok('سعر القطعة بالدولار', ev.custom_data.contents[0].item_price === 6.63);
   ok('content_ids نصوص', ev.custom_data.content_ids[0] === '7747');
+  // Meta's parameter reference: num_items is for InitiateCheckout only; each
+  // item says how it is delivered; event_source_url is required on the web.
+  ok('لا num_items في الشراء', !('num_items' in ev.custom_data));
+  ok('التوصيل للبيت لكل قطعة', ev.custom_data.contents.every((c) => c.delivery_category === 'home_delivery'));
+  ok('event_source_url من المتصفح', ev.event_source_url === 'https://brimatex.ly/cart');
+  {
+    const bare = capi.buildPurchase({
+      req: { headers: { 'user-agent': 'x', cookie: '_fbc=broken' }, socket: { remoteAddress: '1.1.1.1' } },
+      orderName: 'S1',
+      customer: { name: 'a', phone: '0912345678', city: 'مصراتة' },
+      items: [{ productId: 1, quantity: 1 }],
+      total: 10,
+      tracking: { eventSourceUrl: 'https://evil.example/x', referrerUrl: 'https://www.facebook.com/' },
+    });
+    ok('رابط خارج الموقع يُستبدل بصفحة الدفع', bare.event_source_url === 'https://brimatex.ly/checkout', bare.event_source_url);
+    ok('referrer_url يُرسل', bare.referrer_url === 'https://www.facebook.com/');
+    ok('fbc بصيغة غير صحيحة لا يُرسل', !('fbc' in bare.user_data));
+    ok('مصراتة → misrata', bare.user_data.ct === sha('misrata'));
+  }
   const raw = JSON.stringify(ev);
   ok('لا رقم هاتف خام في الحدث', !/0912345678|218912345678|091-234/.test(raw));
   ok('لا اسم خام في الحدث', !raw.includes('محمد'));
@@ -163,7 +182,7 @@ async function main() {
       'POST',
       '/api/orders',
       { customer, items, note: '', tracking: { eventSourceUrl: 'https://brimatex.ly/cart', fbp: 'fb.1.1.222' } },
-      { 'User-Agent': 'Mozilla/5.0 web', Cookie: '_fbc=fb.1.1.CLICKCOOKIE' }
+      { 'User-Agent': 'Mozilla/5.0 web', Cookie: '_fbc=fb.1.1700000000000.CLICKCOOKIE' }
     );
     ok('الطلب ينجح (201)', web.status === 201, 'status ' + web.status);
     await wait(500);
@@ -174,7 +193,7 @@ async function main() {
     ok('المفتاح في جسم الطلب لا في الرابط', hit.body.access_token === TOKEN && !hit.url.includes('token'));
     ok('event_id = purchase-<رقم الطلب>', e.event_id === `purchase-${web.json.orderName}`, e.event_id);
     ok('القيمة محوّلة للدولار', e.custom_data?.currency === 'USD' && e.custom_data?.value === Math.round((product.price / 8) * 100) / 100, JSON.stringify(e.custom_data));
-    ok('fbc من الكوكي', e.user_data?.fbc === 'fb.1.1.CLICKCOOKIE');
+    ok('fbc من الكوكي', e.user_data?.fbc === 'fb.1.1700000000000.CLICKCOOKIE');
     ok('User-Agent الزبون', e.user_data?.client_user_agent === 'Mozilla/5.0 web');
 
     const st = await req('GET', '/api/admin/settings/facebook-pixel', null, auth);

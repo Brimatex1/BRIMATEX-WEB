@@ -143,8 +143,9 @@ export function trackAddToCart(product: Product) {
   });
 }
 
+/** Each item as Meta's `contents` lists it - the shop delivers to the door (delivery_category). */
 function contentsOf(lines: CartLine[]) {
-  return lines.map((l) => ({ id: l.id, quantity: l.qty }));
+  return lines.map((l) => ({ id: l.id, quantity: l.qty, delivery_category: 'home_delivery' }));
 }
 
 export function trackInitiateCheckout(lines: CartLine[], total: number) {
@@ -163,11 +164,11 @@ export function trackInitiateCheckout(lines: CartLine[], total: number) {
  * (src/lib/meta-capi.js), so Meta counts this purchase once, not twice.
  */
 export function trackPurchase(order: OrderResult, lines: CartLine[]) {
+  // No num_items here: Meta's reference keeps it for InitiateCheckout.
   track('Purchase', {
     content_ids: lines.map((l) => l.id),
     content_type: 'product',
     contents: contentsOf(lines),
-    num_items: lines.reduce((n, l) => n + l.qty, 0),
     value: order.total,
     currency: CURRENCY_ISO,
   }, { eventID: `purchase-${order.orderName}` });
@@ -218,6 +219,9 @@ export function trackingContext() {
   }
   return {
     eventSourceUrl: window.location.href,
+    // Where the visitor came from - the landing page's referrer, which a
+    // single-page site keeps for the whole visit.
+    referrerUrl: document.referrer || undefined,
     fbp: readCookie('_fbp'),
     fbc: readCookie('_fbc') || storedFbc,
   };

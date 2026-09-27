@@ -70,6 +70,7 @@ function reportPurchase(req, order, { channel, orderName, total, userId, product
     prices,
     tracking: {
       eventSourceUrl: typeof tracking.eventSourceUrl === 'string' ? tracking.eventSourceUrl.slice(0, 500) : undefined,
+      referrerUrl: typeof tracking.referrerUrl === 'string' ? tracking.referrerUrl.slice(0, 500) : undefined,
       fbp: typeof tracking.fbp === 'string' ? tracking.fbp.slice(0, 200) : undefined,
       fbc: typeof tracking.fbc === 'string' ? tracking.fbc.slice(0, 500) : undefined,
     },

@@ -7,6 +7,61 @@
 // one person to Meta whichever path an event took. Meta takes pre-hashed
 // values as they are; nothing personal leaves the browser in the clear.
 
+/* ------------------------------------------------------------------ city */
+// The customer's city as Meta matches it (user_data.ct): Latin, lowercase, no
+// punctuation, no spaces - "طرابلس" -> "tripoli". Mirrors the server's
+// src/lib/metaCity.js: the Pixel must hash the same city the Conversions API does.
+
+// Arabic spellings (without "ال", hamzas and taa marbuta evened out) -> Latin.
+const CITIES: Record<string, string> = {
+  طرابلس: 'tripoli',
+  بنغازي: 'benghazi',
+  مصراته: 'misrata',
+  سبها: 'sabha',
+  زاويه: 'zawiya',
+  زليتن: 'zliten',
+  خمس: 'khoms',
+  غريان: 'gharyan',
+  سرت: 'sirte',
+  اجدابيا: 'ajdabiya',
+  بيضاء: 'bayda',
+  درنه: 'derna',
+  طبرق: 'tobruk',
+  صبراته: 'sabratha',
+  ترهونه: 'tarhuna',
+  زواره: 'zuwara',
+  مرج: 'marj',
+  يفرن: 'yafran',
+  نالوت: 'nalut',
+  غدامس: 'ghadamis',
+  هون: 'hun',
+  اوباري: 'ubari',
+  مرزق: 'murzuq',
+  كفره: 'kufra',
+  'بني وليد': 'baniwalid',
+  جنزور: 'janzur',
+  تاجوراء: 'tajura',
+  تاجورا: 'tajura',
+};
+
+/** Letters Meta cannot tell apart once hashed are made equal first: أ/إ/آ -> ا, ة -> ه, ى -> ي. */
+function evenOut(text: string): string {
+  return text
+    .replace(/[ً-ْـ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/^ال/, '')
+    .trim();
+}
+
+export function metaCity(city: string | null | undefined): string {
+  const raw = String(city ?? '').trim();
+  if (!raw) return '';
+  const key = evenOut(raw.replace(/[\p{P}\p{S}]/gu, ' ').replace(/\s+/g, ' '));
+  return (CITIES[key] || raw).toLowerCase().replace(/[\p{P}\p{S}\s]/gu, '');
+}
+
 export interface PixelPerson {
   /** The account's ID when signed in - the server's external_id is `user:<id>` too. */
   id?: string | null;
@@ -46,7 +101,7 @@ export async function matchData(person: PixelPerson): Promise<Record<string, str
     ph,
     fn: await hashed(first.replace(/[\p{P}\p{S}]/gu, '')),
     ln: await hashed(last.replace(/[\p{P}\p{S}]/gu, '')),
-    ct: await hashed(String(person.city ?? '').replace(/[\p{P}\p{S}\s]/gu, '')),
+    ct: await hashed(metaCity(person.city)),
     country: await hashed('ly'),
     // The same stable ID as the server: the account when signed in, otherwise the phone.
     external_id: person.id ? await hashed(`user:${person.id}`) : ph,
