@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, HandCoins, MessageCircle, Minus, Plus, ShieldCheck, ShoppingBag, Trash2, Truck } from 'lucide-react';
 
 import { CheckoutForm } from '@/components/CheckoutForm';
-import { PreorderNotice, PreorderTag } from '@/components/store/PreorderNotice';
+import { ArrivalLine, PreorderNotice, PreorderTag } from '@/components/store/PreorderNotice';
 import { findProduct, ProductImage, productLinkClick } from '@/components/store/ProductCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -194,7 +194,7 @@ export function CartScreen({
           onSuccess={handleSuccess}
           onCancel={() => setCheckingOut(false)}
           vouchers={vouchers}
-          notice={<PreorderNotice items={preorders} />}
+          notice={preorders.length ? <PreorderNotice items={preorders} /> : <ArrivalLine leadDays={0} />}
         />
       </div>
     );
@@ -221,6 +221,8 @@ export function CartScreen({
       <div className="mb-6 space-y-1">
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">سلة المشتريات</h1>
         <p className="text-sm text-muted-foreground">{count} قطعة · الدفع عند الاستلام</p>
+        {/* With a pre-order, its notice below already gives the date. */}
+        {preorders.length === 0 && <ArrivalLine leadDays={0} className="pt-1" />}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">

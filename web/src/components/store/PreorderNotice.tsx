@@ -1,5 +1,6 @@
-import { Factory } from 'lucide-react';
+import { Factory, Truck } from 'lucide-react';
 
+import { arrivalText, deliveryWindow, windowText } from '@/lib/delivery';
 import { leadText } from '@/lib/preorder';
 import { cn } from '@/lib/utils';
 import type { CartLine } from '@/types';
@@ -17,6 +18,8 @@ export function PreorderNotice({
   className?: string;
 }) {
   if (!items.length) return null;
+  // The order arrives together - when its slowest mattress is made.
+  const slowest = Math.max(0, ...items.map((i) => i.leadDays ?? 0));
   return (
     <div role="note" className={cn('flex gap-3 rounded-lg border border-accent/60 bg-accent/15 p-4 text-sm', className)}>
       <Factory className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
@@ -30,10 +33,22 @@ export function PreorderNotice({
           ))}
         </ul>
         <p className="text-muted-foreground">
-          تُصنع خصيصاً لك بعد الطلب، ويتصل بك فريقنا لتأكيد موعد التوصيل. الدفع عند الاستلام.
+          تُصنع خصيصاً لك بعد الطلب، ويوصلك طلبك{' '}
+          <strong className="text-foreground">{windowText(deliveryWindow(slowest))}</strong>. يتصل بك فريقنا لتأكيد
+          الموعد، والدفع عند الاستلام.
         </p>
       </div>
     </div>
+  );
+}
+
+/** When an order should arrive - one line, for the cart and checkout. `leadDays`: the slowest pre-order's, or 0. */
+export function ArrivalLine({ leadDays, className }: { leadDays: number; className?: string }) {
+  return (
+    <p className={cn('flex items-center gap-2 text-sm font-medium', className)}>
+      <Truck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+      {arrivalText(leadDays)}
+    </p>
   );
 }
 

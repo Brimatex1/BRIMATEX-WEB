@@ -19,6 +19,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Separator } from '@/components/ui/separator';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
+import { arrivalText } from '@/lib/delivery';
 import { canOrder, leadText } from '@/lib/preorder';
 import { cn } from '@/lib/utils';
 import { openSupport } from '@/lib/support';
@@ -187,6 +188,13 @@ export function ProductPage({
                 <Badge variant="secondary">نفد المخزون</Badge>
               )}
             </div>
+            {/* When it should arrive - the size on screen: in stock, or made first. */}
+            {orderable && (
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <Truck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                {arrivalText(inStock ? 0 : product.leadDays)}
+              </p>
+            )}
             {sku && <p className="text-xs text-muted-foreground">رمز المنتج: {sku}</p>}
           </div>
 
