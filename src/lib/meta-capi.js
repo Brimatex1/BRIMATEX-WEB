@@ -231,6 +231,105 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
 }
 
 /**
+ * The browser Pixel's other events, relayed through the server so they reach
+ * Meta even when the Pixel is blocked (ad blockers, iOS limits) - Events
+ * Manager's "event coverage": the share of Pixel events the Conversions API
+ * also sends. Same event_name and event_id as the browser's copy, so Meta
+ * keeps one (48 h window). Purchase is not here: the order route sends it.
+ */
+const BROWSER_EVENTS = new Set(['PageView', 'ViewContent', 'AddToCart', 'InitiateCheckout', 'Search', 'Contact', 'AddToWishlist']);
+
+/** What a browser event's custom_data may carry - Meta's documented keys, typed and bounded. */
+function cleanCustomData(eventName, params, lydPerUsd) {
+  if (!params || typeof params !== 'object') return undefined;
+  const ids = (list) =>
+    Array.isArray(list) ? list.slice(0, 50).map((v) => String(v).slice(0, 64)).filter(Boolean) : undefined;
+  const value = Number(params.value);
+  const priced = Number.isFinite(value) && value >= 0 && params.currency === 'LYD' ? money(value, lydPerUsd) : {};
+  const contents = Array.isArray(params.contents)
+    ? params.contents.slice(0, 50).map((c) =>
+        dropEmpty({
+          id: c && c.id !== undefined ? String(c.id).slice(0, 64) : undefined,
+          quantity: Number.isInteger(c?.quantity) && c.quantity > 0 ? c.quantity : undefined,
+          delivery_category: c?.delivery_category === 'home_delivery' ? 'home_delivery' : undefined,
+        })
+      )
+    : undefined;
+  return dropEmpty({
+    ...priced,
+    content_ids: ids(params.content_ids),
+    content_type: params.content_type === 'product' || params.content_type === 'product_group' ? params.content_type : undefined,
+    content_name: typeof params.content_name === 'string' ? params.content_name.slice(0, 200) : undefined,
+    contents: contents?.length ? contents : undefined,
+    // The reference keeps num_items for InitiateCheckout and search_string for Search.
+    num_items: eventName === 'InitiateCheckout' && Number.isInteger(params.num_items) ? params.num_items : undefined,
+    search_string: eventName === 'Search' && typeof params.search_string === 'string' ? params.search_string.slice(0, 200) : undefined,
+  });
+}
+
+/**
+ * Builds a relayed browser event. `person` is the signed-in customer, when
+ * there is one ({ id, name, phone, city }) - hashed as for a purchase.
+ */
+function buildBrowserEvent({ req, eventName, eventId, sourceUrl, referrerUrl, fbp, fbc, params, person, lydPerUsd }) {
+  const { first, last } = nameParts(person?.name);
+  const phoneHash = hashedPhone(person?.phone);
+  const custom = cleanCustomData(eventName, params, lydPerUsd);
+  return dropEmpty({
+    event_name: eventName,
+    event_time: Math.floor(Date.now() / 1000),
+    event_id: eventId,
+    action_source: 'website',
+    event_source_url: siteUrl(sourceUrl) || siteUrl(req.headers.referer) || SITE_URL,
+    referrer_url: referrerUrl ? String(referrerUrl).slice(0, 500) : undefined,
+    user_data: dropEmpty({
+      ph: phoneHash ? [phoneHash] : undefined,
+      fn: person ? hashedName(first) : undefined,
+      ln: person ? hashedName(last) : undefined,
+      ct: person ? hashedCity(person.city) : undefined,
+      country: hashed('ly'),
+      external_id: person?.id ? [hashed(`user:${person.id}`)] : phoneHash ? [phoneHash] : undefined,
+      client_ip_address: clientIp(req),
+      client_user_agent: req.headers['user-agent'],
+      fbp: validFbp(cookie(req, '_fbp')) || validFbp(fbp),
+      fbc: validFbc(cookie(req, '_fbc')) || validFbc(fbc),
+    }),
+    custom_data: custom && Object.keys(custom).length ? custom : undefined,
+  });
+}
+
+/*
+ * Browser events are many (a PageView per page), so they go in batches: one
+ * request per couple of seconds, up to Meta's 1,000 events per request - far
+ * fewer calls than one per event, and nothing waits on them.
+ */
+const BATCH_MS = 2000;
+const BATCH_MAX = 200;
+let queue = [];
+let queueDataset = null;
+let flushTimer = null;
+
+function flushQueue() {
+  clearTimeout(flushTimer);
+  flushTimer = null;
+  const events = queue;
+  const datasetId = queueDataset;
+  queue = [];
+  if (events.length && datasetId) send(datasetId, events).catch(() => {});
+}
+
+function enqueue(datasetId, event) {
+  if (queueDataset && queueDataset !== datasetId) flushQueue();
+  queueDataset = datasetId;
+  queue.push(event);
+  if (queue.length >= BATCH_MAX) flushQueue();
+  else if (!flushTimer) {
+    flushTimer = setTimeout(flushQueue, BATCH_MS);
+    flushTimer.unref?.();
+  }
+}
+
+/**
  * Sends events to the dataset. Never throws: tracking must not be able to fail
  * an order. The outcome is logged and kept for the dashboard.
  */
@@ -245,7 +344,13 @@ async function send(datasetId, events) {
     ...(TEST_EVENT_CODE ? { test_event_code: TEST_EVENT_CODE } : {}),
   };
   const url = `${GRAPH_URL}/${GRAPH_VERSION}/${encodeURIComponent(datasetId)}/events`;
-  const names = events.map((e) => `${e.event_name}:${e.event_id}`).join(', ');
+  // A purchase is named by its ID; a batch of browser events is counted by kind.
+  const names =
+    events.length <= 3
+      ? events.map((e) => `${e.event_name}:${e.event_id}`).join(', ')
+      : Object.entries(events.reduce((n, e) => ({ ...n, [e.event_name]: (n[e.event_name] || 0) + 1 }), {}))
+          .map(([name, count]) => `${name}×${count}`)
+          .join(', ');
 
   try {
     const res = await postRaw(url, {
@@ -324,4 +429,15 @@ async function sendTestEvent(datasetId, testEventCode, { sourceUrl, userAgent, i
   }
 }
 
-module.exports = { isConfigured, status, buildPurchase, send, sendTestEvent, hashedPhone };
+module.exports = {
+  isConfigured,
+  status,
+  buildPurchase,
+  buildBrowserEvent,
+  BROWSER_EVENTS,
+  enqueue,
+  flushQueue,
+  send,
+  sendTestEvent,
+  hashedPhone,
+};

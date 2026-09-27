@@ -75,13 +75,52 @@ export function initPixel(pixelId: string, rate?: number | null) {
   pending = null;
 }
 
+/** A fresh event ID - the one the browser event and its server copy share. */
+function newEventId(event: string) {
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${event}.${Date.now()}.${random}`;
+}
+
+/**
+ * The server's copy of a Pixel event (src/routes/metaEvents.js), sent on to
+ * Meta's Conversions API with the same event ID - Meta keeps one of the two.
+ * It still arrives when an ad blocker or iOS stops the Pixel ("event
+ * coverage" in Events Manager). Values go in dinars; the server converts them
+ * as this file does. Purchase is left out: the order itself reports it.
+ */
+function relay(event: string, eventID: string, params?: Params) {
+  if (event === 'Purchase') return;
+  let token: string | null = null;
+  try {
+    token = localStorage.getItem('auth_token');
+  } catch {
+    /* storage blocked - the event goes without the customer's details */
+  }
+  const { eventSourceUrl, referrerUrl, fbp, fbc } = trackingContext();
+  void fetch('/api/meta/events', {
+    method: 'POST',
+    keepalive: true,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({
+      event_name: event,
+      event_id: eventID,
+      event_source_url: eventSourceUrl,
+      referrer_url: referrerUrl,
+      fbp,
+      fbc,
+      custom_data: params,
+    }),
+  }).catch(() => {});
+}
+
 /** Converts at send time, so events queued before the rate arrived are converted too. */
 function send(event: string, params?: Params, options?: Options) {
+  const eventID = options?.eventID ?? newEventId(event);
+  relay(event, eventID, params);
   if (params && lydPerUsd && params.currency === CURRENCY_ISO && typeof params.value === 'number') {
     params = { ...params, value: Math.round((params.value / lydPerUsd) * 100) / 100, currency: 'USD' };
   }
-  if (options) window.fbq?.('track', event, params, options);
-  else window.fbq?.('track', event, params);
+  window.fbq?.('track', event, params, { ...options, eventID });
 }
 
 /**

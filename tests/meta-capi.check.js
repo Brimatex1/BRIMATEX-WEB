@@ -269,6 +269,36 @@ async function main() {
     ok('فلتر الموقع يرجّع طلب الموقع فقط', webList.some((o) => o.orderName === web.json.orderName) && webList.every((o) => o.channel === 'web'));
     ok('فلتر التطبيق فيه طلب التطبيق والقديم', [app.json.orderName, oldApp.json.orderName].every((n) => appList.some((o) => o.orderName === n)) && appList.every((o) => o.channel === 'app'));
 
+    section('4ب. أحداث البكسل عبر الخادم (تغطية الأحداث)');
+    received.length = 0;
+    const browser = { 'User-Agent': 'Mozilla/5.0 (iPhone) Safari', Cookie: '_fbp=fb.1.1700000000000.555' };
+    const pv = await req('POST', '/api/meta/events', {
+      event_name: 'PageView',
+      event_id: 'PageView.1700000000000.abc123',
+      event_source_url: 'https://brimatex.ly/shop',
+      referrer_url: 'https://l.facebook.com/',
+    }, browser);
+    ok('يُقبل فوراً (204)', pv.status === 204, 'status ' + pv.status);
+    await req('POST', '/api/meta/events', {
+      event_name: 'ViewContent',
+      event_id: 'ViewContent.1700000000001.def456',
+      event_source_url: 'https://brimatex.ly/product/1',
+      custom_data: { content_ids: [product.id], content_type: 'product', value: 800, currency: 'LYD', num_items: 3, junk: 'x' },
+    }, { ...browser, Authorization: auth.Authorization });
+    ok('اسم غير معروف يُرفض (400)', (await req('POST', '/api/meta/events', { event_name: 'Purchase', event_id: 'Purchase.1.abcdef' }, browser)).status === 400);
+    ok('رقم حدث غير صالح يُرفض (400)', (await req('POST', '/api/meta/events', { event_name: 'PageView', event_id: 'x' }, browser)).status === 400);
+    const bot = await req('POST', '/api/meta/events', { event_name: 'PageView', event_id: 'PageView.1.botbot' }, { 'User-Agent': 'Googlebot/2.1' });
+    ok('الزواحف تُقبل ولا تُرسل (204)', bot.status === 204);
+    await wait(3000);
+    ok('الحدثان في دفعة واحدة إلى ميتا', received.length === 1 && received[0].body.data?.length === 2, JSON.stringify(received.map((r) => r.body.data?.length)));
+    const [pvE, vcE] = received[0]?.body?.data || [];
+    ok('نفس اسم الحدث ورقمه من المتصفح (لإزالة التكرار)', pvE?.event_name === 'PageView' && pvE.event_id === 'PageView.1700000000000.abc123');
+    ok('IP ونوع المتصفح وfbp من الخادم', pvE?.user_data?.client_user_agent === 'Mozilla/5.0 (iPhone) Safari' && pvE.user_data.fbp === 'fb.1.1700000000000.555' && Boolean(pvE.user_data.client_ip_address));
+    ok('الرابط والمصدر', pvE?.event_source_url === 'https://brimatex.ly/shop' && pvE.referrer_url === 'https://l.facebook.com/');
+    ok('الزبون المسجّل: هاتفه ومعرّفه مشفّران', vcE?.user_data?.ph?.[0] === sha('218' + ADMIN_PHONE.slice(1)) && Boolean(vcE.user_data.external_id?.[0]), JSON.stringify(vcE?.user_data));
+    ok('القيمة بالدولار مثل البكسل، وبلا num_items أو حقول غريبة', vcE?.custom_data?.value === 100 && vcE.custom_data.currency === 'USD' && !('num_items' in vcE.custom_data) && !('junk' in vcE.custom_data), JSON.stringify(vcE?.custom_data));
+    received.length = 1;
+
     section('5. ميتا ترفض الحدث');
     mockStatus = 400;
     const rejected = await req('POST', '/api/orders', {

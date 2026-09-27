@@ -41,6 +41,7 @@ const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/au
 const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/admin');
 const { createOrderRoutes, NOT_HANDLED: ORDER_NOT_HANDLED } = require('./routes/orders');
 const { handleUserRoutes, NOT_HANDLED: USER_NOT_HANDLED } = require('./routes/user');
+const { handleMetaEventRoutes, NOT_HANDLED: META_EVENTS_NOT_HANDLED } = require('./routes/metaEvents');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -321,6 +322,10 @@ async function handleApi(req, res, url) {
   // The same nineteen, in src/routes/admin.js.
   const adminResult = await handleAdminRoutes(req, res, url);
   if (adminResult !== ADMIN_NOT_HANDLED) return adminResult;
+
+  // The Pixel's events, relayed to Meta's Conversions API (src/routes/metaEvents.js).
+  const metaEventsResult = await handleMetaEventRoutes(req, res, url);
+  if (metaEventsResult !== META_EVENTS_NOT_HANDLED) return metaEventsResult;
 
   if (req.method === 'GET' && url.pathname === '/api/pixel-config') {
     // Public — a Pixel ID isn't a secret, and every visitor's browser needs
