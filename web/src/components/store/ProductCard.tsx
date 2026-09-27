@@ -1,9 +1,8 @@
 import type { MouseEvent } from 'react';
-import { Heart, Star } from 'lucide-react';
+import { Heart } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { formatPoints, openLoyalty, pointsFor } from '@/lib/loyalty';
 import { cn, formatPrice } from '@/lib/utils';
 import type { Product } from '@/types';
 
@@ -135,15 +134,6 @@ export function ProductCard({
           {hasSizes && <span className="text-xs text-muted-foreground">يبدأ من</span>}
           <span className="text-lg font-bold text-primary">{formatPrice(priceFrom(product))} د.ل</span>
         </p>
-        {/* Above the card's link (z-10): the tag explains the points instead of opening the product. */}
-        <button
-          type="button"
-          onClick={openLoyalty}
-          className="relative z-10 inline-flex items-center gap-1 rounded-full bg-accent/25 px-2 py-0.5 text-[11px] font-medium text-accent-foreground transition-colors hover:bg-accent/40"
-          aria-label={`تكسب ${formatPoints(pointsFor(priceFrom(product)))} نقطة - كيف تعمل النقاط؟`}
-        >
-          <Star className="size-3 fill-current" aria-hidden="true" />+{formatPoints(pointsFor(priceFrom(product)))} نقطة
-        </button>
       </div>
     </Card>
   );
