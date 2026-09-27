@@ -13,16 +13,32 @@ export function useReveal<T extends HTMLElement>() {
     if (!el || typeof IntersectionObserver === 'undefined') return;
     if (el.getBoundingClientRect().top < window.innerHeight) return;
     el.dataset.reveal = 'pending';
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        el.dataset.reveal = 'done';
-        observer.disconnect();
-      },
-      { rootMargin: '0px 0px -80px 0px' }
-    );
+    const reveal = () => {
+      el.dataset.reveal = 'done';
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+    };
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && reveal(), {
+      rootMargin: '0px 0px -80px 0px',
+    });
+    // A net under the observer: a jump that skips the section in one frame
+    // (the End key, a fast fling) must never leave it hidden - motion is
+    // decoration, the content is not.
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        if (el.getBoundingClientRect().top < window.innerHeight) reveal();
+      });
+    };
     observer.observe(el);
-    return () => observer.disconnect();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
   }, []);
   return ref;
 }
