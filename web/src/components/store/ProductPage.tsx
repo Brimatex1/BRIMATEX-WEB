@@ -351,10 +351,7 @@ export function ProductPage({
 
       {/* ── Phone: the buy bar ── */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden">
-        <div className="flex gap-2">
-          {orderable && <WhatsAppOrderButton item={whatsAppItem} compact />}
-          {buyButtons}
-        </div>
+        <div className="flex gap-2">{buyButtons}</div>
       </div>
     </div>
   );
