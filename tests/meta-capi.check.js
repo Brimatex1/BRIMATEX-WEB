@@ -318,6 +318,13 @@ async function main() {
     const vid = first?.match(/^brx_vid=([^;]+)/)?.[1];
     ok('الصفحة تعطي الزائر معرّفاً لسنة', /^[0-9a-f-]{36}$/.test(vid || '') && /Max-Age=31536000/.test(first) && /SameSite=Lax/.test(first), first);
     ok('وتجدّد نفس المعرّف في الزيارة التالية', (await page(`brx_vid=${vid}`)).some((c) => c.startsWith(`brx_vid=${vid};`)));
+    // Meta's _fbp even where the Pixel's script never runs: the Pixel's format, 90 days.
+    const fbp = (await page()).find((c) => c.startsWith('_fbp='));
+    const fbpValue = fbp?.match(/^_fbp=([^;]+)/)?.[1];
+    ok('الصفحة تعطي _fbp بصيغة ميتا لـ90 يوماً', /^fb\.1\.\d{13}\.\d{10}$/.test(fbpValue || '') && /Max-Age=7776000/.test(fbp) && !/HttpOnly/i.test(fbp), fbp);
+    const PIXEL_FBP = 'fb.1.1758000000000.1234567890';
+    ok('و_fbp الذي كتبه البكسل يبقى كما هو ويتجدّد', (await page(`_fbp=${PIXEL_FBP}`)).some((c) => c.startsWith(`_fbp=${PIXEL_FBP};`)));
+    ok('و_fbp المشوّه يُستبدل بواحد صحيح', (await page('_fbp=fb.1.bad')).some((c) => /^_fbp=fb\.1\.\d{13}\.\d{10};/.test(c)));
 
     section('4ب. أحداث البكسل عبر الخادم (تغطية الأحداث)');
     received.length = 0;

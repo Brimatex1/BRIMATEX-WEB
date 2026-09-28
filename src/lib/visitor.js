@@ -42,4 +42,29 @@ function visitorCookie(req) {
   return `${COOKIE}=${id}; Max-Age=${YEAR_SECONDS}; Path=/; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`;
 }
 
-module.exports = { visitorIdOf, visitorCookie, COOKIE };
+// Meta's browser ID, as the Pixel writes it: fb.<subdomain index>.<creation ms>.<random>.
+// Index 1: the site answers on brimatex.ly itself (www moves there).
+const FBP = /^fb\.\d\.\d{10,13}\.\d+$/;
+const FBP_SECONDS = 90 * 24 * 60 * 60;
+
+/** The request's _fbp, or null when it has none (or a malformed one). */
+function fbpOf(req) {
+  const match = String(req?.headers?.cookie || '').match(/(?:^|;\s*)_fbp=([^;]+)/);
+  const value = match ? decodeURIComponent(match[1]).trim() : '';
+  return FBP.test(value) ? value : null;
+}
+
+/**
+ * The Set-Cookie header for Meta's _fbp. The Pixel only writes one when its
+ * script runs - an ad blocker, or Safari cutting script cookies to 7 days,
+ * leaves the Conversions API with no browser ID. So the page carries one:
+ * the visitor's own, renewed for Meta's 90 days, or a new one in the Pixel's
+ * format (what Meta's Parameter Builder does). The Pixel reuses an _fbp it
+ * finds, so the browser and the server send the same value.
+ */
+function fbpCookie(req) {
+  const value = fbpOf(req) || `fb.1.${Date.now()}.${crypto.randomInt(1e9, 2147483647)}`;
+  return `_fbp=${value}; Max-Age=${FBP_SECONDS}; Path=/; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`;
+}
+
+module.exports = { visitorIdOf, visitorCookie, fbpOf, fbpCookie, COOKIE };
