@@ -19,7 +19,19 @@ import { LoyaltyDialog } from '@/components/store/LoyaltyDialog';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api } from '@/lib/api';
-import { captureClickId, disablePixel, initPixel, setPixelPerson, trackAddToCart, trackPageView, trackViewContent } from '@/lib/pixel';
+import {
+  captureClickId,
+  disablePixel,
+  forgetPixelPerson,
+  initPixel,
+  setPixelPerson,
+  trackAddToCart,
+  trackAddToWishlist,
+  trackPageView,
+  trackSearch,
+  trackViewCategory,
+  trackViewContent,
+} from '@/lib/pixel';
 import { titleFor } from '@/lib/pageTitle';
 import { parseRoute, routePath, type Route } from '@/lib/route';
 import { tiersOf, type TierFilter } from '@/lib/tiers';
@@ -95,11 +107,39 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Advanced Matching: a signed-in customer is known to the Pixel (hashed, lib/pixelMatch.ts); signing out forgets them.
+  // Advanced Matching (hashed, lib/pixelMatch.ts): a signed-in customer is known
+  // to the Pixel; a guest by this browser's visitor ID, or by what they typed
+  // at an earlier checkout. Signing out - someone was, now nobody is - forgets them.
+  const wasSignedIn = useRef(false);
   useEffect(() => {
     const u = auth.user;
-    void setPixelPerson(u ? { id: u.id, name: u.name, phone: u.phone, city: u.addresses?.[0]?.city } : null);
+    if (u) void setPixelPerson({ id: u.id, name: u.name, phone: u.phone, city: u.addresses?.[0]?.city });
+    else if (wasSignedIn.current) void forgetPixelPerson();
+    else void setPixelPerson(null);
+    wasSignedIn.current = Boolean(u);
   }, [auth.user]);
+
+  // Search: what the visitor looks for in the shop, once they stop typing
+  // (and each different query once) - Meta's Search event.
+  const lastSearch = useRef('');
+  useEffect(() => {
+    const q = shopQuery.trim();
+    if (section !== 'shop' || q.length < 2 || q === lastSearch.current) return;
+    const id = window.setTimeout(() => {
+      lastSearch.current = q;
+      trackSearch(q);
+    }, 1200);
+    return () => window.clearTimeout(id);
+  }, [section, shopQuery]);
+
+  // A category (tier) opened in the shop - its mattresses, for catalogue audiences.
+  useEffect(() => {
+    if (section !== 'shop' || shopCategory === 'all') return;
+    const inTier = catalogue.products.filter((p) => p.tier?.key === shopCategory);
+    if (!inTier.length) return;
+    trackViewCategory(inTier[0].tier?.name ?? String(shopCategory), inTier.map((p) => p.variants?.[0]?.id ?? p.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, shopCategory, catalogue.products.length]);
 
   /**
    * Swaps the screen inside a View Transition where the browser has them - a
@@ -193,6 +233,7 @@ export default function App() {
     }
     try {
       const nowSaved = await wishlist.toggle(product.id);
+      if (nowSaved) trackAddToWishlist(product);
       toast.success(nowSaved ? `أُضيف للمفضلة: ${product.name}` : `أُزيل من المفضلة: ${product.name}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المفضلة');

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
+import { trackCompleteRegistration } from '@/lib/pixel';
 import type { Address, User } from '@/types';
 
 interface AuthSectionProps {
@@ -172,7 +173,12 @@ export function AuthSection({
       const data = await run(() =>
         api.registerVerified(fields.name.trim(), fields.password, verified.signupToken)
       );
-      if (data !== FAILED) signedIn(data, 'تم إنشاء الحساب بنجاح');
+      if (data !== FAILED) {
+        signedIn(data, 'تم إنشاء الحساب بنجاح');
+        // A real account - the WhatsApp code proved the phone. The server copy of
+        // the event carries the new session, so it is matched to the customer.
+        trackCompleteRegistration();
+      }
       // The token was spent on the failed attempt - start the sign-up again.
       else go({ kind: 'register' });
     } else if (step.kind === 'recover-code') {

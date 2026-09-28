@@ -152,6 +152,41 @@ async function main() {
     ok('referrer_url يُرسل', bare.referrer_url === 'https://www.facebook.com/');
     ok('fbc بصيغة غير صحيحة لا يُرسل', !('fbc' in bare.user_data));
     ok('مصراتة → misrata', bare.user_data.ct[0] === sha('misrata'));
+    {
+    // The visitor ID: every known ID in one list, the account first.
+    const VID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    const withVid = { headers: { 'user-agent': 'x', cookie: `brx_vid=${VID}` }, socket: { remoteAddress: '1.1.1.1' } };
+    const guest = capi.buildPurchase({ req: withVid, orderName: 'S3', customer: { name: 'a', phone: '0912345678', city: 'x' }, items: [{ productId: 1, quantity: 1 }], total: 10 });
+    ok('زائر: معرّف الزائر أولاً ثم الهاتف', JSON.stringify(guest.user_data.external_id) === JSON.stringify([sha(`visitor:${VID}`), sha('218912345678')]), JSON.stringify(guest.user_data.external_id));
+    const member = capi.buildPurchase({ req: withVid, orderName: 'S4', customer: { name: 'a', phone: '0912345678', city: 'x' }, items: [{ productId: 1, quantity: 1 }], total: 10, userId: 'u9' });
+    ok('مسجّل: الحساب ثم الزائر ثم الهاتف', JSON.stringify(member.user_data.external_id) === JSON.stringify([sha('user:u9'), sha(`visitor:${VID}`), sha('218912345678')]));
+    const forged = capi.buildPurchase({ req: { headers: { 'user-agent': 'x', cookie: 'brx_vid=not-a-uuid' }, socket: {} }, orderName: 'S5', customer: { name: 'a', phone: '', city: '' }, items: [], total: 1 });
+    ok('معرّف زائر غير صالح لا يُرسل', !('external_id' in forged.user_data));
+
+    // Relayed events: the browser's hashed fields fill what the session does not know.
+    const PH = sha('218913334444');
+    const ev = capi.buildBrowserEvent({
+      req: withVid,
+      eventName: 'AddPaymentInfo',
+      eventId: 'AddPaymentInfo.1.abcdef',
+      params: { value: 400, currency: 'LYD', content_ids: [5], content_type: 'product' },
+      browserUser: { ph: PH, fn: sha('سالم'), ct: sha('tripoli'), external_id: sha(`visitor:${VID}`), em: 'raw@not-hashed.ly' },
+    });
+    ok('هاتف الزبون المشفّر من المتصفح يصل', ev.user_data.ph?.[0] === PH && ev.user_data.fn === sha('سالم'));
+    ok('قيمة غير مشفّرة من المتصفح تُرفض', !('em' in ev.user_data));
+    ok('معرّفات بلا تكرار: الزائر ثم الهاتف', JSON.stringify(ev.user_data.external_id) === JSON.stringify([sha(`visitor:${VID}`), PH]), JSON.stringify(ev.user_data.external_id));
+    const signed = capi.buildBrowserEvent({
+      req: withVid,
+      eventName: 'PageView',
+      eventId: 'PageView.1.abcdef',
+      person: { id: 'u1', name: 'علي', phone: '0921112222', city: 'بنغازي' },
+      browserUser: { ph: PH, fn: sha('سالم') },
+    });
+    ok('الحساب المسجّل يغلب ما أرسله المتصفح', signed.user_data.ph[0] === sha('218921112222') && signed.user_data.fn === sha('علي'));
+    const cat = capi.buildBrowserEvent({ req: withVid, eventName: 'ViewCategory', eventId: 'ViewCategory.1.abcdef', params: { content_category: 'كومفورت', content_ids: [1, 2] } });
+    ok('عرض فئة: اسم الفئة والمنتجات', cat.custom_data?.content_category === 'كومفورت' && cat.custom_data.content_ids.length === 2);
+    ok('الأحداث الجديدة مقبولة', ['AddPaymentInfo', 'CompleteRegistration', 'ViewCategory', 'Search', 'AddToWishlist'].every((n) => capi.BROWSER_EVENTS.has(n)));
+    }
     ok('IP غير صالح لا يُرسل', !('client_ip_address' in bare.user_data) || bare.user_data.client_ip_address === '1.1.1.1');
   }
   {
@@ -268,6 +303,21 @@ async function main() {
     const appList = (await req('GET', '/api/admin/orders?channel=app', null, auth)).json.orders;
     ok('فلتر الموقع يرجّع طلب الموقع فقط', webList.some((o) => o.orderName === web.json.orderName) && webList.every((o) => o.channel === 'web'));
     ok('فلتر التطبيق فيه طلب التطبيق والقديم', [app.json.orderName, oldApp.json.orderName].every((n) => appList.some((o) => o.orderName === n)) && appList.every((o) => o.channel === 'app'));
+
+    section('4أ. معرّف الزائر من الخادم');
+    const page = (cookie) =>
+      new Promise((resolve, reject) => {
+        http
+          .get({ hostname: '127.0.0.1', port: PORT, path: '/', headers: cookie ? { Cookie: cookie } : {} }, (res) => {
+            res.resume();
+            resolve(res.headers['set-cookie'] || []);
+          })
+          .on('error', reject);
+      });
+    const first = (await page()).find((c) => c.startsWith('brx_vid='));
+    const vid = first?.match(/^brx_vid=([^;]+)/)?.[1];
+    ok('الصفحة تعطي الزائر معرّفاً لسنة', /^[0-9a-f-]{36}$/.test(vid || '') && /Max-Age=31536000/.test(first) && /SameSite=Lax/.test(first), first);
+    ok('وتجدّد نفس المعرّف في الزيارة التالية', (await page(`brx_vid=${vid}`)).some((c) => c.startsWith(`brx_vid=${vid};`)));
 
     section('4ب. أحداث البكسل عبر الخادم (تغطية الأحداث)');
     received.length = 0;

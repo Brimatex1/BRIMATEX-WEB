@@ -19,6 +19,7 @@ const odoo = require('./lib/odoo');
 const banners = require('./lib/banners');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
+const { visitorCookie } = require('./lib/visitor');
 const metaFeed = require('./lib/metaFeed');
 const seo = require('./lib/seo');
 const whatsapp = require('./lib/whatsapp');
@@ -530,6 +531,8 @@ async function serveShell(req, res, url) {
     'X-Frame-Options': 'SAMEORIGIN',
     'Content-Security-Policy': SHELL_CSP,
     'Cache-Control': 'no-cache',
+    // The visitor's stable first-party ID, renewed for a year (src/lib/visitor.js).
+    'Set-Cookie': visitorCookie(req),
   }, html);
 }
 

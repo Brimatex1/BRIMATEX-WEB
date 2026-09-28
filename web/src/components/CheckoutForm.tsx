@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { trackingContext } from '@/lib/pixel';
 import { discountLabel } from '@/components/app/perks';
 import { cn, formatPrice, phoneIsValid, toLatinDigits } from '@/lib/utils';
 import type { CartLine, Customer, OrderResult, User, Voucher } from '@/types';
-import { setPixelPerson } from '@/lib/pixel';
+import { setPixelPerson, trackAddPaymentInfo } from '@/lib/pixel';
 
 type FieldKey = 'name' | 'phone' | 'city' | 'address';
 
@@ -64,6 +64,29 @@ export function CheckoutForm({ lines, user, token, onSuccess, onCancel, vouchers
    * the cart and returning makes a new form, and a new key.
    */
   const requestId = useRef(newRequestId());
+
+  /*
+   * The moment the customer has given a valid name and phone - cash on
+   * delivery's "payment details" - Meta learns who they are (hashed, and kept
+   * for their next visit on this device) and gets AddPaymentInfo. Once per
+   * checkout, a moment after they stop typing; an account's details, already
+   * filled in, count at once. A checkout left here is still a known person.
+   */
+  const paymentInfoSent = useRef(false);
+  useEffect(() => {
+    if (paymentInfoSent.current) return;
+    const name = form.name.trim();
+    const phone = form.phone.trim();
+    if (name.length < 2 || !phoneIsValid(phone)) return;
+    const id = window.setTimeout(() => {
+      paymentInfoSent.current = true;
+      void setPixelPerson({ id: user?.id, name, phone, city: form.city.trim() || undefined }).then(() =>
+        trackAddPaymentInfo(lines, Math.max(0, subtotal - discount))
+      );
+    }, 800);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name, form.phone]);
 
   function update(key: keyof typeof form, value: string) {
     // Digits typed on an Arabic keyboard are stored as 0-9, as Odoo and WhatsApp expect them.

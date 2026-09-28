@@ -89,6 +89,8 @@ async function handleMetaEventRoutes(req, res, url) {
     fbc: typeof body.fbc === 'string' ? body.fbc.slice(0, 500) : undefined,
     params: body.custom_data,
     person,
+    // The browser's Advanced Matching, hashed there; only hex digests are kept (meta-capi.js).
+    browserUser: body.user_data,
     lydPerUsd,
   });
   metaCapi.enqueue(pixelId, event);

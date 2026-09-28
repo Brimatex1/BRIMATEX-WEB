@@ -1,6 +1,7 @@
 import type { CartLine, OrderResult, Product } from '@/types';
 import { CURRENCY_ISO } from './utils';
 import { matchData, type PixelPerson } from '@/lib/pixelMatch';
+import { visitorId } from '@/lib/visitor';
 
 // Meta (Facebook) Pixel — admin-configurable from the dashboard, applies to
 // every page and product automatically because every call here reads real
@@ -24,7 +25,8 @@ let initialized = false;
 type Params = Record<string, unknown> | undefined;
 /** fbq's fourth argument. `eventID` pairs a browser event with its server copy. */
 type Options = { eventID?: string } | undefined;
-let pending: [string, Params, Options][] | null = [];
+/** [event, params, options, custom] - custom events go out with fbq('trackCustom'). */
+let pending: [string, Params, Options, boolean][] | null = [];
 
 /** Dinars to one dollar, from the dashboard. Null: report in LYD as-is. */
 let lydPerUsd: number | null = null;
@@ -71,7 +73,7 @@ export function initPixel(pixelId: string, rate?: number | null) {
 
   activePixelId = pixelId;
   window.fbq?.('init', pixelId, personData ?? undefined);
-  for (const [event, params, options] of pending ?? []) send(event, params, options);
+  for (const [event, params, options, custom] of pending ?? []) send(event, params, options, custom);
   pending = null;
 }
 
@@ -109,36 +111,82 @@ function relay(event: string, eventID: string, params?: Params) {
       fbp,
       fbc,
       custom_data: params,
+      // Who this is, hashed here (lib/pixelMatch.ts) - a guest who typed their
+      // phone at checkout is matched on the server copy too. Hex digests only.
+      user_data: personData ?? undefined,
     }),
   }).catch(() => {});
 }
 
 /** Converts at send time, so events queued before the rate arrived are converted too. */
-function send(event: string, params?: Params, options?: Options) {
+function send(event: string, params?: Params, options?: Options, custom = false) {
   const eventID = options?.eventID ?? newEventId(event);
   relay(event, eventID, params);
   if (params && lydPerUsd && params.currency === CURRENCY_ISO && typeof params.value === 'number') {
     params = { ...params, value: Math.round((params.value / lydPerUsd) * 100) / 100, currency: 'USD' };
   }
-  window.fbq?.('track', event, params, { ...options, eventID });
+  window.fbq?.(custom ? 'trackCustom' : 'track', event, params, { ...options, eventID });
+}
+
+/*
+ * A guest's hashed details stay on this device for 90 days - a returning
+ * visitor who ordered before is still matched by their phone. Hashes only;
+ * cleared on signing out.
+ */
+const STORED_PERSON = 'brx_am';
+const STORED_DAYS = 90;
+
+function storedPerson(): Record<string, string> | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORED_PERSON) || 'null');
+    if (saved && Date.now() - saved.at < STORED_DAYS * 86_400_000 && saved.data && typeof saved.data === 'object') return saved.data;
+  } catch {
+    /* storage blocked or corrupt */
+  }
+  return null;
+}
+
+function storePerson(data: Record<string, string> | null) {
+  try {
+    if (data) localStorage.setItem(STORED_PERSON, JSON.stringify({ data, at: Date.now() }));
+    else localStorage.removeItem(STORED_PERSON);
+  } catch {
+    /* storage blocked - matching still works for this visit */
+  }
 }
 
 /**
  * Advanced Matching: tells the Pixel who the visitor is - a signed-in
- * customer, or one who has just typed their details at checkout - hashed
- * (lib/pixelMatch.ts). Before the Pixel starts, the data waits for init;
- * after, a re-init with the same ID updates it, as Meta documents for pages
- * that learn who the visitor is later. Awaited before a purchase is tracked,
- * so the Purchase event carries it. Null forgets the person (signing out).
+ * customer, a guest who has typed their details at checkout, or at least
+ * this browser's own visitor ID - hashed (lib/pixelMatch.ts). Before the
+ * Pixel starts, the data waits for init; after, a re-init with the same ID
+ * updates it, as Meta documents for pages that learn who the visitor is
+ * later. Awaited before a purchase is tracked, so the Purchase carries it.
+ *
+ * Null: nobody signed in - a guest known from an earlier checkout on this
+ * device, else just the visitor ID.
  */
 export async function setPixelPerson(person: PixelPerson | null) {
   if (typeof window === 'undefined' || !crypto?.subtle) return;
+  const vid = visitorId();
   try {
-    personData = person ? await matchData(person) : null;
+    if (person) {
+      personData = await matchData({ ...person, visitorId: vid });
+      // A guest's own details are kept for their next visit; an account's come from the account.
+      if (!person.id && person.phone) storePerson(personData);
+    } else {
+      personData = storedPerson() ?? (await matchData({ visitorId: vid }));
+    }
   } catch {
     return;
   }
   if (initialized && activePixelId) window.fbq?.('init', activePixelId, personData ?? {});
+}
+
+/** Signing out: this device forgets the person - only the visitor ID is left. */
+export async function forgetPixelPerson() {
+  storePerson(null);
+  await setPixelPerson(null);
 }
 
 /** The shop's own address - brimatex.ly or a subdomain of it. */
@@ -152,9 +200,9 @@ export function disablePixel() {
   pending = null;
 }
 
-function track(event: string, params?: Params, options?: Options) {
-  if (initialized) send(event, params, options);
-  else pending?.push([event, params, options]);
+function track(event: string, params?: Params, options?: Options, custom = false) {
+  if (initialized) send(event, params, options, custom);
+  else pending?.push([event, params, options, custom]);
 }
 
 export function trackPageView() {
@@ -217,6 +265,58 @@ export function trackPurchase(order: OrderResult, lines: CartLine[]) {
     value: order.total,
     currency: CURRENCY_ISO,
   }, { eventID: `purchase-${order.orderName}` });
+}
+
+/** A search on the shop - what the visitor looked for, for Meta's search audiences. */
+export function trackSearch(query: string) {
+  const q = query.trim();
+  if (q.length < 2) return;
+  track('Search', { search_string: q.slice(0, 100) });
+}
+
+/** A mattress saved to favourites - reported as the size its page opens on. */
+export function trackAddToWishlist(product: Product) {
+  const size = product.variants?.[0];
+  track('AddToWishlist', {
+    content_ids: [size?.id ?? product.id],
+    content_type: 'product',
+    content_name: product.name,
+    value: size?.price ?? product.price,
+    currency: CURRENCY_ISO,
+  });
+}
+
+/** An account made - after the WhatsApp code, when the customer is really someone. */
+export function trackCompleteRegistration() {
+  track('CompleteRegistration', { content_name: 'account', status: true });
+}
+
+/**
+ * A category of mattresses opened (a tier) - custom, as Meta has no standard
+ * event for it; its content_ids let catalogue ads follow the browsing.
+ */
+export function trackViewCategory(category: string, productIds: number[]) {
+  track(
+    'ViewCategory',
+    { content_category: category, content_ids: productIds.slice(0, 10), content_type: 'product' },
+    undefined,
+    true
+  );
+}
+
+/**
+ * Checkout, cash on delivery: the customer has given a valid name and phone -
+ * the "payment details" of a COD order. Fired once, before they confirm, so a
+ * checkout left there is still a known person to Meta.
+ */
+export function trackAddPaymentInfo(lines: CartLine[], total: number) {
+  track('AddPaymentInfo', {
+    content_ids: lines.map((l) => l.id),
+    content_type: 'product',
+    contents: contentsOf(lines),
+    value: total,
+    currency: CURRENCY_ISO,
+  });
 }
 
 /** A message sent to customer care - Meta's standard event for a customer reaching out. */

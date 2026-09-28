@@ -38,6 +38,7 @@ const net = require('net');
 const { postRaw } = require('./http');
 const { toInternational } = require('./whatsapp-cloud');
 const { metaCity } = require('./metaCity');
+const { visitorIdOf } = require('./visitor');
 
 /** Latest Graph API version as of July 2026. */
 const GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v26.0';
@@ -156,6 +157,47 @@ function validFbp(value) {
   return /^fb\.\d\.\d{10,13}\.\d+$/.test(String(value || '')) ? value : undefined;
 }
 
+/**
+ * Every ID we know for this person, hashed, in one list - Meta takes several
+ * and links them: the account when signed in, the browser's own visitor ID
+ * (src/lib/visitor.js), the phone. The first is the one the browser Pixel
+ * sends (web/src/lib/pixelMatch.ts): account, else visitor, else phone.
+ */
+function externalIds({ userId, visitorId, phoneHash, more = [] }) {
+  const ids = [
+    userId ? hashed(`user:${userId}`) : undefined,
+    visitorId ? hashed(`visitor:${visitorId}`) : undefined,
+    phoneHash,
+    ...more,
+  ].filter(Boolean);
+  return ids.length ? [...new Set(ids)] : undefined;
+}
+
+/** A SHA-256 hex digest, as the browser sends its hashed fields; anything else is dropped. */
+const HASH = /^[0-9a-f]{64}$/;
+function hashOrNothing(value) {
+  const v = String(value ?? '').toLowerCase();
+  return HASH.test(v) ? v : undefined;
+}
+
+/**
+ * The browser's Advanced Matching, already hashed there (web/src/lib/pixelMatch.ts):
+ * a guest who typed their phone at checkout, a returning visitor. Only hex
+ * digests pass - nothing readable is accepted from the browser.
+ */
+function browserMatch(user) {
+  if (!user || typeof user !== 'object') return {};
+  const list = (v) => (Array.isArray(v) ? v : [v]).map(hashOrNothing).filter(Boolean).slice(0, 5);
+  return {
+    ph: list(user.ph),
+    em: list(user.em),
+    fn: hashOrNothing(user.fn),
+    ln: hashOrNothing(user.ln),
+    ct: list(user.ct),
+    external_id: list(user.external_id),
+  };
+}
+
 function dropEmpty(obj) {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== ''));
 }
@@ -195,7 +237,7 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
     country: hashed('ly'),
     // One stable ID per person across channels: the account when signed in,
     // otherwise the phone - both hashed.
-    external_id: userId ? [hashed(`user:${userId}`)] : phoneHash ? [phoneHash] : undefined,
+    external_id: externalIds({ userId, visitorId: visitorIdOf(req), phoneHash }),
     client_ip_address: clientIp(req),
     client_user_agent: req.headers['user-agent'],
     fbp: validFbp(cookie(req, '_fbp')) || validFbp(tracking?.fbp),
@@ -237,7 +279,20 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
  * also sends. Same event_name and event_id as the browser's copy, so Meta
  * keeps one (48 h window). Purchase is not here: the order route sends it.
  */
-const BROWSER_EVENTS = new Set(['PageView', 'ViewContent', 'AddToCart', 'InitiateCheckout', 'Search', 'Contact', 'AddToWishlist']);
+const BROWSER_EVENTS = new Set([
+  'PageView',
+  'ViewContent',
+  'AddToCart',
+  'AddToWishlist',
+  'InitiateCheckout',
+  // Cash on delivery: the moment the customer has given a valid name and phone at checkout.
+  'AddPaymentInfo',
+  'Search',
+  'Contact',
+  'CompleteRegistration',
+  // Custom (fbq trackCustom): a category of mattresses opened - for catalogue audiences.
+  'ViewCategory',
+]);
 
 /** What a browser event's custom_data may carry - Meta's documented keys, typed and bounded. */
 function cleanCustomData(eventName, params, lydPerUsd) {
@@ -260,6 +315,7 @@ function cleanCustomData(eventName, params, lydPerUsd) {
     content_ids: ids(params.content_ids),
     content_type: params.content_type === 'product' || params.content_type === 'product_group' ? params.content_type : undefined,
     content_name: typeof params.content_name === 'string' ? params.content_name.slice(0, 200) : undefined,
+    content_category: typeof params.content_category === 'string' ? params.content_category.slice(0, 100) : undefined,
     contents: contents?.length ? contents : undefined,
     // The reference keeps num_items for InitiateCheckout and search_string for Search.
     num_items: eventName === 'InitiateCheckout' && Number.isInteger(params.num_items) ? params.num_items : undefined,
@@ -277,10 +333,13 @@ function cleanCustomData(eventName, params, lydPerUsd) {
  * Builds a relayed browser event. `person` is the signed-in customer, when
  * there is one ({ id, name, phone, city }) - hashed as for a purchase.
  */
-function buildBrowserEvent({ req, eventName, eventId, sourceUrl, referrerUrl, fbp, fbc, params, person, lydPerUsd }) {
+function buildBrowserEvent({ req, eventName, eventId, sourceUrl, referrerUrl, fbp, fbc, params, person, browserUser, lydPerUsd }) {
   const { first, last } = nameParts(person?.name);
   const phoneHash = hashedPhone(person?.phone);
   const custom = cleanCustomData(eventName, params, lydPerUsd);
+  // What the signed-in account says wins; the browser's hashed fields fill the rest.
+  const b = browserMatch(browserUser);
+  const nonEmpty = (v) => (Array.isArray(v) ? (v.length ? v : undefined) : v);
   return dropEmpty({
     event_name: eventName,
     event_time: Math.floor(Date.now() / 1000),
@@ -289,12 +348,18 @@ function buildBrowserEvent({ req, eventName, eventId, sourceUrl, referrerUrl, fb
     event_source_url: siteUrl(sourceUrl) || siteUrl(req.headers.referer) || SITE_URL,
     referrer_url: referrerUrl ? String(referrerUrl).slice(0, 500) : undefined,
     user_data: dropEmpty({
-      ph: phoneHash ? [phoneHash] : undefined,
-      fn: person ? hashedName(first) : undefined,
-      ln: person ? hashedName(last) : undefined,
-      ct: person ? hashedCity(person.city) : undefined,
+      ph: phoneHash ? [phoneHash] : nonEmpty(b.ph),
+      em: nonEmpty(b.em),
+      fn: (person && hashedName(first)) || b.fn,
+      ln: (person && hashedName(last)) || b.ln,
+      ct: (person && hashedCity(person.city)) || nonEmpty(b.ct),
       country: hashed('ly'),
-      external_id: person?.id ? [hashed(`user:${person.id}`)] : phoneHash ? [phoneHash] : undefined,
+      external_id: externalIds({
+        userId: person?.id,
+        visitorId: visitorIdOf(req),
+        phoneHash: phoneHash || b.ph?.[0],
+        more: b.external_id,
+      }),
       client_ip_address: clientIp(req),
       client_user_agent: req.headers['user-agent'],
       fbp: validFbp(cookie(req, '_fbp')) || validFbp(fbp),

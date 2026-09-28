@@ -68,6 +68,8 @@ export interface PixelPerson {
   name?: string | null;
   phone?: string | null;
   city?: string | null;
+  /** This browser's stable first-party ID (lib/visitor.ts) - the server's external_id `visitor:<id>` too. */
+  visitorId?: string | null;
 }
 
 async function sha256(value: string): Promise<string> {
@@ -114,8 +116,13 @@ export async function matchData(person: PixelPerson): Promise<Record<string, str
     ln: await hashed(last.replace(/[\p{P}\p{S}]/gu, '')),
     ct: await hashed(metaCity(person.city)),
     country: await hashed('ly'),
-    // The same stable ID as the server: the account when signed in, otherwise the phone.
-    external_id: person.id ? await hashed(`user:${person.id}`) : ph,
+    // The first of the server's list (src/lib/meta-capi.js externalIds): the account
+    // when signed in, else this browser's visitor ID, else the phone.
+    external_id: person.id
+      ? await hashed(`user:${person.id}`)
+      : person.visitorId
+        ? await hashed(`visitor:${person.visitorId}`)
+        : ph,
   };
   return Object.fromEntries(Object.entries(data).filter((entry): entry is [string, string] => Boolean(entry[1])));
 }
