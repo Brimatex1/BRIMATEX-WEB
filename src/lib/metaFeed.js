@@ -141,7 +141,9 @@ function rowsFor(product, { origin }) {
   const sizes = product.variants ?? [{ id: product.id, label: '', price: product.price, inStock: product.inStock }];
   return sizes.map((v) => ({
     id: v.id,
-    item_group_id: product.id,
+    // Never an item's own id: the card's id is also its first size's, and Meta
+    // rejects a group id that names an item (an ID / group ID conflict).
+    item_group_id: `group-${product.id}`,
     title: plainText(v.label ? `${product.name} — ${v.label}` : product.name),
     description: story.text,
     // A pre-order (src/lib/preorder.js) is "available for order", which Meta advertises.

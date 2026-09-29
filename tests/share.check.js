@@ -136,7 +136,7 @@ function unitPart() {
   const lines = csv.trim().split('\n');
   ok('سطر لكل مقاس', count === 2 && lines.length === 3, csv);
   ok('المنتج بلا صورة مستبعد', skipped === 1 && !csv.includes('No Picture'));
-  ok('المعرّف والمجموعة كما يرسلها البكسل', lines[1].startsWith('"202","202"') && lines[2].startsWith('"203","202"'), lines[1]);
+  ok('المعرّف والمجموعة كما يرسلها البكسل', lines[1].startsWith('"202","group-202"') && lines[2].startsWith('"203","group-202"'), lines[1]);
   ok('السعر بالدينار كما يبيعه الموقع، حتى مع سعر صرف البكسل', lines[1].includes('"640.00 LYD"') && lines[2].includes('"720.00 LYD"') && !csv.includes('USD'), lines[1]);
   ok('المخزون', lines[1].includes('"in stock"') && lines[2].includes('"out of stock"'));
   ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/uploads/products/202-1.png"') && lines[1].includes('"https://brimatex.ly/product/202"'));
@@ -249,7 +249,7 @@ function unitPart() {
     ok('صورة التطبيق = الصورة المرفوعة', appImage.status === 302 && appImage.location === `http://127.0.0.1:${PORT}${uploaded}`, JSON.stringify(appImage));
     const feed = await req('GET', '/feeds/meta-catalog.csv');
     const row = feed.text.trim().split('\n')[1] || '';
-    ok('الكتالوج: المنتج بصورته', row.startsWith(`"${p.id}","${p.id}"`) && row.includes(uploaded), row);
+    ok('الكتالوج: المنتج بصورته', row.startsWith(`"${p.id}","group-${p.id}"`) && row.includes(uploaded), row);
     ok('الكتالوج: بالدينار', row.includes(`"${Number(p.price).toFixed(2)} LYD"`), row);
     ok('صفحة المنتج: og:image', meta((await req('GET', `/product/${p.id}`)).text, 'og:image') === `http://127.0.0.1:${PORT}${uploaded}`);
     await req('DELETE', `/api/admin/products/${p.id}/image`, null, admin);

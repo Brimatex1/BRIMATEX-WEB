@@ -58,7 +58,8 @@ const product = {
 };
 const rows = rowsFor(product, { origin: 'https://brimatex.ly' });
 ok('أول صف: 90×190', rows[0]?.size === 'H18 / 190*90', rows.map((r) => r.size).join(' | '));
-ok('المجموعة باسم المنتج نفسه (id لا يتغيّر)', rows.every((r) => r.item_group_id === 101));
+ok('المجموعة باسم المنتج نفسه (id لا يتغيّر)', rows.every((r) => r.item_group_id === 'group-101'));
+ok('رقم المجموعة ليس رقم أي مقاس (لا تعارض عند ميتا)', rows.every((r) => !rows.some((s) => String(s.id) === String(r.item_group_id))));
 ok('علامة المقاس الأساسي', rows[0].custom_label_2 === 'مقاس أساسي' && rows.find((r) => r.size === 'H18 / 190*100').custom_label_2 === 'مقاس إضافي');
 
 console.log('\n' + '─'.repeat(52));
