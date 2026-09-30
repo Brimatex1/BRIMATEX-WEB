@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, HandCoins, MessageCircle, ShieldCheck, ShoppingBag, Star, Truck } from 'lucide-react';
 
 import { ProductCard, ProductImage, TierBadge, WishlistButton } from '@/components/store/ProductCard';
 import { ProductReviewsSection, RatingLine } from '@/components/store/ProductReviewsSection';
+import { SizePicker } from '@/components/store/SizePicker';
 import { WhatsAppOrderButton, type WhatsAppOrderItem } from '@/components/store/WhatsAppOrder';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ import { iconSrc, resolveFeatureIcons } from '@/lib/icons';
 import { arrivalText } from '@/lib/delivery';
 import { formatPoints, openLoyalty, pointsFor, pointsValue } from '@/lib/loyalty';
 import { canOrder, leadText } from '@/lib/preorder';
+import { friendlySize, sizeChoices } from '@/lib/sizeOptions';
 import { cn } from '@/lib/utils';
 import { openSupport } from '@/lib/support';
 import { formatPrice, isComingSoon } from '@/lib/utils';
@@ -77,6 +79,8 @@ export function ProductPage({
   }, [product.id, product.variants]);
 
   const variants = product.variants ?? [];
+  // Size, then thickness - or the plain list when a label is not a size (lib/sizeOptions.ts).
+  const choices = useMemo(() => sizeChoices(product.variants ?? []), [product.variants]);
   const selected = variants.find((v) => v.id === selectedVariantId);
   const price = selected?.price ?? product.price;
   const inStock = (selected ? selected.inStock !== false : product.inStock !== false) && !isComingSoon(product.category);
@@ -103,7 +107,7 @@ export function ProductPage({
   const layers = product.layers ?? [];
 
   function ask() {
-    const size = selected?.label ? ` (المقاس: ${selected.label})` : '';
+    const size = selected?.label ? ` (المقاس: ${friendlySize(selected.label)})` : '';
     openSupport({ message: `عندي سؤال عن ${product.name}${size}: ` });
   }
 
@@ -228,7 +232,9 @@ export function ProductPage({
 
           <Separator />
 
-          {variants.length > 1 && (
+          {choices ? (
+            <SizePicker choices={choices} selectedId={selectedVariantId} onSelect={setSelectedVariantId} />
+          ) : variants.length > 1 && (
             <div className="space-y-3">
               <p className="text-sm font-semibold">
                 المقاس{selected ? <span className="font-normal text-muted-foreground"> — {selected.label}</span> : null}
