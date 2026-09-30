@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const odoo = require('./odoo');
 const productOverrides = require('./productOverrides');
-const { photoFor } = require('./productPhotos');
+const { photoFor, layersPhotoFor } = require('./productPhotos');
 const { detailsFor } = require('./productDetails');
 const odooStatus = require('./odooStatus');
 const { isOfferable } = require('./sellable');
@@ -68,6 +68,7 @@ async function withOverrides(products) {
         description: d.description || p.description,
         enabled: true,
         image: photoFor(p) || p.image,
+        layersImage: layersPhotoFor(p),
       };
     }
     return {
@@ -77,6 +78,8 @@ async function withOverrides(products) {
       description: o.description || d.description || p.description,
       enabled: o.enabled,
       image: o.imageUrl || photoFor(p) || p.image,
+      // What is inside - the second picture on the product page.
+      layersImage: layersPhotoFor(p),
     };
   });
 }

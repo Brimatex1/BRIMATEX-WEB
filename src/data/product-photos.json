@@ -1,31 +1,38 @@
 {
-  "// ": "Odoo product (template) id -> a photo in web/public/images/products/. The id is the product's own in Odoo - it survives renames, where a name does not. A dashboard upload overrides it (src/lib/productPhotos.js).",
+  "// ": "Odoo product (template) id -> a photo in web/public/images/products/. The id is the product's own in Odoo - it survives renames, where a name does not. A dashboard upload overrides it (src/lib/productPhotos.js). \"layers\": the cutaway of what is inside - the second picture on the product page.",
   "4782": {
     "product": "Classic Mattress",
-    "file": "classic.webp"
+    "file": "classic.webp",
+    "layers": "classic-layers.webp"
   },
   "4776": {
     "product": "Comfort Mattress",
-    "file": "comfort.webp"
+    "file": "comfort.webp",
+    "layers": "comfort-layers.webp"
   },
   "4779": {
     "product": "Daily Mattress",
-    "file": "daily.webp"
+    "file": "daily.webp",
+    "layers": "daily-layers.webp"
   },
   "4973": {
     "product": "Sport Mattress H30cm",
-    "file": "sport.webp"
+    "file": "sport.webp",
+    "layers": "sport-layers.webp"
   },
   "4773": {
     "product": "Hotel Mattress H28cm",
-    "file": "hotel.webp"
+    "file": "hotel.webp",
+    "layers": "hotel-layers.webp"
   },
   "4792": {
     "product": "Deluxe Mattress H30cm",
-    "file": "deluxe.webp"
+    "file": "deluxe.webp",
+    "layers": "deluxe-layers.webp"
   },
   "5012": {
     "product": "Balance Mattress",
-    "file": "balance.webp"
+    "file": "balance.webp",
+    "layers": "balance-layers.webp"
   }
 }

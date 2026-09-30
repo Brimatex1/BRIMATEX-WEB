@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BadgeCheck, HandCoins, MessageCircle, ShieldCheck, ShoppingBag, Star, Truck } from 'lucide-react';
 
-import { ProductCard, ProductImage, TierBadge, WishlistButton } from '@/components/store/ProductCard';
+import { ProductCard, TierBadge, WishlistButton } from '@/components/store/ProductCard';
+import { ProductGallery } from '@/components/store/ProductGallery';
 import { ProductReviewsSection, RatingLine } from '@/components/store/ProductReviewsSection';
 import { SizePicker } from '@/components/store/SizePicker';
 import { WhatsAppOrderButton, type WhatsAppOrderItem } from '@/components/store/WhatsAppOrder';
@@ -167,15 +168,17 @@ export function ProductPage({
       <div className="grid gap-8 md:grid-cols-2 md:gap-12">
         {/* ── The photo: stays in view while the details scroll ── */}
         <div className="md:sticky md:top-32 md:self-start">
-          <div className="relative overflow-hidden rounded-xl border">
-            <ProductImage product={product} className="aspect-square" />
-            <WishlistButton
-              saved={saved}
-              disabled={wishlistPending}
-              onClick={() => onToggleWishlist(product)}
-              className="absolute end-4 top-4 size-10"
-            />
-          </div>
+          <ProductGallery
+            product={product}
+            overlay={
+              <WishlistButton
+                saved={saved}
+                disabled={wishlistPending}
+                onClick={() => onToggleWishlist(product)}
+                className="absolute end-4 top-4 size-10"
+              />
+            }
+          />
         </div>
 
         {/* ── Name, price, sizes, buy ── */}

@@ -110,6 +110,8 @@ export interface Product {
   enabled?: boolean;
   /** The picture uploaded from the dashboard; null when none was. Odoo's pictures are not used. */
   image?: string | null;
+  /** The cutaway of what is inside - the second picture on the product page; null when none ships. */
+  layersImage?: string | null;
   /**
    * Other sizes/heights of this same product (an Odoo product template with
    * more than one variant). Undefined for single-variant and demo products —

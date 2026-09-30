@@ -9,7 +9,7 @@
 // Runs with the rest: npm test
 const fs = require('fs');
 const path = require('path');
-const { photoFor, PHOTO_PREFIX } = require('../src/lib/productPhotos');
+const { photoFor, layersPhotoFor, PHOTO_PREFIX } = require('../src/lib/productPhotos');
 
 let pass = 0;
 let fail = 0;
@@ -51,6 +51,17 @@ for (const [key, file, label] of entries) {
   check(`${label} → ${file}`, fs.existsSync(onDisk) && fs.statSync(onDisk).size > 1000, 'missing or empty');
   check(`${label} is found by photoFor`, photoFor({ templateId: Number(key) }) === PHOTO_PREFIX + file, String(photoFor({ templateId: Number(key) })));
 }
+
+group('The cutaways (what is inside)');
+const withLayers = Object.entries(MAP).filter(([key, e]) => !key.startsWith('//') && e.layers);
+check('every mattress has one', withLayers.length === entries.length, `${withLayers.length} of ${entries.length}`);
+for (const [key, e] of withLayers) {
+  const onDisk = path.join(__dirname, '..', 'web', 'public', 'images', 'products', e.layers);
+  check(`${e.product} → ${e.layers}`, fs.existsSync(onDisk) && fs.statSync(onDisk).size > 1000, 'missing or empty');
+  check(`${e.product}: found by layersPhotoFor, apart from its photo`, layersPhotoFor({ templateId: Number(key) }) === PHOTO_PREFIX + e.layers && e.layers !== e.file);
+}
+check('an unknown product has no cutaway', layersPhotoFor({ templateId: 1 }) === null && layersPhotoFor(undefined) === null);
+check('each cutaway belongs to one mattress', new Set(withLayers.map(([, e]) => e.layers)).size === withLayers.length);
 
 group('Matching');
 const [firstKey, firstFile] = entries[0];

@@ -38,6 +38,7 @@ const COLUMNS = [
   'price',
   'link',
   'image_link',
+  'additional_image_link',
   'brand',
   'product_type',
   'size',
@@ -152,6 +153,8 @@ function rowsFor(product, { origin }) {
     price: money(v.price),
     link,
     image_link: image,
+    // The cutaway of what is inside (src/lib/productPhotos.js) - a second picture for catalogue ads.
+    additional_image_link: product.layersImage ? `${origin}${product.layersImage}` : '',
     brand: 'Brimatex',
     product_type: tier,
     size: v.label || '',
