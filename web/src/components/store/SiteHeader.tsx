@@ -1,8 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { ChevronDown, Heart, LayoutDashboard, Menu, Package, Search, ShoppingBag, Star, Ticket, User as UserIcon } from 'lucide-react';
+import { ChevronDown, Heart, LayoutDashboard, Menu, Package, Search, ShoppingBag, Star, Ticket, User as UserIcon, X } from 'lucide-react';
 
 import { BrimatexLogo } from '@/components/BrimatexLogo';
 import { AnnouncementBar } from '@/components/store/AnnouncementBar';
+import { HeaderSearch } from '@/components/store/HeaderSearch';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -17,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { openSupport } from '@/lib/support';
 import { cn } from '@/lib/utils';
-import type { Perks, SectionId, Tier, User } from '@/types';
+import type { Perks, Product, SectionId, Tier, User } from '@/types';
 
 interface SiteHeaderProps {
   section: SectionId;
@@ -29,6 +30,10 @@ interface SiteHeaderProps {
   onNavigate: (section: SectionId) => void;
   onOpenTier: (key: string) => void;
   onSearch: (query: string) => void;
+  /** The catalogue, for the search's live results. */
+  products: Product[];
+  /** A live result tapped - with what was typed, for the Pixel's Search. */
+  onOpenProduct: (product: Product, query: string) => void;
   onOpenCart: () => void;
 }
 
@@ -49,11 +54,13 @@ const MAIN_LINKS: { id: SectionId; label: string }[] = [
 /**
  * The store's header, on every page: a strip with the shop's promises, then
  * the logo, the main links with the tiers in a menu, search, and the
- * wishlist, account and cart. On a phone the links move into a side menu.
+ * wishlist, account and cart. On a phone the links move into a side menu,
+ * and the search opens from its icon as a row under the bar.
  */
-export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate, onOpenTier, onSearch, onOpenCart }: SiteHeaderProps) {
+export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate, onOpenTier, onSearch, products, onOpenProduct, onOpenCart }: SiteHeaderProps) {
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const active = mainLinkFor(section);
   const isAdmin = user?.role === 'admin';
 
@@ -196,18 +203,13 @@ export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate,
           </NavButton>
         </nav>
 
-        {/* ── Desktop: search ── */}
-        <form onSubmit={submit} className="relative ms-auto hidden w-full max-w-xs lg:block" role="search">
-          <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث عن مرتبة"
-            aria-label="بحث في المراتب"
-            className="h-9 border-border ps-9"
-          />
-        </form>
+        {/* ── Desktop: search, with live results ── */}
+        <HeaderSearch
+          products={products}
+          onSearch={onSearch}
+          onOpenProduct={onOpenProduct}
+          className="ms-auto hidden w-full max-w-sm lg:block"
+        />
 
         {/* ── Wishlist, account, cart ── */}
         <div className="ms-auto flex items-center gap-1 lg:ms-0">
@@ -257,6 +259,18 @@ export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate,
             </Button>
           )}
 
+          {/* Phone and tablet: the search opens under the bar */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-label={searchOpen ? 'إغلاق البحث' : 'بحث'}
+            aria-expanded={searchOpen}
+          >
+            {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
+          </Button>
+
           <Button variant="ghost" size="icon" className="relative" onClick={onOpenCart} aria-label={cartCount ? `السلة (${cartCount})` : 'السلة'}>
             <ShoppingBag className="size-5" />
             {cartCount > 0 && (
@@ -271,6 +285,19 @@ export function SiteHeader({ section, user, perks, cartCount, tiers, onNavigate,
           </Button>
         </div>
       </div>
+
+      {searchOpen && (
+        <div className="border-t bg-background px-4 pb-4 pt-3 lg:hidden motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1">
+          <HeaderSearch
+            products={products}
+            onSearch={onSearch}
+            onOpenProduct={onOpenProduct}
+            autoFocus
+            showPopular
+            onDone={() => setSearchOpen(false)}
+          />
+        </div>
+      )}
     </header>
   );
 }

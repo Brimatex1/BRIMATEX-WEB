@@ -288,6 +288,12 @@ export default function App() {
         onNavigate={navigate}
         onOpenTier={openTier}
         onSearch={(q) => go({ section: 'shop', category: 'all', query: q })}
+        products={catalogue.products}
+        // A live result tapped: the search that found it is Meta's Search, then the product.
+        onOpenProduct={(p, q) => {
+          trackSearch(q);
+          openProduct(p);
+        }}
         onOpenCart={() => setCartOpen(true)}
       />
 

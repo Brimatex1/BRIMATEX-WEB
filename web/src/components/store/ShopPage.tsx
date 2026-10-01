@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { searchProducts } from '@/lib/productSearch';
 import { openSupport } from '@/lib/support';
 import { ALL_TIERS, inTier, tiersOf, type TierFilter } from '@/lib/tiers';
 import type { Product } from '@/types';
@@ -74,20 +75,15 @@ export function ShopPage({
   const current = tiers.find((t) => t.key === category);
 
   const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const list = products.filter((p) => {
-      if (!inTier(p, category)) return false;
-      if (!needle) return true;
-      return (
-        p.name.toLowerCase().includes(needle) ||
-        (p.sku ?? '').toLowerCase().includes(needle) ||
-        (p.tier?.name ?? '').includes(needle) ||
-        (p.description ?? '').toLowerCase().includes(needle)
-      );
-    });
+    // Loose spelling, everyday words and sizes, best match first (lib/productSearch.ts).
+    const list = searchProducts(
+      products.filter((p) => inTier(p, category)),
+      query
+    );
     if (sort === 'price-asc') return [...list].sort((a, b) => priceFrom(a) - priceFrom(b));
     if (sort === 'price-desc') return [...list].sort((a, b) => priceFrom(b) - priceFrom(a));
-    return [...list].sort((a, b) => b.id - a.id);
+    // A search keeps its own order - the best match first.
+    return query.trim() ? list : [...list].sort((a, b) => b.id - a.id);
   }, [products, query, category, sort]);
 
   const title = query.trim() ? `نتائج البحث عن «${query.trim()}»` : current ? `مراتب ${current.name}` : 'كل المراتب';
