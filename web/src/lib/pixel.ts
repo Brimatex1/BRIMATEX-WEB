@@ -71,6 +71,19 @@ export function initPixel(pixelId: string, rate?: number | null) {
     s?.parentNode?.insertBefore(t, s);
   })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
 
+  // The Pixel counts a PageView on its own at every history change - each
+  // screen, and each letter typed in the shop's search (the query lives in the
+  // URL). Those carry no event ID of ours, so their server copies never pair
+  // with the Pixel's and every screen was counted twice. The app sends its
+  // own PageView per screen (App.tsx), with the ID its server copy shares -
+  // which the Pixel drops after the first of a page load unless told that
+  // more than one is meant.
+  if (window.fbq) {
+    const flags = window.fbq as unknown as { disablePushState?: boolean; allowDuplicatePageViews?: boolean };
+    flags.disablePushState = true;
+    flags.allowDuplicatePageViews = true;
+  }
+
   activePixelId = pixelId;
   window.fbq?.('init', pixelId, personData ?? undefined);
   for (const [event, params, options, custom] of pending ?? []) send(event, params, options, custom);
