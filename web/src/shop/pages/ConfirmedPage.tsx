@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 import { displayName, lineParts } from '../catalog';
 import { useTitle } from '../hooks';
+import { formatPoints, Minus, PointsIcon, pointsFor } from '../loyalty';
 import { photoOf } from '../ProductCard';
 import { Link } from '../router';
 import { lineItem, useShop } from '../state';
@@ -54,6 +55,9 @@ export function ConfirmedPage({ order }: { order: string }) {
       .catch(() => setMissing(true));
   }, [placed, order, shop.auth.token, shop.auth.user?.phone]);
 
+  // The loyalty add-on: what this order will earn once delivered (hidden while the program says nothing).
+  const willEarn = placed ? pointsFor(placed.total, shop.loyalty.info) : null;
+
   if (!placed) {
     return (
       <Container className="flex flex-col items-center gap-4 py-24 text-center">
@@ -79,6 +83,21 @@ export function ConfirmedPage({ order }: { order: string }) {
             <Link to={{ name: 'home' }}>متابعة التسوّق</Link>
           </Button>
         </div>
+        {willEarn ? (
+          <p className={cn('flex items-center gap-3 self-stretch bg-image-bg px-4 py-3.5 text-[15px] sm:self-start', AFTER_MARK)}>
+            <PointsIcon className="text-brand-text" />
+            <span>
+              ستحصل على{' '}
+              <b>
+                <bdi dir="ltr" className="tabular-nums">
+                  {formatPoints(willEarn)}
+                </bdi>{' '}
+                نقطة
+              </b>{' '}
+              بعد استلام طلبك.
+            </span>
+          </p>
+        ) : null}
         {/* The handoff says «أرسلنا تفاصيل الطلب في رسالة» - no message is sent on the live shop yet, so it says where the order is. */}
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <MessageSquare className="size-4" aria-hidden />
@@ -115,6 +134,11 @@ export function ConfirmedPage({ order }: { order: string }) {
             );
           })}
         </div>
+        {placed.discount ? (
+          <div className="text-success">
+            <SummaryRow label={placed.discount.label} value={<Minus amount={placed.discount.amount} />} />
+          </div>
+        ) : null}
         <SummaryRow strong label="الإجمالي" value={<Price amount={placed.total} />} />
       </div>
     </Container>

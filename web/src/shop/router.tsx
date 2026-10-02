@@ -14,12 +14,13 @@ import { isTierKey } from '@/lib/tiers';
  *   /compare?ids=7990,6139             up to three side by side
  *   /cart  /checkout  /checkout/success?order=
  *   /account  /account/orders/:name  /account/orders/:name/issue
- *   /account/addresses|favorites|warranty|notifications|settings
+ *   /account/addresses|favorites|warranty|loyalty|coupons|notifications|settings
  *   /account/reviews/new?product=&order=
  *   /quiz  /showroom  /help  /privacy  /terms
  *
  * Old addresses still work: /shop?category= becomes /mattresses/:tier,
- * /wishlist the favorites, /orders /vouchers /points the account.
+ * /wishlist the favorites, /orders the account, /points and /vouchers the
+ * loyalty add-on's نقاطي and قسائمي.
  * No router library: the server answers every non-API path with the app
  * shell, so the History API is all it takes.
  */
@@ -44,8 +45,8 @@ export type Route =
   | { name: 'legal'; page: 'privacy' | 'terms' }
   | { name: 'notFound' };
 
-export type AccountSection = 'orders' | 'addresses' | 'favorites' | 'warranty' | 'notifications' | 'settings';
-const ACCOUNT_SECTIONS: AccountSection[] = ['orders', 'addresses', 'favorites', 'warranty', 'notifications', 'settings'];
+export type AccountSection = 'orders' | 'addresses' | 'favorites' | 'warranty' | 'loyalty' | 'coupons' | 'notifications' | 'settings';
+const ACCOUNT_SECTIONS: AccountSection[] = ['orders', 'addresses', 'favorites', 'warranty', 'loyalty', 'coupons', 'notifications', 'settings'];
 
 export function parse(pathname: string, search: string): Route {
   const path = decodeURI(pathname).replace(/\/+$/, '') || '/';
@@ -73,7 +74,9 @@ export function parse(pathname: string, search: string): Route {
   if (path === '/cart') return { name: 'cart' };
   if (path === '/checkout') return { name: 'checkout' };
   if (path === '/checkout/success') return { name: 'confirmed', order: q.get('order') ?? '' };
-  if (path === '/account' || path === '/orders' || path === '/vouchers' || path === '/points') return { name: 'account', section: 'orders' };
+  if (path === '/account' || path === '/orders') return { name: 'account', section: 'orders' };
+  if (path === '/points') return { name: 'account', section: 'loyalty' };
+  if (path === '/vouchers') return { name: 'account', section: 'coupons' };
   if (path === '/wishlist') return { name: 'account', section: 'favorites' };
   if ((m = path.match(/^\/account\/([a-z]+)$/)) && ACCOUNT_SECTIONS.includes(m[1] as AccountSection)) return { name: 'account', section: m[1] as AccountSection };
   if ((m = path.match(/^\/account\/orders\/([^/]+)$/))) return { name: 'order', orderName: m[1] };

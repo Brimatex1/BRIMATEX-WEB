@@ -16,6 +16,7 @@ import { trackAddToCart, trackAddToWishlist } from '@/lib/pixel';
 import type { Product, ProductVariant } from '@/types';
 
 import { shopProducts, variantsOf } from './catalog';
+import { useLoyaltyStore, type LoyaltyApi } from './loyalty';
 
 const CITY_KEY = 'brimatex:city';
 const METHOD_KEY = 'brimatex:delivery-method';
@@ -80,6 +81,9 @@ interface ShopApi {
   /** The city dialog - on first visit and from «التوصيل إلى». */
   cityDialogOpen: boolean;
   setCityDialogOpen: (open: boolean) => void;
+
+  /** Points and the coupon for the next order (the loyalty add-on). */
+  loyalty: LoyaltyApi;
 }
 
 const ShopContext = createContext<ShopApi | null>(null);
@@ -89,6 +93,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const cart = useCart();
   const wishlist = useWishlist(auth.token, auth.user);
+  const loyalty = useLoyaltyStore(auth.token, auth.user?.id, auth.checking);
 
   const [cartDrawer, setCartDrawer] = useState<{ open: boolean; addedId: number | null }>({ open: false, addedId: null });
   const [loginDrawer, setLoginDrawer] = useState<{ open: boolean; reason: 'checkout' | 'favorites' | 'account' }>({ open: false, reason: 'account' });
@@ -246,8 +251,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       setCityDialogOpen,
       method,
       setMethod,
+      loyalty,
     }),
-    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod]
+    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty]
   );
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;

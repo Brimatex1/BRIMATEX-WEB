@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Banknote, Building2, Check, ChevronDown, CreditCard, Store, Truck } from 'lucide-react';
+import { AlertTriangle, Banknote, Building2, Check, ChevronDown, ChevronLeft, CreditCard, Store, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { setPixelPerson, trackAddPaymentInfo, trackInitiateCheckout, trackPurchase, trackingContext } from '@/lib/pixel';
-import { cn, toLatinDigits } from '@/lib/utils';
+import { cn, formatPrice, toLatinDigits } from '@/lib/utils';
+import type { LoyaltyChoice } from '@/types';
 
 import { availabilityOf, displayName, lineParts } from '../catalog';
 import { useTitle } from '../hooks';
 import { isLibyanMobile } from '../LoginDrawer';
+import { CouponCodeForm, CouponIcon, formatPoints, Minus, PointsIcon } from '../loyalty';
 import { photoOf } from '../ProductCard';
 import { Link, useRouter } from '../router';
 import { lineItem, useShop } from '../state';
@@ -63,6 +65,8 @@ export interface PlacedOrder {
   payment: string;
   phone: string;
   lines: { productId: number; quantity: number; price: number }[];
+  /** Points or a coupon taken off (the loyalty add-on). */
+  discount?: { label: string; amount: number } | null;
 }
 export const LAST_ORDER_KEY = 'brimatex:last-order';
 
@@ -152,6 +156,10 @@ export function CheckoutPage() {
   const [failure, setFailure] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const requestId = useRef(newRequestId());
+  // The loyalty add-on: points or one coupon, never both.
+  const [usePoints, setUsePoints] = useState(false);
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [perkNote, setPerkNote] = useState<string | null>(null);
 
   // Signed out (a link, an expired session): the login drawer, then back here.
   useEffect(() => {
@@ -181,6 +189,46 @@ export function CheckoutPage() {
     trackInitiateCheckout(shop.cart.lines, total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shop.cart.lines.length]);
+
+  // Off, or the balance could not be read: no box, no lines, nothing sent.
+  const perks = shop.loyalty.info;
+  const coupon = perks ? shop.loyalty.coupon : null;
+  const canUsePoints = Boolean(perks && perks.points > 0 && perks.value > 0);
+  const pointsOff = perks && usePoints && canUsePoints ? Math.min(perks.value, total) : 0;
+  const couponOff = coupon ? Math.min(coupon.discount, total) : 0;
+  const payable = Math.max(0, Math.round((total - pointsOff - couponOff) * 100) / 100);
+  const loyaltyChoice: LoyaltyChoice | undefined = pointsOff > 0 ? { usePoints: true } : coupon ? { coupon: coupon.code } : undefined;
+
+  // A coupon kept from «قسائمي» was checked against another cart: check it again for this one.
+  const token = shop.auth.token;
+  useEffect(() => {
+    if (!coupon || !token || !total || coupon.subtotal === total) return;
+    let live = true;
+    api
+      .checkCoupon(token, coupon.code, total)
+      .then(({ coupon: c }) => {
+        if (live) shop.loyalty.setCoupon({ ...c, subtotal: total });
+      })
+      .catch((err) => {
+        // Only a refusal removes it; offline, the server checks it again with the order.
+        if (!live || !(err instanceof ApiError) || err.status < 400 || err.status >= 500) return;
+        shop.loyalty.setCoupon(null);
+        setPerkNote(`أزلنا القسيمة ${coupon.code}: ${err.message}`);
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coupon?.code, coupon?.subtotal, total, token]);
+
+  function togglePoints() {
+    const next = !usePoints;
+    setUsePoints(next);
+    if (next && coupon) {
+      shop.loyalty.setCoupon(null);
+      setPerkNote('أزلنا القسيمة، فالنقاط والقسيمة لا تُجمعان في طلب واحد.');
+    } else setPerkNote(null);
+  }
 
   const usingSaved = !pickup && savedId !== null && saved.some((a) => a.id === savedId);
   const chosenSaved = saved.find((a) => a.id === savedId);
@@ -216,7 +264,7 @@ export function CheckoutPage() {
         trackingContext(),
         null,
         requestId.current,
-        { delivery: pickup ? { method: 'pickup' } : { method: 'home', date: date ?? undefined, slot }, paymentMethod: payment }
+        { delivery: pickup ? { method: 'pickup' } : { method: 'home', date: date ?? undefined, slot }, paymentMethod: payment, ...(loyaltyChoice ? { loyalty: loyaltyChoice } : {}) }
       );
       if (!pickup && !usingSaved && saveAddress && shop.auth.token) {
         api
@@ -229,12 +277,13 @@ export function CheckoutPage() {
       trackPurchase(result, shop.cart.lines);
       const placed: PlacedOrder = {
         orderName: result.orderName,
-        total: result.total || total,
+        total: result.total || payable,
         when,
         address: pickup ? 'صالة العرض · حي الأندلس' : `${orderCity} · ${address.split('،')[0]}`,
         payment: `${PAYMENT_LABEL[payment]} عند الاستلام`,
         phone,
         lines: shop.cart.lines.map((l) => ({ productId: l.id, quantity: l.qty, price: l.price })),
+        discount: pointsOff > 0 ? { label: 'خصم النقاط', amount: pointsOff } : coupon && couponOff > 0 ? { label: `خصم القسيمة ${coupon.code}`, amount: couponOff } : null,
       };
       try {
         sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify(placed));
@@ -242,6 +291,8 @@ export function CheckoutPage() {
         /* the page re-reads it from the account */
       }
       shop.cart.clear();
+      if (coupon) shop.loyalty.setCoupon(null);
+      if (loyaltyChoice) void shop.loyalty.reload();
       go({ name: 'confirmed', order: result.orderName }, { replace: true });
     } catch (err) {
       setFailure(err instanceof Error ? err.message : 'تعذّر إرسال الطلب. حاول مجدداً.');
@@ -313,9 +364,115 @@ export function CheckoutPage() {
       <SummaryRow label="المنتجات" value={<Price amount={total} size="row" />} />
       <SummaryRow label="التوصيل" value={pickup ? 'بدون رسوم' : 'مجاني'} />
       <SummaryRow label="الموعد" value={when} />
-      <SummaryRow strong label="الإجمالي" value={<Price amount={total} />} />
+      {pointsOff > 0 ? (
+        <div className="animate-fade-up text-success">
+          <SummaryRow label="خصم النقاط" value={<Minus amount={pointsOff} />} />
+        </div>
+      ) : null}
+      {coupon && couponOff > 0 ? (
+        <div className="animate-fade-up text-success">
+          <SummaryRow
+            label={
+              <>
+                خصم القسيمة{' '}
+                <bdi dir="ltr" className="font-mono text-[13px]">
+                  {coupon.code}
+                </bdi>
+              </>
+            }
+            value={<Minus amount={couponOff} />}
+          />
+        </div>
+      ) : null}
+      <SummaryRow strong label="الإجمالي" value={<Price key={payable} amount={payable} className="animate-price-in" />} />
     </div>
   );
+
+  // «استخدم نقاطك» and «قسيمة خصم» (loyalty add-on CheckoutReview), above the lines.
+  // Drawn twice (phones above the folded summary, desktop in it); `slot` keeps the ids apart.
+  const perksBox = (slot: 'm' | 'd') =>
+    perks ? (
+      <div className="flex flex-col gap-2">
+        <div className="overflow-hidden rounded-lg border border-border">
+          {canUsePoints ? (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={usePoints}
+              onClick={togglePoints}
+              className="flex min-h-16 w-full items-center gap-3 border-b border-border px-4 py-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <PointsIcon className="text-brand-text" />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="text-[15px]">استخدم نقاطك</b>
+                <span className="text-[13px] text-muted-foreground">
+                  <bdi dir="ltr" className="tabular-nums">
+                    {formatPoints(perks.points)}
+                  </bdi>{' '}
+                  نقطة = <bdi dir="ltr" className="tabular-nums">{formatPrice(perks.value)}</bdi> د.ل
+                </span>
+              </span>
+              <span className={cn('relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-base', usePoints ? 'bg-primary' : 'bg-input/40')} aria-hidden>
+                <span className={cn('absolute top-0.5 size-[27px] rounded-full bg-white shadow-[0_2px_6px_rgb(0_0_0/0.2)] transition-all duration-base ease-out', usePoints ? 'start-[22px]' : 'start-0.5')} />
+              </span>
+            </button>
+          ) : null}
+          {coupon ? (
+            <div className="flex min-h-14 items-center gap-3 px-4 py-2">
+              <CouponIcon className="text-brand-text" />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <b className="text-[15px]">قسيمة خصم</b>
+                <span className="truncate text-[13px] text-muted-foreground">
+                  <bdi dir="ltr" className="font-mono font-bold text-foreground">
+                    {coupon.code}
+                  </bdi>{' '}
+                  · {coupon.title}
+                </span>
+              </span>
+              <button type="button" className="min-h-11 shrink-0 px-1 text-sm font-bold underline underline-offset-4" onClick={() => shop.loyalty.setCoupon(null)} aria-label={`إزالة القسيمة ${coupon.code}`}>
+                إزالة
+              </button>
+            </div>
+          ) : (
+            <>
+              <button type="button" aria-expanded={couponOpen} onClick={() => setCouponOpen((o) => !o)} className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+                <CouponIcon className="text-brand-text" />
+                <b className="flex-1 text-[15px]">قسيمة خصم</b>
+                <span className="text-[15px] text-brand-text">أضف رمزاً</span>
+                <ChevronLeft className={cn('size-[18px] transition-transform duration-base', couponOpen && '-rotate-90')} aria-hidden />
+              </button>
+              {couponOpen && token ? (
+                <div className="flex animate-fade-up flex-col gap-1 px-4 pb-3">
+                  <CouponCodeForm
+                    token={token}
+                    subtotal={total}
+                    compact
+                    autoFocus
+                    id={`co-coupon-${slot}`}
+                    onApplied={(c) => {
+                      shop.loyalty.setCoupon(c);
+                      setCouponOpen(false);
+                      if (usePoints) {
+                        setUsePoints(false);
+                        setPerkNote('أوقفنا خصم النقاط، فالنقاط والقسيمة لا تُجمعان في طلب واحد.');
+                      } else setPerkNote(null);
+                    }}
+                  />
+                  <Link to={{ name: 'account', section: 'coupons' }} className="inline-flex min-h-11 items-center self-start text-sm font-bold underline underline-offset-4">
+                    اختر من قسائمي
+                  </Link>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+        {perkNote ? (
+          <p key={perkNote} role="status" className="animate-fade-up text-[13px] text-muted-foreground">
+            {perkNote}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
 
   return (
     <Container className="pb-28 pt-6 lg:pb-16 lg:pt-10">
@@ -325,8 +482,9 @@ export function CheckoutPage() {
           ملخّص الطلب · {shop.cart.count === 1 ? 'منتج واحد' : `${shop.cart.count} منتجات`}
           <ChevronDown className={cn('size-4 transition-transform', summaryOpen && 'rotate-180')} aria-hidden />
         </span>
-        <Price amount={total} size="row" />
+        <Price key={payable} amount={payable} size="row" className="animate-price-in" />
       </button>
+      {perks ? <div className="mb-6 lg:hidden">{perksBox('m')}</div> : null}
       {summaryOpen ? <div className="mb-8 flex flex-col gap-4 lg:hidden">{summaryLines}{totals}</div> : null}
 
       <div className="grid gap-10 lg:grid-cols-[1fr_400px] lg:gap-14">
@@ -414,6 +572,7 @@ export function CheckoutPage() {
 
         <aside className="hidden h-fit flex-col gap-5 rounded-lg border border-border p-6 lg:sticky lg:top-8 lg:flex">
           <b className="text-lg">ملخّص الطلب</b>
+          {perksBox('d')}
           {summaryLines}
           <div className="border-t border-border pt-4">{totals}</div>
           {failure ? <FailureLine text={failure} /> : null}
@@ -434,7 +593,7 @@ export function CheckoutPage() {
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-border bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 lg:hidden">
         {failure ? <FailureLine text={failure} /> : null}
         <Button size="store" className="w-full" loading={submitting} onClick={() => void confirm()}>
-          تأكيد الطلب · <Price amount={total} size="row" className="text-primary-foreground" />
+          تأكيد الطلب · <Price amount={payable} size="row" className="text-primary-foreground" />
         </Button>
       </div>
     </Container>

@@ -16,6 +16,7 @@ import { isShopTier } from './catalog';
 import { AccountLayout } from './account/AccountLayout';
 import { AddressesPage, NotificationsPage, SettingsPage } from './account/AccountPages';
 import { IssuePage } from './account/IssuePage';
+import { CouponsPage, LoyaltyPage } from './account/LoyaltyPages';
 import { OrderPage, OrdersPage } from './account/OrderPages';
 import { WarrantyPage } from './account/WarrantyPage';
 import { CartDrawer } from './CartDrawer';
@@ -125,6 +126,10 @@ function Pages() {
           return <NotificationsPage />;
         case 'warranty':
           return <WarrantyPage />;
+        case 'loyalty':
+          return <LoyaltyPage />;
+        case 'coupons':
+          return <CouponsPage />;
         case 'favorites':
           // Favourites work signed out; signed in they sit in the account's frame.
           return shop.auth.user ? (

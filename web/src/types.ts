@@ -216,6 +216,64 @@ export interface Perks {
   newlyUnlocked: string[];
 }
 
+/* The loyalty add-on (2026): points and coupons from Odoo's loyalty modules.
+   Every number comes from the Odoo program's settings; `enabled` is false
+   while no program is set up, and then the storefront shows none of it. */
+
+export interface LoyaltyHistoryEntry {
+  id: string;
+  kind: 'earned' | 'redeemed' | string;
+  points: number;
+  orderName: string | null;
+  label: string;
+  date: string;
+  /** Credited once the order was delivered. */
+  afterDelivery: boolean;
+}
+
+export interface LoyaltyInfo {
+  enabled: boolean;
+  points: number;
+  /** What the balance is worth now, in dinars. */
+  value: number;
+  /** Dinars per point, or null. */
+  pointValue: number | null;
+  expiring: { points: number; date: string } | null;
+  /** «points نقطة لكل perAmount د.ل»; review = points per published review. Any may be null. */
+  earn: { points: number | null; perAmount: number | null; review: number | null } | null;
+  history: LoyaltyHistoryEntry[];
+  couponsAvailable: number;
+}
+
+export interface Coupon {
+  code: string;
+  title: string;
+  /** A fixed amount off, in dinars - or null when it is a percentage. */
+  value: number | null;
+  percent: number | null;
+  minAmount: number | null;
+  expires: string | null;
+  usedAt: string | null;
+}
+
+export interface CouponsResponse {
+  enabled: boolean;
+  available: Coupon[];
+  used: Coupon[];
+}
+
+/** A code the server accepted for this subtotal; `discount` is the dinars it takes off. */
+export interface CouponCheck {
+  code: string;
+  title: string;
+  value: number | null;
+  percent: number | null;
+  discount: number;
+}
+
+/** Points or one coupon on an order - never both (the owner's rule). */
+export type LoyaltyChoice = { usePoints: true } | { coupon: string };
+
 export interface OrderResult {
   source: string;
   orderName: string;

@@ -10,7 +10,11 @@ import type {
   AdminProducts,
   CartLine,
   ConversionsApiStatus,
+  CouponCheck,
+  CouponsResponse,
   Customer,
+  LoyaltyChoice,
+  LoyaltyInfo,
   FacebookPixelSettings,
   OrderResult,
   OrderSummary,
@@ -145,7 +149,12 @@ export const api = {
     /** Same on every retry of one checkout, so a retry cannot order twice. */
     requestId?: string,
     /** The checkout's choices: home delivery on a day and slot, or the showroom; how it is paid on delivery. */
-    checkout?: { delivery: { method: 'home' | 'pickup'; date?: string; slot?: 'morning' | 'evening' }; paymentMethod: 'cash' | 'card' | 'transfer' }
+    checkout?: {
+      delivery: { method: 'home' | 'pickup'; date?: string; slot?: 'morning' | 'evening' };
+      paymentMethod: 'cash' | 'card' | 'transfer';
+      /** The customer's points or one coupon; the server applies it in Odoo and returns the discounted total. */
+      loyalty?: LoyaltyChoice;
+    }
   ) =>
     request<OrderResult>(
       '/api/orders',
@@ -243,6 +252,18 @@ export const api = {
 
   getOrders: (token: string) =>
     request<{ orders: OrderSummary[] }>('/api/user/orders', authHeaders(token)),
+
+  /* The loyalty add-on: points and coupons (Odoo's loyalty modules). */
+
+  /** The balance, its value, points about to expire, how to earn and the history; `enabled` false hides it all. */
+  getLoyalty: (token: string) => request<LoyaltyInfo>('/api/user/loyalty', authHeaders(token)),
+
+  /** The customer's available and used coupons. */
+  getCoupons: (token: string) => request<CouponsResponse>('/api/user/coupons', authHeaders(token)),
+
+  /** Checks a code against this subtotal; a 400 carries the reason to show under the field. */
+  checkCoupon: (token: string, code: string, subtotal: number) =>
+    request<{ coupon: CouponCheck }>('/api/user/coupons/check', jsonBody({ code, subtotal }, token)),
 
   /* The 2026 storefront's account (the same routes as the iOS app). */
 

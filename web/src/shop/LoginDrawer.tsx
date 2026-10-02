@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { trackCompleteRegistration } from '@/lib/pixel';
 import { cn, toLatinDigits } from '@/lib/utils';
 
+import { PointsIcon } from './loyalty';
 import { Link } from './router';
 import { useShop } from './state';
 
@@ -136,6 +137,13 @@ export function LoginDrawer() {
         <SheetDescription className="text-[15px] leading-relaxed text-muted-foreground">
           {step === 'name' ? 'ما اسمك؟ نستخدمه على طلباتك وفاتورتك.' : 'التصفّح والإضافة إلى السلة والمفضّلة متاحة دون حساب. نطلب الدخول لإتمام الطلب فقط.'}
         </SheetDescription>
+        {/* The loyalty add-on's one line for guests - shown even while the program is off. */}
+        {step !== 'name' ? (
+          <p className="-mt-2 flex items-center gap-2 text-[15px] font-bold text-brand-text">
+            <PointsIcon className="size-[18px]" />
+            اجمع النقاط مع كل طلب واحصل على قسائم خصم.
+          </p>
+        ) : null}
 
         {step === 'phone' ? (
           <form onSubmit={sendCode} className="flex flex-col gap-4">
