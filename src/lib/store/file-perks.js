@@ -106,7 +106,7 @@ async function addReview(userId, review) {
 
 async function listAllReviews() {
   return read()
-    .reviews.map((r) => ({ ...r, hidden: Boolean(r.hidden) }))
+    .reviews.map((r) => ({ ...r, hidden: Boolean(r.hidden), pending: Boolean(r.pending), title: r.title || '', subRatings: r.subRatings || null }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -115,6 +115,7 @@ async function setReviewHidden(id, hidden) {
   const review = data.reviews.find((r) => r.id === id);
   if (!review) return false;
   review.hidden = hidden;
+  review.pending = false;
   write(data);
   return true;
 }

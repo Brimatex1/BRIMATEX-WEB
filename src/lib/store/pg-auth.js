@@ -70,6 +70,7 @@ async function findByPhone(phone) {
 }
 
 const UPDATABLE_COLUMNS = {
+  name: 'name',
   role: 'role',
   passwordHash: 'password_hash',
   odooPartnerId: 'odoo_partner_id',

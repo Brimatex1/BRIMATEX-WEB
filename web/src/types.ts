@@ -55,6 +55,10 @@ export interface AdminReview {
   comment: string;
   createdAt: string;
   hidden: boolean;
+  /** Written and not yet decided on: waits to be published or hidden. */
+  pending?: boolean;
+  title?: string;
+  subRatings?: { comfort?: number; quality?: number; value?: number } | null;
   name: string;
   phone: string | null;
 }

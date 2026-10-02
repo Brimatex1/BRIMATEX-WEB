@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Check, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Stars } from '@/components/store/ProductReviewsSection';
@@ -10,10 +10,9 @@ import { api } from '@/lib/api';
 import type { AdminReview, Product } from '@/types';
 
 /**
- * Customer reviews, newest first. They show on the product page as soon as
- * they are written - only a customer who bought the product can write one -
- * and any of them can be hidden here (a phone number in the text, an insult)
- * and shown again.
+ * Customer reviews, those waiting first. A new review waits here until it is
+ * published (only a customer who bought the product can write one); any can
+ * be hidden later (a phone number in the text, an insult) and shown again.
  */
 export function ReviewsPanel({ token }: { token: string }) {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
@@ -41,12 +40,12 @@ export function ReviewsPanel({ token }: { token: string }) {
     return (id: number) => names.get(id) ?? `منتج #${id}`;
   }, [products]);
 
-  async function toggle(review: AdminReview) {
+  async function decide(review: AdminReview, hidden: boolean) {
     setBusy(review.id);
     try {
-      const { hidden } = await api.adminSetReviewHidden(token, review.id, !review.hidden);
-      setReviews((list) => list.map((r) => (r.id === review.id ? { ...r, hidden } : r)));
-      toast.success(hidden ? 'أُخفي التقييم من صفحة المنتج' : 'التقييم ظاهر في صفحة المنتج');
+      await api.adminSetReviewHidden(token, review.id, hidden);
+      setReviews((list) => list.map((r) => (r.id === review.id ? { ...r, hidden, pending: false } : r)));
+      toast.success(hidden ? 'أُخفي التقييم من صفحة المنتج' : 'نُشر التقييم في صفحة المنتج');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تعذّر الحفظ');
     } finally {
@@ -59,26 +58,51 @@ export function ReviewsPanel({ token }: { token: string }) {
       <CardHeader>
         <CardTitle>تقييمات الزبائن</CardTitle>
         <CardDescription>
-          يظهر التقييم في صفحة المنتج أول ما يكتبه الزبون، ولا يقدر يكتبه إلا من اشترى المنتج. أخفِ أي تقييم فيه رقم هاتف
-          أو كلام غير لائق.
+          التقييم الجديد ينتظر موافقتك قبل ما يظهر في صفحة المنتج، ولا يقدر يكتبه إلا من اشترى المنتج. انشره، أو أخفِه لو
+          فيه رقم هاتف أو كلام غير لائق.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading && <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>}
         {!loading && reviews.length === 0 && <p className="text-sm text-muted-foreground">لا توجد تقييمات بعد.</p>}
-        {reviews.map((r) => (
-          <div key={r.id} className={`rounded-lg border p-3 ${r.hidden ? 'opacity-60' : ''}`}>
+        {[...reviews].sort((a, b) => Number(Boolean(b.pending)) - Number(Boolean(a.pending))).map((r) => (
+          <div key={r.id} className={`rounded-lg border p-3 ${r.pending ? 'border-accent bg-accent/5' : r.hidden ? 'opacity-60' : ''}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Stars value={r.rating} size={14} />
-                {r.hidden && <Badge variant="secondary">مخفي</Badge>}
+                {r.pending ? <Badge>بانتظار المراجعة</Badge> : r.hidden ? <Badge variant="secondary">مخفي</Badge> : null}
               </div>
-              <Button size="sm" variant="outline" disabled={busy === r.id} onClick={() => void toggle(r)}>
-                {r.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-                {r.hidden ? 'إظهار' : 'إخفاء'}
-              </Button>
+              <div className="flex gap-2">
+                {r.pending ? (
+                  <>
+                    <Button size="sm" disabled={busy === r.id} onClick={() => void decide(r, false)}>
+                      <Check className="size-4" /> نشر
+                    </Button>
+                    <Button size="sm" variant="outline" disabled={busy === r.id} onClick={() => void decide(r, true)}>
+                      <EyeOff className="size-4" /> إخفاء
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="sm" variant="outline" disabled={busy === r.id} onClick={() => void decide(r, !r.hidden)}>
+                    {r.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                    {r.hidden ? 'إظهار' : 'إخفاء'}
+                  </Button>
+                )}
+              </div>
             </div>
+            {r.title && <p className="mt-2 text-sm font-semibold">{r.title}</p>}
             {r.comment && <p className="mt-2 text-sm leading-6">{r.comment}</p>}
+            {r.subRatings && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {[
+                  r.subRatings.comfort ? `الراحة ${r.subRatings.comfort}/5` : null,
+                  r.subRatings.quality ? `الجودة ${r.subRatings.quality}/5` : null,
+                  r.subRatings.value ? `قيمة السعر ${r.subRatings.value}/5` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">
               {r.name}
               {r.phone && (

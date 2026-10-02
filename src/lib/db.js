@@ -267,7 +267,23 @@ do $$ begin
   ) then
     alter table reviews add column hidden boolean not null default false;
   end if;
-end $$;
+end $;
+-- Since the app's redesign, a review waits for the team before it shows
+-- (pending); the ones written before stay as they were. A title and three
+-- sub-ratings (comfort, quality, value for money) come with it.
+do $ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'reviews' and column_name = 'pending'
+  ) then
+    alter table reviews add column pending boolean not null default false;
+    alter table reviews add column title text not null default '';
+    -- Three plain columns: the server's Postgres is 9.2 (no JSON column types).
+    alter table reviews add column sub_comfort integer;
+    alter table reviews add column sub_quality integer;
+    alter table reviews add column sub_value integer;
+  end if;
+end $;
 `;
 
 let migrated = false;

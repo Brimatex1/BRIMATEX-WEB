@@ -262,7 +262,24 @@ async function orderHasProduct(order, pid) {
   return Boolean(card && (card.variants ?? []).some((v) => lineIds.includes(v.id)));
 }
 
-async function addReview(userId, { productId, orderName, rating, comment }) {
+/** The three sub-ratings (handoff ReviewWrite): each 1-5, all optional. */
+const SUB_RATINGS = ['comfort', 'quality', 'value'];
+
+function readSubRatings(input) {
+  if (!input || typeof input !== 'object') return null;
+  const out = {};
+  for (const key of SUB_RATINGS) {
+    const v = Number(input[key]);
+    if (Number.isInteger(v) && v >= 1 && v <= 5) out[key] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * A new review waits for the team (pending, hidden) and shows once approved
+ * from the dashboard - the handoff's rule since the app's redesign.
+ */
+async function addReview(userId, { productId, orderName, rating, comment, title, subRatings }) {
   const pid = Number(productId);
   const stars = Number(rating);
   const name = String(orderName || '').trim();
@@ -284,7 +301,11 @@ async function addReview(userId, { productId, orderName, rating, comment }) {
     orderName: name,
     rating: stars,
     comment: String(comment || '').trim().slice(0, 1000),
+    title: String(title || '').trim().slice(0, 120),
+    subRatings: readSubRatings(subRatings),
     createdAt: new Date().toISOString(),
+    hidden: true,
+    pending: true,
   };
   const added = await store.addReview(userId, review);
   if (!added) return { error: 'قيّمت هذا المنتج في هذا الطلب من قبل' };
@@ -313,14 +334,28 @@ async function publicReviews(productIds) {
   const users = await namesOf(reviews);
   const count = reviews.length;
   const average = count ? Math.round((reviews.reduce((t, r) => t + r.rating, 0) / count) * 10) / 10 : null;
+  // How many gave each number of stars, and the sub-ratings' averages where given.
+  const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  for (const r of reviews) distribution[r.rating] = (distribution[r.rating] || 0) + 1;
+  const subAverages = {};
+  for (const key of SUB_RATINGS) {
+    const given = reviews.map((r) => r.subRatings?.[key]).filter((v) => Number.isInteger(v));
+    if (given.length) subAverages[key] = Math.round((given.reduce((t, v) => t + v, 0) / given.length) * 10) / 10;
+  }
   return {
     count,
     average,
-    reviews: reviews.slice(0, 20).map((r) => ({
+    distribution,
+    subAverages,
+    reviews: reviews.slice(0, 50).map((r) => ({
       id: r.id,
       rating: r.rating,
+      title: r.title || '',
       comment: r.comment,
+      subRatings: r.subRatings || null,
       name: firstName(users.get(r.userId)?.name),
+      // Every review is from someone who bought that mattress (addReview).
+      verified: true,
       createdAt: r.createdAt,
     })),
   };
@@ -355,6 +390,9 @@ async function adminReviews() {
     comment: r.comment,
     createdAt: r.createdAt,
     hidden: r.hidden,
+    pending: Boolean(r.pending),
+    title: r.title || '',
+    subRatings: r.subRatings || null,
     name: users.get(r.userId)?.name || '—',
     phone: users.get(r.userId)?.phone || null,
   }));

@@ -88,12 +88,25 @@ function req(method, p, body, token) {
     ok('قائمة التقييمات تُقرأ بلا جلسة', typeof before.count === 'number');
     ok('بلا تقييمات: لا متوسط', (await req('GET', '/api/products/987654/reviews')).json.average === null);
 
-    const added = await req('POST', '/api/user/reviews', { productId: p.id, orderName, rating: 4, comment: 'مريحة جداً' }, buyer);
+    const added = await req(
+      'POST',
+      '/api/user/reviews',
+      { productId: p.id, orderName, rating: 4, comment: 'مريحة جداً', title: 'تحسّن نومي', subRatings: { comfort: 5, quality: 4, value: 9 } },
+      buyer
+    );
     ok('تقييم منتج في الطلب', added.status === 201, `${added.status} ${JSON.stringify(added.json)}`);
+
+    // A new review waits for the team: not on the product page until published.
+    ok('ينتظر المراجعة: لا يظهر بعد', (await req('GET', `/api/products/${p.id}/reviews`)).json.count === before.count);
+    const waiting = (await req('GET', '/api/admin/reviews', null, admin)).json.reviews.find((x) => x.id === added.json.review.id);
+    ok('المدير يراه بانتظار المراجعة', waiting?.pending === true && waiting.hidden === true && waiting.title === 'تحسّن نومي', JSON.stringify(waiting));
+    ok('التقييم الفرعي خارج 1-5 يُترك', waiting?.subRatings?.comfort === 5 && waiting.subRatings.quality === 4 && !('value' in waiting.subRatings), JSON.stringify(waiting?.subRatings));
+    ok('المدير ينشره', (await req('PATCH', `/api/admin/reviews/${added.json.review.id}`, { hidden: false }, admin)).status === 200);
 
     const shown = (await req('GET', `/api/products/${p.id}/reviews`)).json;
     const r = shown.reviews.find((x) => x.id === added.json.review.id);
-    ok('يظهر مباشرة ويُحسب', shown.count === before.count + 1 && typeof shown.average === 'number' && r?.comment === 'مريحة جداً');
+    ok('بعد النشر يظهر ويُحسب', shown.count === before.count + 1 && typeof shown.average === 'number' && r?.comment === 'مريحة جداً');
+    ok('بعنوانه، مشترٍ موثّق، والتوزيع والمتوسطات الفرعية', r?.title === 'تحسّن نومي' && r?.verified === true && shown.distribution?.[4] >= 1 && shown.subAverages?.comfort >= 1, JSON.stringify({ d: shown.distribution, s: shown.subAverages }));
     ok('الاسم الأول فقط', r?.name === 'سالم', r?.name);
     // The stars on cards and under a product's name come with the catalogue itself.
     const listed = (await req('GET', '/api/products')).json.products.find((x) => x.id === p.id);
@@ -105,7 +118,7 @@ function req(method, p, body, token) {
     ok('زبون لا يرى قائمة المدير (403)', (await req('GET', '/api/admin/reviews', null, buyer)).status === 403);
     const list = (await req('GET', '/api/admin/reviews', null, admin)).json.reviews;
     const mine = list.find((x) => x.id === r.id);
-    ok('المدير يرى التقييم باسمه الكامل', mine?.name === 'سالم بن علي' && mine.hidden === false);
+    ok('المدير يرى التقييم باسمه الكامل', mine?.name === 'سالم بن علي' && mine.hidden === false && mine.pending === false);
 
     ok('زبون لا يخبّي (403)', (await req('PATCH', `/api/admin/reviews/${r.id}`, { hidden: true }, buyer)).status === 403);
     const hide = await req('PATCH', `/api/admin/reviews/${r.id}`, { hidden: true }, admin);

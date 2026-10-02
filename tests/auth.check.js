@@ -162,6 +162,11 @@ async function run() {
     ok('إنشاء الحساب بالاسم (201) وجلسة', made.status === 201 && Boolean(made.json?.token) && made.json?.user?.name === 'سالم التجربة', JSON.stringify(made.json));
     ok('الرمز المستعمل لا يُعاد استعماله', (await req('POST', '/api/auth/phone/complete', { signupToken: good.json?.signupToken, name: 'غيره' })).status === 400);
     ok('الجلسة صالحة', (await req('GET', '/api/auth/me', null, { Authorization: `Bearer ${made.json?.token}` })).json?.user?.phone === p2);
+    const renamed = await req('PATCH', '/api/auth/me', { name: 'سالم علي' }, { Authorization: `Bearer ${made.json?.token}` });
+    ok('تعديل الاسم (200)', renamed.status === 200 && renamed.json?.user?.name === 'سالم علي', JSON.stringify(renamed.json));
+    ok('اسم فارغ يُرفض', (await req('PATCH', '/api/auth/me', { name: ' ' }, { Authorization: `Bearer ${made.json?.token}` })).status === 400);
+    ok('تعديل بلا جلسة ← 401', (await req('PATCH', '/api/auth/me', { name: 'أي' })).status === 401);
+    await req('PATCH', '/api/auth/me', { name: 'سالم التجربة' }, { Authorization: `Bearer ${made.json?.token}` });
 
     // The same number again, a minute later: now it has an account, so the code signs it in.
     await wait(61_000);

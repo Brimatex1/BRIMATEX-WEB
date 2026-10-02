@@ -430,6 +430,22 @@ function createAuthRoutes({ isValidPhone }) {
      * but unlinks orders first instead of deleting them: the factory needs the
      * record for warranty and accounting, and it keeps it without naming anyone.
      */
+    // The customer's own name (the app's settings). The phone is the account's
+    // identity and is not changed here.
+    if (req.method === 'PATCH' && url.pathname === '/api/auth/me') {
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
+      const session = await auth.verifySession(token);
+      if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
+      const payload = await jsonBody(req);
+      if (!payload) return sendJson(res, 400, { error: 'JSON غير صالح' });
+      const name = String(payload.name || '').trim();
+      if (name.length < 2 || name.length > 60) return sendJson(res, 400, { error: 'اكتب اسمك' });
+      const user = await auth.updateUser(session.userId, { name });
+      if (!user) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
+      return sendJson(res, 200, { user: { id: user.id, name: user.name, phone: user.phone, avatarUrl: user.avatarUrl || null } });
+    }
+
     if (req.method === 'DELETE' && url.pathname === '/api/auth/me') {
       const token = req.headers.authorization?.split(' ')[1];
       if (!token) return sendJson(res, 401, { error: 'غير مصرح' });

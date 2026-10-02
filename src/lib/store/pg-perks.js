@@ -102,9 +102,18 @@ async function setUseOrder(userId, code, orderName) {
   await db.query('update voucher_uses set order_name = $3 where user_id = $1 and code = $2', [userId, code, orderName]);
 }
 
+/** The three sub-ratings from their columns, or null when none was given. */
+function subRatingsOf(r) {
+  const out = {};
+  if (r.sub_comfort != null) out.comfort = r.sub_comfort;
+  if (r.sub_quality != null) out.quality = r.sub_quality;
+  if (r.sub_value != null) out.value = r.sub_value;
+  return Object.keys(out).length ? out : null;
+}
+
 async function listReviews(userId) {
   const { rows } = await db.query(
-    'select id, product_id, order_name, rating, comment, created_at from reviews where user_id = $1 order by created_at desc',
+    'select id, product_id, order_name, rating, comment, created_at, hidden, pending, title, sub_comfort, sub_quality, sub_value from reviews where user_id = $1 order by created_at desc',
     [userId]
   );
   return rows.map((r) => ({
@@ -114,13 +123,17 @@ async function listReviews(userId) {
     rating: r.rating,
     comment: r.comment,
     createdAt: new Date(r.created_at).toISOString(),
+    hidden: r.hidden,
+    pending: r.pending,
+    title: r.title || '',
+    subRatings: subRatingsOf(r),
   }));
 }
 
 /** Every review, with its author and whether it is hidden - newest first. */
 async function listAllReviews() {
   const { rows } = await db.query(
-    'select id, user_id, product_id, order_name, rating, comment, created_at, hidden from reviews order by created_at desc'
+    'select id, user_id, product_id, order_name, rating, comment, created_at, hidden, pending, title, sub_comfort, sub_quality, sub_value from reviews order by created_at desc'
   );
   return rows.map((r) => ({
     id: r.id,
@@ -131,12 +144,15 @@ async function listAllReviews() {
     comment: r.comment,
     createdAt: new Date(r.created_at).toISOString(),
     hidden: r.hidden,
+    pending: r.pending,
+    title: r.title || '',
+    subRatings: subRatingsOf(r),
   }));
 }
 
-/** False when there is no such review. */
+/** False when there is no such review. Deciding on a review ends its wait either way. */
 async function setReviewHidden(id, hidden) {
-  const { rowCount } = await db.query('update reviews set hidden = $2 where id = $1', [id, hidden]);
+  const { rowCount } = await db.query('update reviews set hidden = $2, pending = false where id = $1', [id, hidden]);
   return rowCount > 0;
 }
 
@@ -144,8 +160,22 @@ async function setReviewHidden(id, hidden) {
 async function addReview(userId, review) {
   try {
     await db.query(
-      'insert into reviews (id, user_id, product_id, order_name, rating, comment, created_at) values ($1, $2, $3, $4, $5, $6, $7)',
-      [review.id, userId, review.productId, review.orderName, review.rating, review.comment, review.createdAt]
+      'insert into reviews (id, user_id, product_id, order_name, rating, comment, created_at, hidden, pending, title, sub_comfort, sub_quality, sub_value) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
+      [
+        review.id,
+        userId,
+        review.productId,
+        review.orderName,
+        review.rating,
+        review.comment,
+        review.createdAt,
+        Boolean(review.hidden),
+        Boolean(review.pending),
+        review.title || '',
+        review.subRatings?.comfort ?? null,
+        review.subRatings?.quality ?? null,
+        review.subRatings?.value ?? null,
+      ]
     );
     return true;
   } catch (err) {

@@ -72,7 +72,7 @@ export function ReviewDialog({
     setSending(true);
     try {
       await api.postReview(token, { productId: product.id, orderName, rating, comment: comment.trim() });
-      toast.success('شكراً على تقييمك!', { description: 'يظهر رأيك في صفحة المرتبة، ويساعد غيرك على الاختيار.' });
+      toast.success('شكراً على تقييمك!', { description: 'نراجع التقييمات قبل نشرها، وسيظهر رأيك في صفحة المرتبة بعد الموافقة.' });
       onReviewed(product.id);
       onOpenChange(false);
       setRating(0);
