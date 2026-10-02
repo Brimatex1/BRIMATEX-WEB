@@ -784,6 +784,31 @@ async function cancelSaleOrder(orderId, reason) {
 }
 
 /**
+ * Confirms a shop order from the admin panel («تأكيد»): Odoo's own
+ * action_confirm on the sale order - the quotation becomes a sales order and
+ * Odoo creates its delivery slip. Only a quotation (draft or sent) can be
+ * confirmed; a cancelled one refuses with code 'cancelled', and one already
+ * confirmed answers { alreadyConfirmed: true } without writing anything.
+ */
+async function confirmSaleOrder(orderId) {
+  const [order] = await call('sale.order', 'read', [[orderId]], { fields: ['state'] });
+  if (!order) throw Object.assign(new Error('الطلب غير موجود في أودو'), { code: 'missing' });
+  if (order.state === 'cancel') throw Object.assign(new Error('الطلب ملغى في أودو'), { code: 'cancelled' });
+  if (order.state === 'sale' || order.state === 'done') return { alreadyConfirmed: true };
+  await call('sale.order', 'action_confirm', [[orderId]]);
+  return { confirmed: true };
+}
+
+/**
+ * Odoo's address for people (the «فتح أودو» link, a sale order's page), or
+ * null when none is set. The address only - never the database or the key.
+ */
+function webUrl() {
+  const url = String(config().url || '').replace(/\/+$/, '');
+  return /^https?:\/\//i.test(url) ? url : null;
+}
+
+/**
  * The customer's copy of an invoice: Odoo's portal link to its PDF, with the
  * invoice's own access token - no login needed, nothing else reachable.
  */
@@ -801,6 +826,8 @@ module.exports = {
   call,
   phoneForms,
   cancelSaleOrder,
+  confirmSaleOrder,
+  webUrl,
   invoicePdfUrl,
   testConnection,
   fetchProducts,

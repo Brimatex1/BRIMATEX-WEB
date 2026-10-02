@@ -73,6 +73,8 @@ const APP_PATTERNS = [
   /^\/product\/\d+\/reviews$/,
   /^\/account\/(orders|addresses|favorites|warranty|notifications|settings)$/,
   /^\/account\/orders\/[^/]+(\/issue)?$/,
+  // The admin panel's sections (web/src/panel/router.tsx) and the classic dashboard.
+  /^\/admin\/(orders|home|push|quiz|products|settings|classic)$/,
 ];
 
 /** An address the app answers (a product's own id aside - statusFor checks the catalogue). */

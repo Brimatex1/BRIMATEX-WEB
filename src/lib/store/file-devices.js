@@ -53,4 +53,9 @@ async function remove(token) {
   writeAll(readAll().filter((r) => r.token !== token));
 }
 
-module.exports = { register, findForOrder, remove };
+/** Every device's platform with its owner and last order - the panel's iOS / Android split. No tokens. */
+async function listPlatforms() {
+  return readAll().map((r) => ({ platform: r.platform, userId: r.userId || null, lastOrder: r.lastOrder || null }));
+}
+
+module.exports = { register, findForOrder, remove, listPlatforms };

@@ -39,4 +39,10 @@ async function remove(token) {
   await db.query('delete from devices where token = $1', [token]);
 }
 
-module.exports = { register, findForOrder, remove };
+/** Every device's platform with its owner and last order - the panel's iOS / Android split. No tokens. */
+async function listPlatforms() {
+  const { rows } = await db.query('select platform, user_id, last_order from devices');
+  return rows.map((r) => ({ platform: r.platform, userId: r.user_id || null, lastOrder: r.last_order || null }));
+}
+
+module.exports = { register, findForOrder, remove, listPlatforms };

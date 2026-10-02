@@ -20,4 +20,5 @@ module.exports = {
   register: backend.register,
   findForOrder: backend.findForOrder,
   remove: backend.remove,
+  listPlatforms: backend.listPlatforms,
 };

@@ -44,6 +44,7 @@ const { createAdminRoutes, NOT_HANDLED: ADMIN_NOT_HANDLED } = require('./routes/
 const { createOrderRoutes, NOT_HANDLED: ORDER_NOT_HANDLED } = require('./routes/orders');
 const { handleUserRoutes, NOT_HANDLED: USER_NOT_HANDLED } = require('./routes/user');
 const { handleMetaEventRoutes, NOT_HANDLED: META_EVENTS_NOT_HANDLED } = require('./routes/metaEvents');
+const { createPanelRoutes, NOT_HANDLED: PANEL_NOT_HANDLED } = require('./routes/panel');
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -231,6 +232,7 @@ async function requireAdmin(req, res) {
 const handleAuthRoutes = createAuthRoutes({ isValidPhone });
 const handleOrderRoutes = createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin });
 const handleAdminRoutes = createAdminRoutes({ requireAdmin, deleteUploadedFile });
+const handlePanelRoutes = createPanelRoutes();
 
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
@@ -327,6 +329,11 @@ async function handleApi(req, res, url) {
   // In src/routes/user.js.
   const userResult = await handleUserRoutes(req, res, url);
   if (userResult !== USER_NOT_HANDLED) return userResult;
+
+  // ===================== Admin panel =====================
+  // The 2026 panel at /admin, staff by role and section - src/routes/panel.js.
+  const panelResult = await handlePanelRoutes(req, res, url);
+  if (panelResult !== PANEL_NOT_HANDLED) return panelResult;
 
   // ===================== Dashboard =====================
   // The same nineteen, in src/routes/admin.js.

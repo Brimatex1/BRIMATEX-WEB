@@ -40,15 +40,47 @@ function isBootstrapAdmin(phone) {
   return ADMIN_PHONES.includes(String(phone || '').trim());
 }
 
+/**
+ * Staff roles for the admin panel (/admin). Everyone else is a customer.
+ *   admin      مدير            every section, and the classic dashboard
+ *   marketing  تسويق           the storefront, notifications, the quiz, mattresses
+ *   support    خدمة العملاء     the overview and the orders
+ */
+const STAFF_ROLES = ['admin', 'marketing', 'support'];
+const ROLES = [...STAFF_ROLES, 'customer'];
+
+/** The panel's sections, in sidebar order. */
+const PANEL_SECTIONS = ['overview', 'orders', 'home', 'push', 'quiz', 'products', 'settings'];
+
+const SECTIONS_BY_ROLE = {
+  admin: PANEL_SECTIONS,
+  marketing: ['home', 'push', 'quiz', 'products'],
+  support: ['overview', 'orders'],
+};
+
 /** A user's effective role — the env bootstrap outranks the stored value. */
 function roleOf(user) {
   if (!user) return null;
   if (isBootstrapAdmin(user.phone)) return 'admin';
-  return user.role === 'admin' ? 'admin' : 'customer';
+  return STAFF_ROLES.includes(user.role) ? user.role : 'customer';
 }
 
+/** Admin only: the classic dashboard and its routes rely on this meaning. */
 function isAdmin(user) {
   return roleOf(user) === 'admin';
+}
+
+function isStaff(user) {
+  return STAFF_ROLES.includes(roleOf(user));
+}
+
+/** The panel sections this user may open (read or write), in sidebar order. */
+function sectionsFor(user) {
+  return SECTIONS_BY_ROLE[roleOf(user)] || [];
+}
+
+function canAccess(user, section) {
+  return sectionsFor(user).includes(section);
 }
 
 /** Every user, without password hashes. Admin listings only. */
@@ -82,5 +114,11 @@ module.exports = {
   deleteUser: backend.deleteUser,
   roleOf,
   isAdmin,
+  isStaff,
+  sectionsFor,
+  canAccess,
   isBootstrapAdmin,
+  STAFF_ROLES,
+  ROLES,
+  PANEL_SECTIONS,
 };
