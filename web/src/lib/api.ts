@@ -3,6 +3,7 @@ import type {
   Address,
   AdminReview,
   Banner,
+  InstagramPost,
   AdminCustomer,
   AdminOrder,
   AdminOverview,
@@ -103,6 +104,17 @@ export const api = {
 
   adminDeleteBanner: (token: string, id: string) =>
     request<{ banners: Banner[] }>(`/api/admin/banners/${id}`, { method: 'DELETE', ...authHeaders(token) }),
+
+  adminInstagram: (token: string) => request<{ posts: InstagramPost[]; max: number }>('/api/admin/instagram', authHeaders(token)),
+
+  adminAddInstagram: (token: string, imageDataUrl: string, link: string) =>
+    request<{ post: InstagramPost }>('/api/admin/instagram', jsonBody({ imageDataUrl, link }, token)),
+
+  adminReorderInstagram: (token: string, ids: string[]) =>
+    request<{ posts: InstagramPost[] }>('/api/admin/instagram/order', { ...jsonBody({ ids }, token), method: 'PUT' }),
+
+  adminDeleteInstagram: (token: string, id: string) =>
+    request<{ posts: InstagramPost[] }>(`/api/admin/instagram/${id}`, { method: 'DELETE', ...authHeaders(token) }),
 
   getPixelConfig: () => request<{ pixelId: string | null; lydPerUsd: number | null }>('/api/pixel-config'),
 

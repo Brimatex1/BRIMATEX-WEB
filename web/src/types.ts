@@ -36,6 +36,10 @@ export interface PublicReview {
   comment: string;
   name: string;
   createdAt: string;
+  title?: string;
+  subRatings?: { comfort?: number; quality?: number; value?: number } | null;
+  /** From someone who bought it - every published review is. */
+  verified?: boolean;
 }
 
 /** GET /api/products/:id/reviews. */
@@ -43,6 +47,10 @@ export interface ProductReviews {
   count: number;
   /** One decimal; null with no reviews. */
   average: number | null;
+  /** How many gave each number of stars. */
+  distribution?: Record<'1' | '2' | '3' | '4' | '5', number>;
+  /** The comfort, quality and value averages, where reviewers gave them. */
+  subAverages?: { comfort?: number; quality?: number; value?: number };
   reviews: PublicReview[];
 }
 
@@ -68,6 +76,14 @@ export interface Banner {
   id: string;
   imageUrl: string;
   /** A path inside the shop (/product/5852, /shop?category=premium), or '' for none. */
+  link: string;
+}
+
+/** A picture in «من إنستغرام بريماتكس» on the home page - set from the dashboard (src/lib/instagram.js). */
+export interface InstagramPost {
+  id: string;
+  imageUrl: string;
+  /** The post on Instagram. */
   link: string;
 }
 

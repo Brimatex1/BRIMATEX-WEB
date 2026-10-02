@@ -26,6 +26,7 @@ const db = require('../lib/db');
 const odooStatus = require('../lib/odooStatus');
 const catalogue = require('../lib/catalogue');
 const banners = require('../lib/banners');
+const instagram = require('../lib/instagram');
 const perks = require('../lib/perks');
 const { getProducts } = catalogue;
 const { sendJson, readBody } = require('../lib/respond');
@@ -390,6 +391,38 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
         return reply(banners.setLink(one[1], payload.link));
       }
       if (one && req.method === 'DELETE') return reply(banners.remove(one[1]));
+      return sendJson(res, 404, { error: 'غير موجود' });
+    }
+
+    // ---- The home page's Instagram posts (src/lib/instagram.js) ----
+
+    if (url.pathname === '/api/admin/instagram' || url.pathname.startsWith('/api/admin/instagram/')) {
+      if (!(await requireAdmin(req, res))) return;
+      const readJson = async (limit) => {
+        try {
+          return JSON.parse(await readBody(req, limit));
+        } catch (err) {
+          return { __error: err.message };
+        }
+      };
+      const reply = (result) =>
+        result.error ? sendJson(res, result.status, { error: result.error }) : sendJson(res, 200, result);
+
+      if (req.method === 'GET' && url.pathname === '/api/admin/instagram') {
+        return sendJson(res, 200, { posts: instagram.list(), max: instagram.MAX_POSTS });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/admin/instagram') {
+        const payload = await readJson(4_500_000);
+        if (payload.__error) return sendJson(res, 413, { error: 'حجم الصورة كبير جداً' });
+        return reply(instagram.add(payload.imageDataUrl, payload.link));
+      }
+      if (req.method === 'PUT' && url.pathname === '/api/admin/instagram/order') {
+        const payload = await readJson();
+        if (payload.__error) return sendJson(res, 400, { error: 'JSON غير صالح' });
+        return reply(instagram.reorder(payload.ids));
+      }
+      const one = url.pathname.match(/^\/api\/admin\/instagram\/([a-f0-9]{16})$/);
+      if (one && req.method === 'DELETE') return reply(instagram.remove(one[1]));
       return sendJson(res, 404, { error: 'غير موجود' });
     }
 

@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const odoo = require('./lib/odoo');
 const banners = require('./lib/banners');
+const instagram = require('./lib/instagram');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
 const { visitorCookie, fbpCookie } = require('./lib/visitor');
@@ -254,6 +255,11 @@ async function handleApi(req, res, url) {
   // The home page's sliding banners - set from the dashboard (src/lib/banners.js).
   if (req.method === 'GET' && url.pathname === '/api/banners') {
     return sendJson(res, 200, { banners: banners.list() });
+  }
+
+  // The home page's «من إنستغرام بريماتكس» - set from the dashboard (src/lib/instagram.js).
+  if (req.method === 'GET' && url.pathname === '/api/instagram') {
+    return sendJson(res, 200, { posts: instagram.list() });
   }
 
   const imageMatch = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);

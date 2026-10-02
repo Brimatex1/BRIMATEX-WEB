@@ -17,6 +17,9 @@ import type { Product, ProductVariant } from '@/types';
 import { shopProducts, variantsOf } from './catalog';
 
 const CITY_KEY = 'brimatex:city';
+const METHOD_KEY = 'brimatex:delivery-method';
+
+export type DeliveryMethod = 'home' | 'pickup';
 
 function readCity(): string | null {
   try {
@@ -58,6 +61,9 @@ interface ShopApi {
 
   city: string | null;
   setCity: (city: string) => void;
+  /** Delivered home or collected at the showroom - chosen on the product page, kept to checkout. */
+  method: DeliveryMethod;
+  setMethod: (method: DeliveryMethod) => void;
   /** The city dialog - on first visit and from «التوصيل إلى». */
   cityDialogOpen: boolean;
   setCityDialogOpen: (open: boolean) => void;
@@ -76,6 +82,21 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const afterLogin = useRef<(() => void) | null>(null);
   const [city, setCityState] = useState<string | null>(readCity);
   const [cityDialogOpen, setCityDialogOpen] = useState(false);
+  const [method, setMethodState] = useState<DeliveryMethod>(() => {
+    try {
+      return localStorage.getItem(METHOD_KEY) === 'pickup' ? 'pickup' : 'home';
+    } catch {
+      return 'home';
+    }
+  });
+  const setMethod = useCallback((next: DeliveryMethod) => {
+    setMethodState(next);
+    try {
+      localStorage.setItem(METHOD_KEY, next);
+    } catch {
+      /* Kept for this visit only */
+    }
+  }, []);
 
   const products = useMemo(() => shopProducts(catalogue.products), [catalogue.products]);
   const find = useCallback(
@@ -167,8 +188,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       setCity,
       cityDialogOpen,
       setCityDialogOpen,
+      method,
+      setMethod,
     }),
-    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen]
+    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod]
   );
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;

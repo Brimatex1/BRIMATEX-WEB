@@ -74,8 +74,8 @@ export function ProductCard({ product, variant, className, eager }: { product: P
   return (
     <div className={cn('group relative flex flex-col', className)}>
       <Link to={`/product/${product.id}${query}`} className="flex flex-col gap-1.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4" aria-label={`${displayName(product)}، ${v.price} دينار`}>
-        <ProductPhoto product={product} eager={eager} className="aspect-square w-full" />
-        <span className="mt-4 text-[15px] font-bold md:text-base">{displayName(product)}</span>
+        <ProductPhoto product={product} eager={eager} className="aspect-[15/16] w-full" />
+        <span className="mt-[22px] text-[15px] font-bold md:text-base">{displayName(product)}</span>
         <span className="text-[13px] leading-snug text-muted-foreground md:text-sm">
           {describe(product, v)}
           {p.width !== null ? (
@@ -90,8 +90,8 @@ export function ProductCard({ product, variant, className, eager }: { product: P
         {tier ? <TierTag tier={tier} className="mt-1 self-start" /> : null}
       </Link>
       {/* A square over the photo carries the heart, half over its bottom inline-end corner. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 aspect-square">
-        <HeartButton product={product} className="pointer-events-auto absolute -bottom-[22px] end-3" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 aspect-[15/16]">
+        <HeartButton product={product} className="pointer-events-auto absolute -bottom-5 end-3" />
       </div>
     </div>
   );

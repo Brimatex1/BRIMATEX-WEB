@@ -15,6 +15,7 @@ import {
 import { toast } from 'sonner';
 
 import { BannersPanel } from '@/components/BannersPanel';
+import { InstagramPanel } from '@/components/InstagramPanel';
 import { ReviewsPanel } from '@/components/ReviewsPanel';
 import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
 import { PreorderSettingsPanel } from '@/components/PreorderSettingsPanel';
@@ -708,7 +709,12 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
       )}
 
       {/* ---------------- صور الإعلانات ---------------- */}
-      {!error && tab === 'banners' && token && <BannersPanel token={token} />}
+      {!error && tab === 'banners' && token && (
+        <div className="space-y-6">
+          <BannersPanel token={token} />
+          <InstagramPanel token={token} />
+        </div>
+      )}
 
       {/* ---------------- التقييمات ---------------- */}
       {!error && tab === 'reviews' && token && <ReviewsPanel token={token} />}

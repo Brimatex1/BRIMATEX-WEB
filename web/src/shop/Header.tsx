@@ -1,11 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Heart, Menu, ScanBarcode, Search, ShoppingBasket, User } from 'lucide-react';
+import { useState } from 'react';
+import { Heart, Menu, ShoppingBasket, User } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
 import { TIER_TITLE, TIER_KEYS } from './catalog';
 import { Link, useRouter, type Route } from './router';
+import { SearchBox } from './SearchBox';
 import { useShop } from './state';
 import { Container, Logo } from './ui';
 
@@ -49,33 +50,6 @@ function TopStrip() {
         </span>
       </Container>
     </div>
-  );
-}
-
-/** The search field (the typeahead joins it with the catalogue pages). */
-function SearchBox({ className }: { className?: string }) {
-  const { go, route } = useRouter();
-  const [q, setQ] = useState(route.name === 'search' ? route.query : '');
-  useEffect(() => {
-    if (route.name === 'search') setQ(route.query);
-  }, [route]);
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    if (q.trim()) go({ name: 'search', query: q.trim() });
-  }
-  return (
-    <form role="search" onSubmit={submit} className={cn('flex h-12 items-center gap-3 rounded-full bg-image-bg px-5', className)}>
-      <Search className="size-[22px] shrink-0 text-muted-foreground" strokeWidth={1.8} aria-hidden />
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="عن ماذا تبحث؟"
-        aria-label="ابحث عن مرتبة"
-        className="h-full min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-text-tertiary"
-        enterKeyHint="search"
-      />
-      <ScanBarcode className="size-[22px] shrink-0 text-muted-foreground md:hidden" strokeWidth={1.8} aria-hidden />
-    </form>
   );
 }
 

@@ -16,7 +16,7 @@ const MAX_WIDTH = 1600;
  * JPEG - a photo from a camera or a designer is often 5-10 MB, the server
  * takes 3. Read as a data: URL because the page's CSP does not allow blob:.
  */
-function toJpeg(file: File): Promise<string> {
+export function toJpeg(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const fail = () => reject(new Error('تعذّر قراءة الصورة — اختر صورة JPEG أو PNG'));
     const reader = new FileReader();

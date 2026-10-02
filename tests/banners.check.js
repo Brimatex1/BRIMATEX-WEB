@@ -83,6 +83,7 @@ const dataUrl = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
   if (before) {
     const data = JSON.parse(before.toString('utf8'));
     delete data.banners;
+    delete data.instagram;
     fs.writeFileSync(settingsFile, JSON.stringify(data));
   }
   const { server } = await startTestServer({ port: PORT, env: { ADMIN_PHONES: ADMIN_PHONE } });
@@ -126,6 +127,19 @@ const dataUrl = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
     ok('الحذف', del.status === 200 && !del.json.banners.some((x) => x.id === a.json.banner.id));
     ok('وملفها حُذف', (await req('GET', a.json.banner.imageUrl)).type !== 'image/png');
     for (const x of (await req('GET', '/api/banners')).json.banners) await req('DELETE', `/api/admin/banners/${x.id}`, null, admin);
+
+    // «من إنستغرام بريماتكس» (src/lib/instagram.js): the same rules, the links go to Instagram only.
+    ok('إنستغرام: لا صور في البداية', JSON.stringify((await req('GET', '/api/instagram')).json) === '{"posts":[]}');
+    ok('إنستغرام: زبون لا يضيف (403)', (await req('POST', '/api/admin/instagram', { imageDataUrl: dataUrl(PNG), link: 'https://www.instagram.com/p/abc/' }, customer)).status === 403);
+    ok('إنستغرام: رابط غير إنستغرام مرفوض', (await req('POST', '/api/admin/instagram', { imageDataUrl: dataUrl(PNG), link: 'https://evil.example/p/1' }, admin)).status === 400);
+    ok('إنستغرام: بلا رابط مرفوض', (await req('POST', '/api/admin/instagram', { imageDataUrl: dataUrl(PNG) }, admin)).status === 400);
+    const ig = await req('POST', '/api/admin/instagram', { imageDataUrl: dataUrl(PNG), link: 'https://www.instagram.com/p/abc123/' }, admin);
+    ok('إنستغرام: المدير يضيف منشوراً', ig.status === 200 && ig.json.post?.link === 'https://www.instagram.com/p/abc123/', JSON.stringify(ig.json));
+    ok('إنستغرام: يظهر للجميع', (await req('GET', '/api/instagram')).json.posts?.length === 1);
+    const igServed = await req('GET', ig.json.post.imageUrl);
+    ok('إنستغرام: الصورة تُخدم', igServed.status === 200 && igServed.type === 'image/png');
+    const igDel = await req('DELETE', `/api/admin/instagram/${ig.json.post.id}`, null, admin);
+    ok('إنستغرام: الحذف', igDel.status === 200 && igDel.json.posts.length === 0);
   } finally {
     server.kill();
     if (before) fs.writeFileSync(settingsFile, before);

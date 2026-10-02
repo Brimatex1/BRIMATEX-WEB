@@ -1,0 +1,246 @@
+import { useEffect, useState } from 'react';
+import { ChevronLeft, CreditCard, ShieldCheck, Store, Truck, X } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+import wave from '../assets/wave-pattern-white.png';
+import { TIER_TITLE, displayName, tierOf, type TierKey } from '../catalog';
+import { useTitle } from '../hooks';
+import { photoOf, ProductCard } from '../ProductCard';
+import { Link } from '../router';
+import { useShop } from '../state';
+import { Container, Skeleton } from '../ui';
+
+/**
+ * The campaign in the hero (handoff WebHome). The brief wants it from a small
+ * back-office model; until there is one it lives here, on the mattress it names.
+ */
+const CAMPAIGN = {
+  product: 'بالانس',
+  headline: 'بالانس: نوابض ووسادة علوية',
+  line: (
+    <>
+      نوم متوازن كل ليلة، بخمسة مقاسات تبدأ من <bdi dir="ltr">90×190</bdi>.
+    </>
+  ),
+  cta: 'تسوّق بالانس',
+};
+
+const PROMISES = [
+  { icon: Truck, title: 'توصيل إلى المنزل', body: 'اختر اليوم والفترة عند إتمام الطلب.' },
+  { icon: CreditCard, title: 'الدفع عند الاستلام', body: 'نقداً أو بطاقة مصرفية أو حوالة مصرفية.' },
+  { icon: ShieldCheck, title: 'ضمان من المصنع', body: 'سجّل ضمانك من حسابك.' },
+  { icon: Store, title: 'جرّبها في الصالة', body: 'صالة العرض في حي الأندلس، طرابلس.' },
+];
+
+const TILES: { tier: TierKey; line: string; className: string; arrow: string }[] = [
+  { tier: 'elite', line: 'أعلى درجات الراحة. ديلوكس بارتفاع 30 سم.', className: 'bg-dark-ocean text-white', arrow: 'bg-white text-dark-ocean' },
+  { tier: 'premium', line: 'بالانس وهوتيل وسبورت. نوابض وإسفنج طبي.', className: 'bg-porcelain text-dark-ocean', arrow: 'bg-dark-ocean text-white' },
+  { tier: 'comfort', line: 'كلاسيك وكومفورت ودايلي. ثلاثة ارتفاعات.', className: 'bg-nebula text-dark-ocean', arrow: 'bg-dark-ocean text-white' },
+];
+
+/** The App Store page - not published yet; the phone banner shows once it is. */
+const APP_STORE_URL = '';
+const APP_BANNER_KEY = 'brimatex:app-banner-closed';
+
+/** The Instagram posts the dashboard sets (GET /api/instagram) - the section hides with none. */
+interface InstagramPost {
+  id: string;
+  imageUrl: string;
+  link: string;
+}
+
+function useInstagram(): InstagramPost[] {
+  const [posts, setPosts] = useState<InstagramPost[]>([]);
+  useEffect(() => {
+    fetch('/api/instagram')
+      .then((r) => (r.ok ? r.json() : { posts: [] }))
+      .then((d: { posts?: InstagramPost[] }) => setPosts((d.posts ?? []).slice(0, 5)))
+      .catch(() => setPosts([]));
+  }, []);
+  return posts;
+}
+
+function SectionHead({ title, sub, action }: { title: string; sub?: string; action?: React.ReactNode }) {
+  return (
+    <div className="mb-5 flex items-end justify-between gap-4">
+      <div>
+        <h2 className="text-[21px] font-bold lg:text-[28px]">{title}</h2>
+        {sub ? <p className="text-sm text-muted-foreground">{sub}</p> : null}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/**
+ * الرئيسية (handoff WebHome; phones WebMobile): the campaign, four promises,
+ * the three tiers, the best sellers, the quiz banner, the Instagram posts.
+ */
+export function HomePage() {
+  const shop = useShop();
+  const instagram = useInstagram();
+  const [appBanner, setAppBanner] = useState(() => {
+    try {
+      return Boolean(APP_STORE_URL) && !localStorage.getItem(APP_BANNER_KEY);
+    } catch {
+      return Boolean(APP_STORE_URL);
+    }
+  });
+  useTitle(null);
+
+  const hero = shop.products.find((p) => displayName(p) === CAMPAIGN.product);
+  const heroTier = hero ? tierOf(hero) : null;
+  // Most reviewed first - the closest the shop knows to «most ordered» - then the server's order.
+  const best = [...shop.products].sort((a, b) => (b.rating?.count ?? 0) - (a.rating?.count ?? 0)).slice(0, 4);
+
+  return (
+    <div className="flex flex-col gap-7 pb-14 lg:gap-14">
+      {/* ── Campaign ── */}
+      <Container className="pt-0 lg:pt-7">
+        <div className="-mx-4 grid lg:mx-0 lg:grid-cols-[1fr_1.5fr] lg:grid-rows-[520px]">
+          <div className="relative order-2 flex flex-col justify-center gap-4 overflow-hidden bg-dark-ocean px-5 py-8 text-white lg:order-1 lg:gap-5 lg:px-12 lg:py-14">
+            <img src={wave} alt="" className="absolute inset-0 size-full object-cover opacity-[.12]" />
+            {heroTier ? <span className="relative text-sm font-bold text-porcelain">{TIER_TITLE[heroTier]}</span> : null}
+            <h1 className="relative font-display text-[28px] font-bold leading-[1.15] lg:text-[52px]">{CAMPAIGN.headline}</h1>
+            <p className="relative hidden text-lg leading-[1.7] text-nebula lg:block">{CAMPAIGN.line}</p>
+            <div className="relative mt-2 flex flex-wrap gap-3">
+              {hero ? (
+                <Button asChild variant="inverse" size="store">
+                  <Link to={{ name: 'product', id: hero.id }}>{CAMPAIGN.cta}</Link>
+                </Button>
+              ) : null}
+              <Button asChild variant="inverse-outline" size="store" className="hidden lg:inline-flex">
+                <Link to={{ name: 'category', tier: null }}>كل المراتب</Link>
+              </Button>
+            </div>
+          </div>
+          <div className="relative order-1 aspect-[4/3] min-w-0 overflow-hidden bg-image-bg lg:order-2 lg:aspect-auto">
+            {hero ? <img src={photoOf(hero)} alt={`مرتبة ${displayName(hero)}`} className="absolute inset-0 size-full object-cover" /> : <Skeleton className="absolute inset-0" />}
+          </div>
+        </div>
+      </Container>
+
+      {/* ── Promises ── */}
+      <Container className="hidden gap-6 md:grid md:grid-cols-2 lg:-mt-4 lg:grid-cols-4">
+        {PROMISES.map(({ icon: Icon, title, body }) => (
+          <div key={title} className="flex items-start gap-3.5">
+            <Icon className="size-7 shrink-0 text-brand-text" strokeWidth={1.8} aria-hidden />
+            <div className="flex flex-col gap-1">
+              <b className="text-base">{title}</b>
+              <span className="text-sm leading-relaxed text-muted-foreground">{body}</span>
+            </div>
+          </div>
+        ))}
+      </Container>
+
+      {/* ── Tiers ── */}
+      <Container>
+        <SectionHead title="تسوّق حسب الفئة" />
+        <div className="grid gap-2 lg:grid-cols-3 lg:gap-5">
+          {TILES.map((t) => (
+            <Link
+              key={t.tier}
+              to={{ name: 'category', tier: t.tier }}
+              className={cn('flex h-14 items-center justify-between px-5 lg:h-[200px] lg:flex-col lg:items-stretch lg:p-7', t.className, 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2')}
+            >
+              <span className="font-display text-xl font-bold lg:text-[30px]">{TIER_TITLE[t.tier]}</span>
+              <span className="flex items-end justify-between gap-4">
+                <span className="hidden max-w-[260px] text-[15px] leading-relaxed lg:block">{t.line}</span>
+                <span className={cn('grid size-8 shrink-0 place-items-center rounded-full lg:size-11', t.arrow)} aria-hidden>
+                  <ChevronLeft className="size-4 lg:size-5" />
+                </span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </Container>
+
+      {/* ── Best sellers ── */}
+      <Container>
+        <SectionHead
+          title="الأكثر طلباً"
+          action={
+            <Link to={{ name: 'category', tier: null }} className="text-[15px] font-bold underline-offset-4 hover:underline">
+              عرض الكل
+            </Link>
+          }
+        />
+        <div className="grid grid-cols-2 gap-x-3 gap-y-8 lg:grid-cols-4 lg:gap-x-6">
+          {shop.loading && best.length === 0
+            ? [0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex flex-col gap-3">
+                  <Skeleton className="aspect-[15/16]" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-6 w-1/3" />
+                </div>
+              ))
+            : best.map((p) => <ProductCard key={p.id} product={p} />)}
+        </div>
+      </Container>
+
+      {/* ── Quiz ── */}
+      <Container>
+        <div className="flex flex-col items-start gap-4 bg-nebula px-5 py-6 text-dark-ocean lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:py-8">
+          <div className="flex flex-col gap-1">
+            <b className="text-lg lg:text-[22px]">لست متأكداً أي مرتبة تناسبك؟</b>
+            <span className="text-[15px]">أجب عن أسئلة قصيرة ونقترح لك المرتبة والمقاس.</span>
+          </div>
+          <Button asChild size="store" className="bg-dark-ocean text-white hover:bg-dark-ocean/90">
+            <Link to={{ name: 'quiz' }}>ساعدني أختار</Link>
+          </Button>
+        </div>
+      </Container>
+
+      {/* ── Instagram (from the dashboard; hidden when it has none) ── */}
+      {instagram.length > 0 ? (
+        <Container>
+          <SectionHead
+            title="من إنستغرام بريماتكس"
+            sub="آخر منشوراتنا وعروضنا"
+            action={
+              <a href="https://www.instagram.com/brimatex.ly/" target="_blank" rel="noopener noreferrer" className="text-[15px] font-bold underline-offset-4 hover:underline">
+                تابعنا على إنستغرام
+              </a>
+            }
+          />
+          <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-5 lg:gap-4 lg:px-0">
+            {instagram.map((post) => (
+              <a key={post.id} href={post.link} target="_blank" rel="noopener noreferrer" className="aspect-square w-[44vw] shrink-0 snap-start overflow-hidden bg-image-bg lg:w-auto" aria-label="منشور على إنستغرام">
+                <img src={post.imageUrl} alt="" loading="lazy" className="size-full object-cover transition-transform duration-slow hover:scale-[1.03]" />
+              </a>
+            ))}
+          </div>
+        </Container>
+      ) : null}
+
+      {/* ── Phones: the app (once it is on the App Store) ── */}
+      {appBanner ? (
+        <Container className="md:hidden">
+          <div className="flex items-center gap-3 border border-border p-4">
+            <span className="flex-1 text-sm font-bold">التطبيق أسرع للطلب والتتبّع</span>
+            <a href={APP_STORE_URL} className="text-sm font-bold underline">
+              حمّل التطبيق
+            </a>
+            <button
+              type="button"
+              aria-label="إخفاء"
+              className="grid size-9 place-items-center"
+              onClick={() => {
+                setAppBanner(false);
+                try {
+                  localStorage.setItem(APP_BANNER_KEY, '1');
+                } catch {
+                  /* hidden for this visit */
+                }
+              }}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </Container>
+      ) : null}
+    </div>
+  );
+}

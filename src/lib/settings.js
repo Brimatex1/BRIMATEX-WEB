@@ -258,9 +258,23 @@ function writeBanners(list) {
   writeFile(data);
 }
 
+/** The home page's «من إنستغرام بريماتكس» posts (src/lib/instagram.js owns the rules). Public. */
+function readInstagram() {
+  const list = readFile().instagram;
+  return Array.isArray(list) ? list : [];
+}
+
+function writeInstagram(list) {
+  const data = readFile();
+  data.instagram = list;
+  writeFile(data);
+}
+
 module.exports = {
   readBanners,
   writeBanners,
+  readInstagram,
+  writeInstagram,
   getOdoo,
   readPublicOdoo,
   saveOdoo,

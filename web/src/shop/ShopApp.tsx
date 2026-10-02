@@ -4,11 +4,17 @@ import { Toaster } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
 import { captureClickId, disablePixel, forgetPixelPerson, initPixel, setPixelPerson, trackPageView } from '@/lib/pixel';
 
+import { CityDialog } from './CityDialog';
 import { Footer } from './Footer';
 import { Header, MinimalHeader } from './Header';
 import { RouterProvider, useRouter, type Route } from './router';
 import { ShopProvider, useShop } from './state';
+import { isShopTier } from './catalog';
 import { Container } from './ui';
+
+import { CategoryPage } from './pages/CategoryPage';
+import { HomePage } from './pages/HomePage';
+import { ProductPage } from './pages/ProductPage';
 
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage').then((m) => ({ default: m.DesignSystemPage })));
 
@@ -28,6 +34,18 @@ function PageLoading() {
 function Pages() {
   const { route, location } = useRouter();
   if (import.meta.env.DEV && location.pathname === '/dev/ds') return <DesignSystemPage />;
+  switch (route.name) {
+    case 'home':
+      return <HomePage />;
+    case 'category':
+      return <CategoryPage key={route.tier ?? 'all'} mode={{ kind: 'tier', tier: isShopTier(route.tier) ? route.tier : null }} />;
+    case 'offers':
+      return <CategoryPage key="offers" mode={{ kind: 'offers' }} />;
+    case 'search':
+      return <CategoryPage key={`s:${route.query}`} mode={{ kind: 'search', query: route.query }} />;
+    case 'product':
+      return <ProductPage key={route.id} id={route.id} />;
+  }
   // The pages arrive phase by phase (design handoff build order).
   return (
     <Container className="py-24 text-center text-muted-foreground">
@@ -74,6 +92,7 @@ function Layout() {
         </Suspense>
       </main>
       <Footer slim={focused} />
+      <CityDialog />
       <Tracking />
       <Toaster position="top-center" dir="rtl" />
     </div>
