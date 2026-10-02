@@ -11,6 +11,8 @@
  */
 'use strict';
 
+const crypto = require('crypto');
+
 const auth = require('../lib/auth');
 const otp = require('../lib/otp');
 const orders = require('../lib/orders');
@@ -25,6 +27,30 @@ const { sendJson, readBody } = require('../lib/respond');
  * file, which is exactly what moving verbatim avoids.
  */
 const NOT_HANDLED = Symbol('auth-route-not-handled');
+
+/** Sign-in codes asked for per address per minute - each one is a paid WhatsApp message. */
+const CODE_REQUESTS_PER_MIN = 5;
+const codeRequests = new Map();
+
+function tooManyCodeRequests(ip) {
+  const minute = Math.floor(Date.now() / 60_000);
+  for (const key of codeRequests.keys()) {
+    if (Number(key.slice(key.lastIndexOf(':') + 1)) < minute) codeRequests.delete(key);
+  }
+  const key = `${ip}:${minute}`;
+  const count = (codeRequests.get(key) || 0) + 1;
+  codeRequests.set(key, count);
+  return count > CODE_REQUESTS_PER_MIN;
+}
+
+/** The request's JSON body, or null when it is not JSON. */
+async function jsonBody(req) {
+  try {
+    return JSON.parse(await readBody(req));
+  } catch {
+    return null;
+  }
+}
 
 function createAuthRoutes({ isValidPhone }) {
   return async function handleAuthRoutes(req, res, url) {
@@ -106,6 +132,87 @@ function createAuthRoutes({ isValidPhone }) {
         token,
         user: { id: user.id, phone: user.phone, name: user.name, avatarUrl: user.avatarUrl || null },
       });
+    }
+
+    /* --- Sign in with a code: the app's only way in (no password) ---
+       1. /phone/request   a 6-digit code on WhatsApp, to any valid number
+       2. /phone/verify    the right code signs an account in; a number with no
+                           account gets a single-use signupToken instead
+       3. /phone/complete  signupToken + name creates the account, signed in
+       Same challenge as recovery (src/lib/otp.js): five minutes, five tries,
+       a minute between sends. Codes cost money, so each address may ask for
+       a few a minute; the per-number minute is the otp library's. */
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/phone/request') {
+      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+      if (tooManyCodeRequests(ip)) {
+        return sendJson(res, 429, { error: 'طلبت رموزاً كثيرة. انتظر دقيقة ثم حاول مجدداً.' });
+      }
+      const payload = await jsonBody(req);
+      if (!payload) return sendJson(res, 400, { error: 'JSON غير صالح' });
+      const phone = String(payload.phone || '').trim();
+      if (!phone || !isValidPhone(phone)) {
+        return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
+      }
+      const result = await otp.requestCode(phone);
+      if (!result.issued && result.reason === 'cooldown') {
+        return sendJson(res, 200, { sent: false, resendIn: result.retryInSeconds });
+      }
+      if (!result.issued) {
+        console.log(`[phone login] not sent for ${phone}: ${result.reason}`);
+        return sendJson(res, 502, { error: 'تعذّر إرسال الرمز الآن. حاول بعد قليل.' });
+      }
+      return sendJson(res, 200, { sent: true, resendIn: Math.round(otp.RESEND_COOLDOWN_MS / 1000) });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/phone/verify') {
+      const payload = await jsonBody(req);
+      if (!payload) return sendJson(res, 400, { error: 'JSON غير صالح' });
+      const phone = String(payload.phone || '').trim();
+      const code = String(payload.code || '').trim();
+      if (!phone || !code) {
+        return sendJson(res, 400, { error: 'الرقم والرمز مطلوبان' });
+      }
+      const result = await otp.verifyCode(phone, code);
+      if (!result.ok) {
+        const error =
+          result.reason === 'too_many_attempts'
+            ? 'محاولات كثيرة — اطلب رمزاً جديداً'
+            : result.reason === 'expired'
+              ? 'انتهت صلاحية الرمز — اطلب رمزاً جديداً'
+              : `الرمز غير صحيح. تبقّت ${result.attemptsLeft} محاولات.`;
+        return sendJson(res, 400, { error, reason: result.reason, attemptsLeft: result.attemptsLeft ?? 0 });
+      }
+      const user = await auth.findByPhone(phone);
+      if (!user) return sendJson(res, 200, { needsName: true, signupToken: result.resetToken });
+      // The proof is spent: the token is burned, the account signed in.
+      await otp.consumeResetToken(result.resetToken);
+      const token = await auth.createSession(user.id);
+      return sendJson(res, 200, {
+        token,
+        user: { id: user.id, phone: user.phone, name: user.name, avatarUrl: user.avatarUrl || null },
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/auth/phone/complete') {
+      const payload = await jsonBody(req);
+      if (!payload) return sendJson(res, 400, { error: 'JSON غير صالح' });
+      const name = String(payload.name || '').trim();
+      if (name.length < 2 || name.length > 60) {
+        return sendJson(res, 400, { error: 'اكتب اسمك' });
+      }
+      const phone = await otp.consumeResetToken(String(payload.signupToken || ''));
+      if (!phone) {
+        return sendJson(res, 400, { error: 'انتهت صلاحية التوثيق — أعد المحاولة' });
+      }
+      // No password: the account is entered by code. A random one fills the
+      // field; recovery can still set a real one for the website.
+      const user = await auth.createUser(phone, crypto.randomBytes(24).toString('hex'), name);
+      if (!user) {
+        return sendJson(res, 409, { error: 'هذا رقم الهاتف مسجل بالفعل' });
+      }
+      const token = await auth.createSession(user.id);
+      return sendJson(res, 201, { token, user: { id: user.id, phone: user.phone, name: user.name, avatarUrl: null } });
     }
 
     /* --- Phone verification for new accounts ---

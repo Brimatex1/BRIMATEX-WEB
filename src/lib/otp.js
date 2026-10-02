@@ -39,7 +39,8 @@ function generateCode() {
 async function requestCode(phone) {
   const existing = await backend.getByPhone(phone);
   if (existing && Date.now() - new Date(existing.sentAt).getTime() < RESEND_COOLDOWN_MS) {
-    return { issued: false, reason: 'cooldown' };
+    const waitMs = RESEND_COOLDOWN_MS - (Date.now() - new Date(existing.sentAt).getTime());
+    return { issued: false, reason: 'cooldown', retryInSeconds: Math.ceil(waitMs / 1000) };
   }
 
   const code = generateCode();
@@ -82,7 +83,7 @@ async function verifyCode(phone, code) {
   const { ok } = await verifyPassword(String(code || ''), challenge.codeHash);
   if (!ok) {
     await backend.update(phone, { attempts: challenge.attempts + 1 });
-    return { ok: false, reason: 'wrong_code' };
+    return { ok: false, reason: 'wrong_code', attemptsLeft: Math.max(0, MAX_ATTEMPTS - (challenge.attempts + 1)) };
   }
 
   // The code is spent the moment it works: the row now carries only the reset
@@ -107,6 +108,7 @@ async function consumeResetToken(token) {
 }
 
 module.exports = {
+  RESEND_COOLDOWN_MS,
   requestCode,
   verifyCode,
   consumeResetToken,

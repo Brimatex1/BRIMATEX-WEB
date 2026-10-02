@@ -24,6 +24,7 @@ const settings = require('../lib/settings');
 const { getProducts, productLookup } = require('../lib/catalogue');
 const { preorderNote } = require('../lib/preorder');
 const { sendJson, readBody } = require('../lib/respond');
+const { readDelivery } = require('../lib/delivery');
 
 /**
  * Arabic-Indic (٠١٢…) and Persian (۰۱۲…) digits as 0-9 - what a phone set to
@@ -106,6 +107,9 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       const result = await getProducts();
       const validationError = validateOrder(order, result.products);
       if (validationError) return sendJson(res, 400, { error: validationError });
+      // The app's checkout: home delivery on a day and a slot, or the showroom; how it is paid.
+      const delivery = readDelivery(order);
+      if (delivery.error) return sendJson(res, 400, { error: delivery.error });
 
       // Idempotency. The network in Libya drops between us accepting an order
       // and the reply reaching the phone; the app then shows "try again" and the
@@ -171,6 +175,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           .filter(Boolean)
           .join('\n');
       }
+      if (delivery.noteLines) note = [note.trim(), ...delivery.noteLines].filter(Boolean).join('\n');
       // Sizes out of stock ordered as pre-orders: the note tells the team what has to be made.
       const madeToOrder = preorderNote(order.items, result.products, settings.readPreorder());
       if (madeToOrder) note = [note.trim(), madeToOrder].filter(Boolean).join('\n');
@@ -188,7 +193,9 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
             quantity: i.quantity,
             price: priceById.get(i.productId) || 0,
           }));
-          odooResult = await odoo.createSaleOrder(order.customer, pricedItems, note, discount);
+          odooResult = await odoo.createSaleOrder(order.customer, pricedItems, note, discount, {
+            commitmentDate: delivery.commitmentDate,
+          });
         } catch (err) {
           await releaseVoucher();
           throw err;

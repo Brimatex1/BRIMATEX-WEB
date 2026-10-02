@@ -142,6 +142,36 @@ async function run() {
     const again = await req('POST', '/api/auth/login', { phone, password: 'newsecret1' });
     ok('DELETE /api/auth/me (200)', (await req('DELETE', '/api/auth/me', null, { Authorization: `Bearer ${again.json?.token}` })).status === 200);
     ok('الدخول بعد الحذف يفشل', (await req('POST', '/api/auth/login', { phone, password: 'newsecret1' })).status !== 200);
+
+    console.log('\n\x1b[1m4. الدخول بالرمز (التطبيق، بلا كلمة مرور)\x1b[0m');
+    const p2 = '09' + Math.floor(10000000 + Math.random() * 89999999);
+    const intl2 = '218' + p2.slice(1);
+    const a1 = await req('POST', '/api/auth/phone/request', { phone: p2 });
+    ok('طلب رمز لرقم جديد (200)', a1.status === 200 && a1.json?.sent === true && a1.json?.resendIn === 60, JSON.stringify(a1.json));
+    await wait(400);
+    const c1 = codeFor(intl2);
+    ok('الرمز صدر', Boolean(c1));
+    const again2 = await req('POST', '/api/auth/phone/request', { phone: p2 });
+    ok('طلب ثانٍ خلال دقيقة: لا رمز، والانتظار بالثواني', again2.status === 200 && again2.json?.sent === false && again2.json?.resendIn > 0, JSON.stringify(again2.json));
+    const bad = await req('POST', '/api/auth/phone/verify', { phone: p2, code: '000000' });
+    ok('رمز خاطئ: 400 مع المحاولات المتبقية', bad.status === 400 && bad.json?.attemptsLeft === 4, JSON.stringify(bad.json));
+    const good = await req('POST', '/api/auth/phone/verify', { phone: p2, code: c1 });
+    ok('رقم بلا حساب: يُطلب الاسم', good.status === 200 && good.json?.needsName === true && Boolean(good.json?.signupToken) && !good.json?.token, JSON.stringify(good.json));
+    ok('الاسم مطلوب', (await req('POST', '/api/auth/phone/complete', { signupToken: good.json?.signupToken, name: '' })).status === 400);
+    const made = await req('POST', '/api/auth/phone/complete', { signupToken: good.json?.signupToken, name: 'سالم التجربة' });
+    ok('إنشاء الحساب بالاسم (201) وجلسة', made.status === 201 && Boolean(made.json?.token) && made.json?.user?.name === 'سالم التجربة', JSON.stringify(made.json));
+    ok('الرمز المستعمل لا يُعاد استعماله', (await req('POST', '/api/auth/phone/complete', { signupToken: good.json?.signupToken, name: 'غيره' })).status === 400);
+    ok('الجلسة صالحة', (await req('GET', '/api/auth/me', null, { Authorization: `Bearer ${made.json?.token}` })).json?.user?.phone === p2);
+
+    // The same number again, a minute later: now it has an account, so the code signs it in.
+    await wait(61_000);
+    ok('طلب رمز لرقم مسجّل (200)', (await req('POST', '/api/auth/phone/request', { phone: p2 })).json?.sent === true);
+    await wait(400);
+    const c2 = codeFor(intl2);
+    const back = await req('POST', '/api/auth/phone/verify', { phone: p2, code: c2 });
+    ok('رقم مسجّل: الدخول مباشرة', back.status === 200 && Boolean(back.json?.token) && back.json?.user?.name === 'سالم التجربة', JSON.stringify(back.json));
+    ok('رقم غير صالح يُرفض', (await req('POST', '/api/auth/phone/request', { phone: '123' })).status === 400);
+    await req('DELETE', '/api/auth/me', null, { Authorization: `Bearer ${back.json?.token}` });
   } catch (e) {
     fail++;
     failures.push('خطأ غير متوقع: ' + e.message);

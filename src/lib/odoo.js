@@ -477,7 +477,11 @@ async function getDiscountProductId() {
  * line for a voucher - in the same create call as the products, so an order
  * never exists without the discount it was placed with.
  */
-async function createSaleOrder(customer, items, note, discount = null) {
+/**
+ * options.commitmentDate - the delivery day and slot the customer chose, in
+ * UTC ("YYYY-MM-DD HH:MM:SS"), Odoo's «تاريخ التسليم».
+ */
+async function createSaleOrder(customer, items, note, discount = null, options = {}) {
   const partnerId = await findOrCreatePartner(customer);
 
   // Odoo one2many syntax: one [0, 0, values] tuple per line. These used to be
@@ -528,6 +532,7 @@ async function createSaleOrder(customer, items, note, discount = null) {
       ...(marks ? { tag_ids: [[4, marks.orderTag]], source_id: marks.source } : {}),
       order_line: orderLines,
       note: note ? String(note) : false,
+      ...(options.commitmentDate ? { commitment_date: options.commitmentDate } : {}),
     },
   ]);
 
