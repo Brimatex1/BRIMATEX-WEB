@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bell, CheckCircle2, Lock, MapPin, Package, ShieldCheck, Truck, X } from 'lucide-react';
+import { Bell, CheckCircle2, Lock, MapPin, ShieldCheck, Truck, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -358,17 +358,6 @@ export function NotificationsPage() {
           ))}
         </div>
       )}
-    </AccountLayout>
-  );
-}
-
-/** Not built yet: warranty (phase 4). */
-export function AccountComingPage({ section, title }: { section: 'warranty'; title: string }) {
-  useTitle(title);
-  return (
-    <AccountLayout section={section} crumbs={[{ label: title }]}>
-      <h1 className="pb-4 font-display text-[28px] font-bold lg:text-[36px]">{title}</h1>
-      <EmptyState icon={<Package />} title="قريباً" body="هذه الصفحة في المرحلة التالية." />
     </AccountLayout>
   );
 }

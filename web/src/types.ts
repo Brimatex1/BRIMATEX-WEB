@@ -32,6 +32,8 @@ export interface ProductVariant {
 /** One review as the product page shows it - the author's first name only. */
 export interface PublicReview {
   id: string;
+  /** The size bought (a variant id) - or the product card's own id. */
+  productId?: number;
   rating: number;
   comment: string;
   name: string;

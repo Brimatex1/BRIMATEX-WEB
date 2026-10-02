@@ -349,6 +349,8 @@ async function publicReviews(productIds) {
     subAverages,
     reviews: reviews.slice(0, 50).map((r) => ({
       id: r.id,
+      // The size bought, so the page can say which one was reviewed.
+      productId: r.productId,
       rating: r.rating,
       title: r.title || '',
       comment: r.comment,

@@ -231,7 +231,10 @@ export const api = {
   myReviews: (token: string) =>
     request<{ reviews: { productId: number; orderName: string; rating: number }[] }>('/api/user/reviews', authHeaders(token)),
   /** A review of a product from one of the customer's own orders (src/lib/perks.js addReview). */
-  postReview: (token: string, body: { productId: number; orderName: string; rating: number; comment: string }) =>
+  postReview: (
+    token: string,
+    body: { productId: number; orderName: string; rating: number; comment: string; title?: string; subRatings?: { comfort?: number; quality?: number; value?: number } }
+  ) =>
     request<{ review: unknown }>('/api/user/reviews', jsonBody(body, token)),
 
   /** Whole steps of 250 points only; the server re-checks the balance. */

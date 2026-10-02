@@ -10,12 +10,12 @@ import { Header, MinimalHeader } from './Header';
 import { RouterProvider, useRouter, type Route } from './router';
 import { ShopProvider, useShop } from './state';
 import { isShopTier } from './catalog';
-import { Container } from './ui';
 
 import { AccountLayout } from './account/AccountLayout';
-import { AccountComingPage, AddressesPage, NotificationsPage, SettingsPage } from './account/AccountPages';
+import { AddressesPage, NotificationsPage, SettingsPage } from './account/AccountPages';
 import { IssuePage } from './account/IssuePage';
 import { OrderPage, OrdersPage } from './account/OrderPages';
+import { WarrantyPage } from './account/WarrantyPage';
 import { CartDrawer } from './CartDrawer';
 import { LoginDrawer } from './LoginDrawer';
 import { CartPage } from './pages/CartPage';
@@ -25,7 +25,14 @@ import { ComparePage } from './pages/ComparePage';
 import { ConfirmedPage } from './pages/ConfirmedPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
+import { LegalPage } from './pages/LegalPage';
+import { NotFoundPage, PageErrorBoundary } from './pages/NotFoundPage';
 import { ProductPage } from './pages/ProductPage';
+import { QuizPage } from './pages/QuizPage';
+import { ReviewsPage } from './pages/ReviewsPage';
+import { ReviewWritePage } from './pages/ReviewWritePage';
+import { ShowroomPage } from './pages/ShowroomPage';
+import { SupportPage } from './pages/SupportPage';
 
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage').then((m) => ({ default: m.DesignSystemPage })));
 
@@ -57,6 +64,20 @@ function Pages() {
       return <CategoryPage key={`s:${route.query}`} mode={{ kind: 'search', query: route.query }} />;
     case 'product':
       return <ProductPage key={route.id} id={route.id} />;
+    case 'reviews':
+      return <ReviewsPage key={route.productId} productId={route.productId} />;
+    case 'reviewWrite':
+      return <ReviewWritePage key={`${route.productId}:${route.orderName ?? ''}`} productId={route.productId} orderName={route.orderName} />;
+    case 'quiz':
+      return <QuizPage />;
+    case 'showroom':
+      return <ShowroomPage />;
+    case 'help':
+      return <SupportPage />;
+    case 'legal':
+      return <LegalPage key={route.page} page={route.page} />;
+    case 'notFound':
+      return <NotFoundPage />;
     case 'compare':
       return <ComparePage ids={route.ids} />;
     case 'cart':
@@ -76,7 +97,7 @@ function Pages() {
         case 'notifications':
           return <NotificationsPage />;
         case 'warranty':
-          return <AccountComingPage section="warranty" title="الضمان" />;
+          return <WarrantyPage />;
         case 'favorites':
           // Favourites work signed out; signed in they sit in the account's frame.
           return shop.auth.user ? (
@@ -93,12 +114,7 @@ function Pages() {
     case 'issue':
       return <IssuePage key={route.orderName} orderName={route.orderName} />;
   }
-  // The pages arrive phase by phase (design handoff build order).
-  return (
-    <Container className="py-24 text-center text-muted-foreground">
-      <p>هذه الصفحة قيد البناء ({route.name}).</p>
-    </Container>
-  );
+  return <NotFoundPage />;
 }
 
 /** Meta Pixel and Advanced Matching, as the old storefront did (lib/pixel.ts). */
@@ -125,18 +141,20 @@ function Tracking() {
 }
 
 function Layout() {
-  const { route } = useRouter();
+  const { route, location } = useRouter();
   const focused = isFocused(route);
   return (
     <div className="flex min-h-[100svh] flex-col bg-background font-sans text-foreground">
       <a href="#main" className="sr-only absolute start-0 top-0 focus:not-sr-only focus:z-50 focus:rounded-b-md focus:bg-primary focus:px-6 focus:py-2 focus:text-sm focus:text-primary-foreground">
         تخطّي إلى المحتوى
       </a>
-      {focused ? <MinimalHeader title={route.name === 'checkout' ? 'إتمام الطلب' : route.name === 'quiz' ? 'ساعدني أختار' : 'تم الطلب'} back={route.name === 'checkout' ? { label: 'العودة إلى السلة', to: { name: 'cart' } } : undefined} /> : <Header />}
+      {focused ? <MinimalHeader title={route.name === 'checkout' ? 'إتمام الطلب' : route.name === 'quiz' ? 'ساعدني أختار' : 'تم الطلب'} back={route.name === 'checkout' ? { label: 'العودة إلى السلة', to: { name: 'cart' } } : route.name === 'quiz' ? { label: 'خروج', to: { name: 'home' } } : undefined} /> : <Header />}
       <main id="main" className="flex-1">
-        <Suspense fallback={<PageLoading />}>
-          <Pages />
-        </Suspense>
+        <PageErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<PageLoading />}>
+            <Pages />
+          </Suspense>
+        </PageErrorBoundary>
       </main>
       <Footer slim={focused} />
       <CityDialog />
