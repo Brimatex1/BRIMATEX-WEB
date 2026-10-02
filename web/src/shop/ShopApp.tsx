@@ -12,6 +12,7 @@ import { Header, MinimalHeader } from './Header';
 import { RouterProvider, useRouter, type Route } from './router';
 import { ShopProvider, useShop } from './state';
 import { isShopTier } from './catalog';
+import { productHrefForSlug } from './marketing';
 
 import { AccountLayout } from './account/AccountLayout';
 import { AddressesPage, NotificationsPage, SettingsPage } from './account/AccountPages';
@@ -45,7 +46,22 @@ function isFocused(route: Route): boolean {
 }
 
 /** Pages that are nothing without the catalogue. */
-const CATALOGUE_PAGES = new Set<Route['name']>(['home', 'category', 'offers', 'search', 'product', 'compare', 'reviews', 'reviewWrite', 'cart', 'checkout']);
+const CATALOGUE_PAGES = new Set<Route['name']>(['home', 'category', 'offers', 'search', 'product', 'marketing', 'compare', 'reviews', 'reviewWrite', 'cart', 'checkout']);
+
+/**
+ * /p/<slug>[?variant=]: the mattress the marketing link names, at its own
+ * address (/product/<id>?size=) once the catalogue is in - or the 404 page.
+ */
+function MarketingLink({ slug, variant }: { slug: string; variant: number | null }) {
+  const { go } = useRouter();
+  const shop = useShop();
+  const target = shop.products.length ? productHrefForSlug(slug, variant, shop.products) : null;
+  useEffect(() => {
+    if (target) go(target, { replace: true });
+  }, [target, go]);
+  if (target || shop.loading || (!shop.products.length && !shop.error)) return <PageLoading />;
+  return <NotFoundPage />;
+}
 
 /**
  * Offline (MOTION.md «Offline»): a toast while the connection is gone, then
@@ -92,6 +108,8 @@ function Pages() {
       return <CategoryPage key={`s:${route.query}`} mode={{ kind: 'search', query: route.query }} />;
     case 'product':
       return <ProductPage key={route.id} id={route.id} />;
+    case 'marketing':
+      return <MarketingLink slug={route.slug} variant={route.variant} />;
     case 'reviews':
       return <ReviewsPage key={route.productId} productId={route.productId} />;
     case 'reviewWrite':

@@ -288,9 +288,27 @@ function writeAppSettings(value) {
   writeFile(data);
 }
 
+/**
+ * The storefront's home - banners and section order (src/lib/home.js owns the
+ * rules) - when Odoo is not connected. With Odoo it lives in the system
+ * parameter brimatex.app.home instead. Null until saved (the seed applies).
+ */
+function readHome() {
+  const stored = readFile().home;
+  return stored && typeof stored === 'object' ? stored : null;
+}
+
+function writeHome(value) {
+  const data = readFile();
+  data.home = value;
+  writeFile(data);
+}
+
 module.exports = {
   readAppSettings,
   writeAppSettings,
+  readHome,
+  writeHome,
   readBanners,
   writeBanners,
   readInstagram,

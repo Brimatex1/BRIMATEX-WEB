@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { panelApi, PanelError, type PanelMe, type Section } from './api';
 import { Loading, NoAccess, PanelLogin } from './Gate';
 import { OrdersPage } from './pages/OrdersPage';
+import { HomeBannersPage } from './pages/HomeBannersPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
@@ -104,7 +105,8 @@ export default function PanelApp() {
         {allowed === 'reviews' ? <ReviewsPage me={me} token={token} search={search} onBadgeChange={adjustReviews} /> : null}
         {allowed === 'integrations' ? <IntegrationsPage me={me} token={token} /> : null}
         {allowed === 'settings' ? <SettingsPage me={me} token={token} /> : null}
-        {allowed === 'home' || allowed === 'push' || allowed === 'quiz' || allowed === 'products' ? <PlaceholderPage me={me} section={allowed} /> : null}
+        {allowed === 'home' ? <HomeBannersPage me={me} token={token} /> : null}
+        {allowed === 'push' || allowed === 'quiz' || allowed === 'products' ? <PlaceholderPage me={me} section={allowed} /> : null}
       </Shell>
     );
   }

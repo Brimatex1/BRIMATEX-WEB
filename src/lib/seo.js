@@ -71,7 +71,9 @@ const APP_PATHS = new Set([
 const APP_PATTERNS = [
   /^\/mattresses\/[a-z0-9-]{1,40}$/,
   /^\/product\/\d+\/reviews$/,
-  /^\/account\/(orders|addresses|favorites|warranty|notifications|settings)$/,
+  /^\/account\/(orders|addresses|favorites|warranty|loyalty|coupons|notifications|settings)$/,
+  // Marketing links (the banners, ads): /p/<slug>[?variant=<id>] opens that mattress.
+  /^\/p\/[a-z0-9-]{1,40}$/,
   /^\/account\/orders\/[^/]+(\/issue)?$/,
   // The admin panel's sections (web/src/panel/router.tsx) and the classic dashboard.
   /^\/admin\/(orders|home|push|quiz|products|reviews|integrations|settings|classic)$/,

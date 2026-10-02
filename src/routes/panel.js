@@ -12,9 +12,11 @@
  *
  * The classic dashboard (/admin/classic, src/routes/admin.js) stays admin only.
  *
- * Odoo is written to in two places only: «تأكيد» on a new order runs the sale
- * order's action_confirm, when an admin or support user presses it; and
- * «حفظ» in الإعدادات sets the system parameter brimatex.app.settings (admin).
+ * Odoo is written to in three places only: «تأكيد» on a new order runs the sale
+ * order's action_confirm, when an admin or support user presses it; «حفظ» in
+ * الإعدادات sets the system parameter brimatex.app.settings (admin); and «حفظ»
+ * in الواجهة والبانرات sets brimatex.app.home (admin, marketing). The banners'
+ * pictures stay files on this server (src/lib/home.js), not Odoo attachments.
  */
 'use strict';
 
@@ -24,7 +26,8 @@ const odoo = require('../lib/odoo');
 const push = require('../lib/push');
 const perks = require('../lib/perks');
 const devices = require('../lib/devices');
-const banners = require('../lib/banners');
+const home = require('../lib/home');
+const instagram = require('../lib/instagram');
 const panel = require('../lib/panel');
 const appSettings = require('../lib/appSettings');
 const { DAYS_TEXT } = require('../lib/delivery');
@@ -140,18 +143,15 @@ function createPanelRoutes() {
         productsWithoutPhoto = { count: visible.filter((p) => !p.image).length, total: visible.length };
       }
 
-      // «ما يراه العملاء الآن»: the first banner on the home page.
-      const all = banners.list();
-      const first = all[0] || null;
-      let title = null;
-      const productLink = first?.link?.match(/^\/product\/(\d+)/);
-      if (productLink) title = productLookup(products).get(Number(productLink[1]))?.name || null;
+      // «ما يراه العملاء الآن»: the first banner the website shows (الواجهة والبانرات).
+      const live = home.publicHome(await home.current(), 'web').banners;
+      const first = live[0] || null;
 
       return sendJson(res, 200, {
         ...numbers,
         reviewsPending,
         productsWithoutPhoto,
-        banner: first ? { imageUrl: first.imageUrl, link: first.link || '', title, count: all.length } : null,
+        banner: first ? { imageUrl: first.photo, link: first.link || '', title: first.title, count: live.length } : null,
         // Offer notifications arrive with the الإشعارات section (phase 5).
         lastPush: null,
       });
@@ -233,6 +233,84 @@ function createPanelRoutes() {
         // «مدن التوصيل» is read-only: free to every city, on these days.
         delivery: { fee: 0, days: DAYS_TEXT },
       });
+    }
+
+    // ---- الواجهة والبانرات: the home's banners and sections (admin and marketing) ----
+
+    if ((req.method === 'GET' || req.method === 'PUT') && url.pathname === '/api/panel/home') {
+      const user = await staffFor(req, res, 'home');
+      if (!user) return;
+      let value;
+      try {
+        if (req.method === 'GET') {
+          value = await home.load();
+        } else {
+          // Five banners' worth of text and addresses - the pictures are uploaded on their own.
+          let body;
+          try {
+            body = JSON.parse((await readBody(req, 200_000)) || '{}');
+          } catch {
+            return sendJson(res, 400, { error: 'JSON غير صالح' });
+          }
+          value = await home.save(body.home ?? body);
+          console.log(`[panel] home saved by ${user.id} (${home.storage()})`);
+        }
+      } catch (err) {
+        if (!(err instanceof home.HomeError)) throw err;
+        return sendJson(res, err.status, { error: err.message, field: err.field, banner: err.banner, code: err.code });
+      }
+      return sendJson(res, 200, {
+        home: value,
+        storage: home.storage(),
+        limits: { maxPublished: home.MAX_PUBLISHED, maxBanners: home.MAX_BANNERS, titleMax: home.TITLE_MAX },
+      });
+    }
+
+    // A banner picture: { imageDataUrl, kind: 'photo' | 'app' } → { url, width, height }.
+    if (req.method === 'POST' && url.pathname === '/api/panel/home/images') {
+      const user = await staffFor(req, res, 'home');
+      if (!user) return;
+      let payload;
+      try {
+        // A 3 MB picture is about 4 MB as base64.
+        payload = JSON.parse(await readBody(req, 4_500_000));
+      } catch {
+        return sendJson(res, 413, { error: 'حجم الصورة كبير جداً' });
+      }
+      const result = home.saveImage(payload.imageDataUrl, payload.kind);
+      if (result.error) return sendJson(res, result.status, { error: result.error });
+      return sendJson(res, 201, result);
+    }
+
+    // «من إنستغرام بريماتكس» - the classic dashboard's editor (src/lib/instagram.js), here for marketing too.
+    if (url.pathname === '/api/panel/home/instagram' || url.pathname.startsWith('/api/panel/home/instagram/')) {
+      const user = await staffFor(req, res, 'home');
+      if (!user) return;
+      const readJson = async (limit) => {
+        try {
+          return JSON.parse(await readBody(req, limit));
+        } catch (err) {
+          return { __error: err.message };
+        }
+      };
+      const reply = (result) => (result.error ? sendJson(res, result.status, { error: result.error }) : sendJson(res, 200, result));
+
+      if (req.method === 'GET' && url.pathname === '/api/panel/home/instagram') {
+        return sendJson(res, 200, { posts: instagram.list(), max: instagram.MAX_POSTS });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/panel/home/instagram') {
+        const payload = await readJson(4_500_000);
+        if (payload.__error) return sendJson(res, 413, { error: 'حجم الصورة كبير جداً' });
+        return reply(instagram.add(payload.imageDataUrl, payload.link));
+      }
+      if (req.method === 'PUT' && url.pathname === '/api/panel/home/instagram/order') {
+        const payload = await readJson();
+        if (payload.__error) return sendJson(res, 400, { error: 'JSON غير صالح' });
+        return reply(instagram.reorder(payload.ids));
+      }
+      const one = url.pathname.match(/^\/api\/panel\/home\/instagram\/([a-f0-9]{16})$/);
+      if (one && req.method === 'DELETE') return reply(instagram.remove(one[1]));
+      return sendJson(res, 404, { error: 'غير موجود' });
     }
 
     // ---- The team: who may open the panel (admin only) ----

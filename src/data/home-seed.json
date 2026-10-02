@@ -1,0 +1,123 @@
+{
+  "// ": "The home page until the panel's «الواجهة والبانرات» saves one: the owner's five banners (Brimatex-Banners, 2 Oct 2026) and every section on, in the design's order. Pictures ship in web/public/images/banners/. src/lib/home.js owns the rules.",
+  "banners": [
+    {
+      "id": "seed-deluxe",
+      "key": "deluxe",
+      "status": "published",
+      "tag": "إليت",
+      "title": "ديلوكس: تجربة نوم متكاملة",
+      "text": "تقدم تجربة نوم متكاملة، بتصميم يعتمد على نظام Pocket Spring للنوابض المنفصلة لتقليل انتقال الحركة وتوفير دعم متوازن لكل مناطق الجسم.",
+      "buttons": [
+        { "label": "تسوّق ديلوكس", "link": "/p/deluxe" },
+        { "label": "كل المراتب", "link": "/mattresses/elite" }
+      ],
+      "link": "/p/deluxe",
+      "panel": "#282868",
+      "photo": "/images/banners/deluxe-photo.jpg",
+      "photoAlt": "مرتبة ديلوكس",
+      "photoPosition": "50% 55%",
+      "appImage": "/images/banners/deluxe-app.jpg",
+      "appImages": { "ios": "/images/banners/deluxe-ios.jpg", "android": "/images/banners/deluxe-android.jpg" },
+      "platforms": ["ios", "android", "web"],
+      "startsAt": null,
+      "endsAt": null
+    },
+    {
+      "id": "seed-balance",
+      "key": "balance",
+      "status": "published",
+      "tag": "بريميوم",
+      "title": "بالانس: ثبات متوازن",
+      "text": "تتميز بالدعم الطبي، بتصميم يعتمد على نوابض فولاذية معززة لتوفير ثبات متوازن ودعم مريح للجسم.",
+      "buttons": [
+        { "label": "تسوّق بالانس", "link": "/p/balance" },
+        { "label": "كل المراتب", "link": "/mattresses/premium" }
+      ],
+      "link": "/p/balance",
+      "panel": "#9DC9CF",
+      "photo": "/images/banners/balance-photo.jpg",
+      "photoAlt": "مرتبة بالانس",
+      "photoPosition": "50% 55%",
+      "appImage": "/images/banners/balance-app.jpg",
+      "appImages": { "ios": "/images/banners/balance-ios.jpg", "android": "/images/banners/balance-android.jpg" },
+      "platforms": ["ios", "android", "web"],
+      "startsAt": null,
+      "endsAt": null
+    },
+    {
+      "id": "seed-hotel",
+      "key": "hotel",
+      "status": "published",
+      "tag": "بريميوم",
+      "title": "هوتيل: راحة فندقية فاخرة",
+      "text": "تجمع بين الدعم الطبي والراحة الفندقية الفاخرة، بقلب إسفنجي مضغوط 30 يوفر ثباتاً متوازناً ودعماً مريحاً للجسم أثناء النوم.",
+      "buttons": [
+        { "label": "تسوّق هوتيل", "link": "/p/hotel" },
+        { "label": "كل المراتب", "link": "/mattresses/premium" }
+      ],
+      "link": "/p/hotel",
+      "panel": "#9DC9CF",
+      "photo": "/images/banners/hotel-photo.jpg",
+      "photoAlt": "مرتبة هوتيل",
+      "photoPosition": "50% 55%",
+      "appImage": "/images/banners/hotel-app.jpg",
+      "appImages": { "ios": "/images/banners/hotel-ios.jpg", "android": "/images/banners/hotel-android.jpg" },
+      "platforms": ["ios", "android", "web"],
+      "startsAt": null,
+      "endsAt": null
+    },
+    {
+      "id": "seed-comfort",
+      "key": "comfort",
+      "status": "published",
+      "tag": "كمفورت",
+      "title": "كمفورت: راحة وأداء متوازن",
+      "text": "تجمع بين الراحة والأداء المتوازن، بقلب من الإسفنج المضغوط 30 لدعم الجسم بشكل متكامل.",
+      "buttons": [
+        { "label": "تسوّق كمفورت", "link": "/p/comfort" },
+        { "label": "كل المراتب", "link": "/mattresses/comfort" }
+      ],
+      "link": "/p/comfort",
+      "panel": "#D9E3E2",
+      "photo": "/images/banners/comfort-photo.jpg",
+      "photoAlt": "مرتبة كمفورت",
+      "photoPosition": "50% 55%",
+      "appImage": "/images/banners/comfort-app.jpg",
+      "appImages": { "ios": "/images/banners/comfort-ios.jpg", "android": "/images/banners/comfort-android.jpg" },
+      "platforms": ["ios", "android", "web"],
+      "startsAt": null,
+      "endsAt": null
+    },
+    {
+      "id": "seed-loyalty",
+      "key": "loyalty",
+      "status": "published",
+      "tag": "جديد من بريماتكس: برنامج النقاط",
+      "tagIcon": "points",
+      "title": "اشترِ هوتيل، وخذ 60 د.ل خصماً على طلبك القادم",
+      "text": "كل دينار تدفعه = نقطة، وكل 200 نقطة = خصم 5 د.ل",
+      "buttons": [
+        { "label": "اطلب الآن", "link": "/p/hotel?variant=5632" },
+        { "label": "كيف تعمل النقاط", "link": "/account/loyalty" }
+      ],
+      "link": "/p/hotel?variant=5632",
+      "panel": "#DEE337",
+      "photo": "/images/banners/hotel-photo.jpg",
+      "photoAlt": "مرتبة هوتيل",
+      "photoPosition": "45% 60%",
+      "card": {
+        "caption": "على طلبك القادم",
+        "chip": "برنامج النقاط",
+        "value": "60 د.ل",
+        "suffix": "خصم",
+        "note": "2515 نقطة · هوتيل 180×200 · 2515 د.ل"
+      },
+      "appImage": "/images/banners/loyalty-app.jpg",
+      "appImages": { "ios": "/images/banners/loyalty-ios.jpg", "android": "/images/banners/loyalty-android.jpg" },
+      "platforms": ["ios", "android", "web"],
+      "startsAt": null,
+      "endsAt": null
+    }
+  ]
+}

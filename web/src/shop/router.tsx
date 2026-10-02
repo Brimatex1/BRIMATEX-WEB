@@ -11,6 +11,7 @@ import { isTierKey } from '@/lib/tiers';
  *   /offers  /search?q=                discounted ones; search results
  *   /product/:id[?size=180x200&height=24]   a mattress (the Meta catalogue links by id)
  *   /product/:id/reviews               its reviews
+ *   /p/:slug[?variant=5632]            a marketing link (banners, ads) - opens /product/:id?size=
  *   /compare?ids=7990,6139             up to three side by side
  *   /cart  /checkout  /checkout/success?order=
  *   /account  /account/orders/:name  /account/orders/:name/issue
@@ -30,6 +31,7 @@ export type Route =
   | { name: 'offers' }
   | { name: 'search'; query: string }
   | { name: 'product'; id: number }
+  | { name: 'marketing'; slug: string; variant: number | null }
   | { name: 'compare'; ids: number[] }
   | { name: 'reviews'; productId: number }
   | { name: 'cart' }
@@ -67,6 +69,10 @@ export function parse(pathname: string, search: string): Route {
   if (path === '/search') return { name: 'search', query: q.get('q')?.trim() ?? '' };
   if ((m = path.match(/^\/product\/(\d+)$/))) return { name: 'product', id: Number(m[1]) };
   if ((m = path.match(/^\/product\/(\d+)\/reviews$/))) return { name: 'reviews', productId: Number(m[1]) };
+  if ((m = path.match(/^\/p\/([a-z0-9-]{1,40})$/))) {
+    const variant = Number(q.get('variant'));
+    return { name: 'marketing', slug: m[1], variant: Number.isInteger(variant) && variant > 0 ? variant : null };
+  }
   if (path === '/compare') {
     const ids = (q.get('ids') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
     return { name: 'compare', ids: [...new Set(ids)].slice(0, 3) };
@@ -108,6 +114,8 @@ export function href(route: Route): string {
       return `/product/${route.id}`;
     case 'reviews':
       return `/product/${route.productId}/reviews`;
+    case 'marketing':
+      return `/p/${route.slug}${route.variant ? `?variant=${route.variant}` : ''}`;
     case 'compare':
       return route.ids.length ? `/compare?ids=${route.ids.join(',')}` : '/compare';
     case 'cart':

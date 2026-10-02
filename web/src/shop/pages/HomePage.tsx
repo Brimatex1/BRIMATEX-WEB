@@ -1,21 +1,23 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { ChevronLeft, CreditCard, ShieldCheck, Store, Truck, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { HomeSectionKey } from '@/types';
 
 import wave from '../assets/wave-pattern-white.png';
 import { TIER_TITLE, displayName, featuredVariant, tierOf, type TierKey } from '../catalog';
 import { useTitle } from '../hooks';
 import { photoOf, ProductCard } from '../ProductCard';
+import { HomeBanners } from '../HomeBanners';
 import { clearViewed, readViewed } from '../recent';
 import { Link } from '../router';
 import { useShop } from '../state';
 import { Container, Price, Skeleton } from '../ui';
 
 /**
- * The campaign in the hero (handoff WebHome). The brief wants it from a small
- * back-office model; until there is one it lives here, on the mattress it names.
+ * The hero when the panel's banners cannot be read (an older server, no
+ * connection): the handoff's campaign, on the mattress it names.
  */
 const CAMPAIGN = {
   product: 'بالانس',
@@ -76,8 +78,18 @@ function SectionHead({ title, sub, action }: { title: string; sub?: string; acti
 }
 
 /**
- * الرئيسية (handoff WebHome; phones WebMobile): the campaign, four promises,
- * the three tiers, the best sellers, the quiz banner, the Instagram posts.
+ * The home's sections, in the order the panel's «ترتيب أقسام الرئيسية» gives
+ * before it answers or when it cannot. «العروض» has no section on the
+ * website's home yet (the header links /offers); the four promises stay
+ * right under the hero.
+ */
+const DEFAULT_ORDER: HomeSectionKey[] = ['hero', 'offers', 'categories', 'recent', 'bestsellers', 'quiz', 'instagram'];
+
+/**
+ * الرئيسية (handoff WebHome; phones WebMobile): the panel's banners, four
+ * promises, the three tiers, recently viewed, the best sellers, the quiz
+ * banner, the Instagram posts - in the panel's order, and only the sections
+ * it has switched on (GET /api/app/v1/config → home).
  */
 export function HomePage() {
   const shop = useShop();
@@ -93,25 +105,41 @@ export function HomePage() {
   const [recentIds, setRecentIds] = useState<number[]>(readViewed);
   const recent = recentIds.map((id) => shop.products.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
 
-  const hero = shop.products.find((p) => displayName(p) === CAMPAIGN.product);
-  const heroTier = hero ? tierOf(hero) : null;
+  const campaign = shop.products.find((p) => displayName(p) === CAMPAIGN.product);
+  const campaignTier = campaign ? tierOf(campaign) : null;
   // Most reviewed first - the closest the shop knows to «most ordered» - then the server's order.
   const best = [...shop.products].sort((a, b) => (b.rating?.count ?? 0) - (a.rating?.count ?? 0)).slice(0, 4);
+  const order = shop.home ? shop.home.sections.filter((s) => s.on).map((s) => s.key) : DEFAULT_ORDER;
 
-  return (
-    <div className="flex flex-col gap-7 pb-14 lg:gap-14">
-      {/* ── Campaign ── */}
+  /* ── The hero: the panel's banners; their space while they are on their way; the campaign without them ── */
+  let hero: JSX.Element | null = null;
+  if (shop.home === undefined) {
+    hero = (
+      <Container className="pt-0 lg:pt-7">
+        <Skeleton className="-mx-4 h-[480px] lg:mx-0 lg:h-[520px]" />
+      </Container>
+    );
+  } else if (shop.home?.banners.length) {
+    hero = (
+      <Container className="pt-0 lg:pt-7">
+        <div className="-mx-4 lg:mx-0">
+          <HomeBanners banners={shop.home.banners} />
+        </div>
+      </Container>
+    );
+  } else if (shop.home === null) {
+    hero = (
       <Container className="pt-0 lg:pt-7">
         <div className="-mx-4 grid lg:mx-0 lg:grid-cols-[1fr_1.5fr] lg:grid-rows-[520px]">
           <div className="relative order-2 flex flex-col justify-center gap-4 overflow-hidden bg-dark-ocean px-5 py-8 text-white lg:order-1 lg:gap-5 lg:px-12 lg:py-14">
             <img src={wave} alt="" className="absolute inset-0 size-full object-cover opacity-[.12]" />
-            {heroTier ? <span className="relative text-sm font-bold text-porcelain">{TIER_TITLE[heroTier]}</span> : null}
+            {campaignTier ? <span className="relative text-sm font-bold text-porcelain">{TIER_TITLE[campaignTier]}</span> : null}
             <h1 className="relative font-display text-[28px] font-bold leading-[1.15] lg:text-[52px]">{CAMPAIGN.headline}</h1>
             <p className="relative hidden text-lg leading-[1.7] text-nebula lg:block">{CAMPAIGN.line}</p>
             <div className="relative mt-2 flex flex-wrap gap-3">
-              {hero ? (
+              {campaign ? (
                 <Button asChild variant="inverse" size="store">
-                  <Link to={{ name: 'product', id: hero.id }}>{CAMPAIGN.cta}</Link>
+                  <Link to={{ name: 'product', id: campaign.id }}>{CAMPAIGN.cta}</Link>
                 </Button>
               ) : null}
               <Button asChild variant="inverse-outline" size="store" className="hidden lg:inline-flex">
@@ -120,25 +148,33 @@ export function HomePage() {
             </div>
           </div>
           <div className="relative order-1 aspect-[4/3] min-w-0 overflow-hidden bg-image-bg lg:order-2 lg:aspect-auto">
-            {hero ? <img src={photoOf(hero)} alt={`مرتبة ${displayName(hero)}`} className="absolute inset-0 size-full object-cover" /> : <Skeleton className="absolute inset-0" />}
+            {campaign ? <img src={photoOf(campaign)} alt={`مرتبة ${displayName(campaign)}`} className="absolute inset-0 size-full object-cover" /> : <Skeleton className="absolute inset-0" />}
           </div>
         </div>
       </Container>
+    );
+  }
 
-      {/* ── Promises ── */}
-      <Container className="hidden gap-6 md:grid md:grid-cols-2 lg:-mt-4 lg:grid-cols-4">
-        {PROMISES.map(({ icon: Icon, title, body }) => (
-          <div key={title} className="flex items-start gap-3.5">
-            <Icon className="size-7 shrink-0 text-brand-text" strokeWidth={1.8} aria-hidden />
-            <div className="flex flex-col gap-1">
-              <b className="text-base">{title}</b>
-              <span className="text-sm leading-relaxed text-muted-foreground">{body}</span>
-            </div>
+  const promises = (
+    <Container className={cn('hidden gap-6 md:grid md:grid-cols-2 lg:grid-cols-4', hero && 'lg:-mt-4')}>
+      {PROMISES.map(({ icon: Icon, title, body }) => (
+        <div key={title} className="flex items-start gap-3.5">
+          <Icon className="size-7 shrink-0 text-brand-text" strokeWidth={1.8} aria-hidden />
+          <div className="flex flex-col gap-1">
+            <b className="text-base">{title}</b>
+            <span className="text-sm leading-relaxed text-muted-foreground">{body}</span>
           </div>
-        ))}
-      </Container>
+        </div>
+      ))}
+    </Container>
+  );
 
-      {/* ── Tiers ── */}
+  const sections: Record<HomeSectionKey, JSX.Element | null> = {
+    hero,
+    // No offers row on the website's home yet.
+    offers: null,
+
+    categories: (
       <Container>
         <SectionHead title="تسوّق حسب الفئة" />
         <div className="grid gap-2 lg:grid-cols-3 lg:gap-5">
@@ -159,44 +195,45 @@ export function HomePage() {
           ))}
         </div>
       </Container>
+    ),
 
-      {/* ── Recently viewed (this browser only; hidden when empty) ── */}
-      {recent.length ? (
-        <Container>
-          <SectionHead
-            title="شاهدتها مؤخراً"
-            action={
-              <button
-                type="button"
-                className="text-[15px] font-bold underline-offset-4 hover:underline"
-                onClick={() => {
-                  clearViewed();
-                  setRecentIds([]);
-                }}
-              >
-                مسح السجل
-              </button>
-            }
-          />
-          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:gap-5 lg:px-0">
-            {recent.map((p, i) => (
-              <Link
-                key={p.id}
-                to={{ name: 'product', id: p.id }}
-                className={cn('flex w-[150px] shrink-0 flex-col gap-1.5 lg:w-[200px]', i === 0 ? 'animate-rv-in' : 'animate-rv-shift', 'motion-reduce:animate-none')}
-              >
-                <span className="relative h-[120px] overflow-hidden bg-image-bg lg:h-40">
-                  <img src={photoOf(p)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
-                </span>
-                <b className="text-[15px]">{displayName(p)}</b>
-                <Price amount={featuredVariant(p).price} size="row" className="text-lg" />
-              </Link>
-            ))}
-          </div>
-        </Container>
-      ) : null}
+    // This browser only; hidden when empty.
+    recent: recent.length ? (
+      <Container>
+        <SectionHead
+          title="شاهدتها مؤخراً"
+          action={
+            <button
+              type="button"
+              className="text-[15px] font-bold underline-offset-4 hover:underline"
+              onClick={() => {
+                clearViewed();
+                setRecentIds([]);
+              }}
+            >
+              مسح السجل
+            </button>
+          }
+        />
+        <div className="-mx-4 flex gap-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:gap-5 lg:px-0">
+          {recent.map((p, i) => (
+            <Link
+              key={p.id}
+              to={{ name: 'product', id: p.id }}
+              className={cn('flex w-[150px] shrink-0 flex-col gap-1.5 lg:w-[200px]', i === 0 ? 'animate-rv-in' : 'animate-rv-shift', 'motion-reduce:animate-none')}
+            >
+              <span className="relative h-[120px] overflow-hidden bg-image-bg lg:h-40">
+                <img src={photoOf(p)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+              </span>
+              <b className="text-[15px]">{displayName(p)}</b>
+              <Price amount={featuredVariant(p).price} size="row" className="text-lg" />
+            </Link>
+          ))}
+        </div>
+      </Container>
+    ) : null,
 
-      {/* ── Best sellers ── */}
+    bestsellers: (
       <Container>
         <SectionHead
           title="الأكثر طلباً"
@@ -218,8 +255,9 @@ export function HomePage() {
             : best.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
       </Container>
+    ),
 
-      {/* ── Quiz ── */}
+    quiz: (
       <Container>
         <div className="flex flex-col items-start gap-4 bg-nebula px-5 py-6 text-dark-ocean lg:flex-row lg:items-center lg:justify-between lg:px-10 lg:py-8">
           <div className="flex flex-col gap-1">
@@ -231,9 +269,11 @@ export function HomePage() {
           </Button>
         </div>
       </Container>
+    ),
 
-      {/* ── Instagram (from the dashboard; hidden when it has none) ── */}
-      {instagram.length > 0 ? (
+    // From the panel's «من إنستغرام بريماتكس»; hidden when it has none.
+    instagram:
+      instagram.length > 0 ? (
         <Container>
           <SectionHead
             title="من إنستغرام بريماتكس"
@@ -252,7 +292,20 @@ export function HomePage() {
             ))}
           </div>
         </Container>
-      ) : null}
+      ) : null,
+  };
+
+  // The promises sit under the hero - or open the page when the hero is off.
+  const blocks: [string, JSX.Element | null][] = [];
+  if (!order.includes('hero')) blocks.push(['promises', promises]);
+  for (const key of order) {
+    blocks.push([key, sections[key]]);
+    if (key === 'hero') blocks.push(['promises', promises]);
+  }
+
+  return (
+    <div className="flex flex-col gap-7 pb-14 lg:gap-14">
+      {blocks.map(([key, block]) => (block ? <Fragment key={key}>{block}</Fragment> : null))}
 
       {/* ── Phones: the app (once it is on the App Store) ── */}
       {appBanner ? (

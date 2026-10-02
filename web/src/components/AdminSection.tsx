@@ -15,7 +15,6 @@ import {
 import { toast } from 'sonner';
 
 import { BannersPanel } from '@/components/BannersPanel';
-import { InstagramPanel } from '@/components/InstagramPanel';
 import { ReviewsPanel } from '@/components/ReviewsPanel';
 import { FacebookPixelSettingsPanel } from '@/components/FacebookPixelSettingsPanel';
 import { PreorderSettingsPanel } from '@/components/PreorderSettingsPanel';
@@ -712,7 +711,14 @@ export function AdminSection({ user, token, onGoHome }: AdminSectionProps) {
       {!error && tab === 'banners' && token && (
         <div className="space-y-6">
           <BannersPanel token={token} />
-          <InstagramPanel token={token} />
+          {/* «من إنستغرام بريماتكس» moved to the new panel's الواجهة والبانرات. */}
+          <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+            صور «من إنستغرام بريماتكس» وبانرات الرئيسية الجديدة تُدار الآن من{' '}
+            <a href="/admin/home" className="font-semibold text-highlight underline">
+              الواجهة والبانرات
+            </a>
+            .
+          </p>
         </div>
       )}
 

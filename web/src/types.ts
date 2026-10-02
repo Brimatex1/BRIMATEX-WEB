@@ -101,6 +101,8 @@ export interface Tier {
 
 export interface Product {
   id: number;
+  /** The Odoo product (template) - stable across renames; absent on demo products. */
+  templateId?: number;
   name: string;
   price: number;
   /** Its visible reviews, all sizes together - absent until it has one. */
@@ -454,7 +456,34 @@ export interface ConversionsApiStatus {
  * apps and the website (src/lib/appSettings.js). Phones in local form.
  * More keys join later (the home page, the quiz).
  */
+/** A banner as the website draws it (GET /api/app/v1/config → home, src/lib/home.js): real text over a photo. */
+export interface WebBanner {
+  id: string;
+  key: string;
+  tag: string;
+  title: string;
+  text: string;
+  /** One or two; real links. */
+  buttons: { label: string; link: string }[];
+  /** Where the photo goes. */
+  link: string;
+  /** The text panel's colour, #RRGGBB - the text turns light on a dark one. */
+  panel: string;
+  photo: string;
+  photoAlt?: string;
+  /** CSS object-position, e.g. «50% 55%». */
+  photoPosition?: string;
+  /** A small icon before the tag line (the loyalty banner's star). */
+  tagIcon?: 'points';
+  /** A white card over the photo (the loyalty banner's «60 د.ل خصم»). */
+  card?: { caption?: string; chip?: string; value?: string; suffix?: string; note?: string };
+}
+
+export type HomeSectionKey = 'hero' | 'offers' | 'categories' | 'recent' | 'bestsellers' | 'quiz' | 'instagram';
+
 export interface AppConfig {
+  /** The panel's «الواجهة والبانرات»: live banners for this platform, and the home sections in order. */
+  home?: { banners: WebBanner[]; sections: { key: HomeSectionKey; on: boolean }[] };
   settings: {
     minVersion: { ios: string; android: string };
     forceUpdate: boolean;

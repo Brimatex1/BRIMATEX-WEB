@@ -99,6 +99,21 @@ const ICON_PATHS = {
       <path d="M2.5 19.5a6.5 6.5 0 0113 0M16 5.2a3.5 3.5 0 010 6.6M18 13.6a6.5 6.5 0 013.5 5.9" />
     </>
   ),
+  upload: <path d="M12 16V4.5M7 9l5-5 5 5M4.5 15.5V19a1 1 0 001 1h13a1 1 0 001-1v-3.5" />,
+  grip: (
+    <>
+      <circle cx="9" cy="6" r="1" />
+      <circle cx="15" cy="6" r="1" />
+      <circle cx="9" cy="12" r="1" />
+      <circle cx="15" cy="12" r="1" />
+      <circle cx="9" cy="18" r="1" />
+      <circle cx="15" cy="18" r="1" />
+    </>
+  ),
+  trash: <path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5" />,
+  arrowUp: <path d="M12 19V5M6 11l6-6 6 6" />,
+  arrowDown: <path d="M12 5v14M6 13l6 6 6-6" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

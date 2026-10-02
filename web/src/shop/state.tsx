@@ -88,6 +88,11 @@ interface ShopApi {
 
   /** The admin panel's settings (GET /api/app/v1/config), null until they arrive. */
   config: AppConfig['settings'] | null;
+  /**
+   * The panel's «الواجهة والبانرات» (the same answer): undefined while it is on
+   * its way, null when it could not be read (the home then shows its own hero).
+   */
+  home: AppConfig['home'] | null | undefined;
   /** «وضع الصيانة»: its message while ordering is stopped, else null. */
   maintenance: string | null;
 }
@@ -130,13 +135,19 @@ export function ShopProvider({ children }: { children: ReactNode }) {
 
   // The panel's settings, read once per visit (the server keeps them 5 minutes).
   const [config, setConfig] = useState<AppConfig['settings'] | null>(null);
+  const [home, setHome] = useState<AppConfig['home'] | null | undefined>(undefined);
   useEffect(() => {
     let live = true;
     http
       .getAppConfig()
-      .then((c) => live && setConfig(c.settings))
+      .then((c) => {
+        if (!live) return;
+        setConfig(c.settings);
+        setHome(c.home ?? null);
+      })
       .catch(() => {
-        /* Without them the shop runs as before: open, with its own contact details. */
+        /* Without them the shop runs as before: open, with its own contact details and hero. */
+        if (live) setHome(null);
       });
     return () => {
       live = false;
@@ -290,9 +301,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       setMethod,
       loyalty,
       config,
+      home,
       maintenance,
     }),
-    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty, config, maintenance]
+    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty, config, home, maintenance]
   );
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;
