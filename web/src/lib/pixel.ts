@@ -17,6 +17,10 @@ declare global {
 }
 
 let initialized = false;
+/** initPixel was called and waits for the visitor's details before starting. */
+let starting = false;
+/** The visitor's hashed details being computed (setPixelPerson). */
+let personReady: Promise<void> | null = null;
 /**
  * The Pixel ID arrives from the server a moment after the page loads, and a
  * visitor landing on a product from an ad fires ViewContent before that. Such
@@ -43,11 +47,21 @@ let personData: Record<string, string> | null = null;
  * customer sees.
  */
 export function initPixel(pixelId: string, rate?: number | null) {
-  if (initialized || !pixelId || typeof window === 'undefined') return;
+  if (initialized || starting || !pixelId || typeof window === 'undefined') return;
   // Only the live shop reports: a copy running on a developer's machine or a
   // test server sent its visits to the same Pixel (Events Manager listed
   // localhost and 127.0.0.1 beside brimatex.ly).
   if (!isLiveHost(window.location.hostname)) return disablePixel();
+  // The visitor's hashed details (external_id, country - and phone, name and
+  // city when known) are computed asynchronously; the first PageView used to
+  // leave before them, so only part of the events carried them. Wait for
+  // them (never more than 1.5 s), then start and send what queued meanwhile.
+  starting = true;
+  const ready = personReady ?? Promise.resolve();
+  void Promise.race([ready.catch(() => undefined), new Promise((r) => setTimeout(r, 1500))]).then(() => start(pixelId, rate));
+}
+
+function start(pixelId: string, rate?: number | null) {
   initialized = true;
   lydPerUsd = rate && rate > 0 ? rate : null;
 
@@ -179,7 +193,13 @@ function storePerson(data: Record<string, string> | null) {
  * Null: nobody signed in - a guest known from an earlier checkout on this
  * device, else just the visitor ID.
  */
-export async function setPixelPerson(person: PixelPerson | null) {
+export function setPixelPerson(person: PixelPerson | null): Promise<void> {
+  const work = computePerson(person);
+  personReady = work;
+  return work;
+}
+
+async function computePerson(person: PixelPerson | null) {
   if (typeof window === 'undefined' || !crypto?.subtle) return;
   const vid = visitorId();
   try {
@@ -324,7 +344,22 @@ export function forgetCheckout() {
  * The event ID matches the one the server sends through the Conversions API
  * (src/lib/meta-capi.js), so Meta counts this purchase once, not twice.
  */
+const PURCHASED_KEY = 'brimatex:purchased';
+
+/** An order already reported from this browser (a retry, a second tab): never twice. */
+function firstReportOf(orderName: string): boolean {
+  try {
+    const done: string[] = JSON.parse(localStorage.getItem(PURCHASED_KEY) || '[]');
+    if (done.includes(orderName)) return false;
+    localStorage.setItem(PURCHASED_KEY, JSON.stringify([orderName, ...done].slice(0, 20)));
+  } catch {
+    /* storage blocked - the checkout sends it once anyway */
+  }
+  return true;
+}
+
 export function trackPurchase(order: OrderResult, lines: CartLine[]) {
+  if (!firstReportOf(order.orderName)) return;
   // No num_items here: Meta's reference keeps it for InitiateCheckout.
   track('Purchase', {
     content_ids: lines.map((l) => l.id),

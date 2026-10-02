@@ -280,7 +280,8 @@ export function CheckoutPage() {
       }
       // Advanced Matching: the Purchase carries who ordered (hashed).
       await setPixelPerson({ id: user.id, name: user.name, phone, city: orderCity });
-      trackPurchase(result, shop.cart.lines);
+      // The amount the customer pays - the server's total (points or coupon included), else this page's.
+      trackPurchase({ ...result, total: result.total || payable }, shop.cart.lines);
       forgetCheckout();
       const placed: PlacedOrder = {
         orderName: result.orderName,
