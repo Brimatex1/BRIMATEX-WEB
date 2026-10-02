@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 /** A CSS media query, live (false before the first paint on the server - there is none here). */
 export function useMediaQuery(query: string): boolean {
@@ -23,4 +24,15 @@ export function useTitle(title: string | null) {
   useEffect(() => {
     document.title = title ? `${title} | بريماتكس` : 'بريماتكس — متجر المراتب';
   }, [title]);
+}
+
+/**
+ * A change that moves things on the page (a cart row removed): the browser
+ * animates it with View Transitions - the row fades, the ones below slide up
+ * (index.css). Without support, or under reduced motion, it simply happens.
+ */
+export function animateChange(update: () => void) {
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  if (!doc.startViewTransition || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return update();
+  doc.startViewTransition(() => flushSync(update));
 }

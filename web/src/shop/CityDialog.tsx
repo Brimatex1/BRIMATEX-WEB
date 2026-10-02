@@ -60,7 +60,7 @@ export function CityDialog() {
       <DialogContent className="flex max-h-[85svh] max-w-[480px] flex-col gap-4">
         <DialogTitle className="text-xl font-bold">إلى أين نوصل طلبك؟</DialogTitle>
         <DialogDescription className="text-[15px]">نعرض لك التوصيل ومواعيده حسب مدينتك، ويمكنك تغييرها في أي وقت من أعلى الصفحة.</DialogDescription>
-        <label className="flex h-12 items-center gap-3 rounded-full bg-image-bg px-5">
+        <label className="flex h-12 items-center gap-3 rounded-full bg-image-bg px-5 focus-within:ring-2 focus-within:ring-ring">
           <Search className="size-5 text-muted-foreground" aria-hidden />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن مدينتك" aria-label="ابحث عن مدينتك" className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-text-tertiary" />
         </label>

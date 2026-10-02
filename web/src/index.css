@@ -236,6 +236,34 @@
   .reveal-item {
     transform: none !important;
   }
+  /* Fades stay: these come in by opacity alone instead of being cut. */
+  .animate-fade-up,
+  .animate-drop-in,
+  .animate-price-in,
+  .animate-step-in,
+  .animate-result-in,
+  .animate-pop-in {
+    animation-name: fade-only !important;
+    animation-duration: 200ms !important;
+  }
+}
+
+/* «تم الطلب»: the check draws itself once the circle is in (MOTION.md «Order placed»). */
+.draw-check path,
+.draw-check polyline {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: draw-check 300ms var(--ease-out) 250ms forwards;
+}
+@keyframes draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fade-only {
+  from {
+    opacity: 0;
+  }
 }
 
 /*
@@ -246,6 +274,13 @@
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation-duration: 220ms;
+  animation-timing-function: var(--ease-out);
+}
+/* A cart row removed: it fades, the rows below move up (hooks.ts animateChange). */
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 200ms;
   animation-timing-function: var(--ease-out);
 }
 

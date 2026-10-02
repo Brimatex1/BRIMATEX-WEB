@@ -265,7 +265,7 @@ export function HomePage() {
             <button
               type="button"
               aria-label="إخفاء"
-              className="grid size-9 place-items-center"
+              className="relative grid size-9 place-items-center after:absolute after:-inset-1"
               onClick={() => {
                 setAppBanner(false);
                 try {

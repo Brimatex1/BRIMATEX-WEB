@@ -205,6 +205,41 @@ export default {
           '0%, 12%': { transform: 'translateX(calc(100% + 16px))' },
           '100%': { transform: 'none' },
         },
+        // Search suggestions drop 8px under the box (MOTION.md «Search suggestions»).
+        'drop-in': {
+          from: { opacity: '0', transform: 'translateY(-8px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        // A gallery photo: a plain crossfade, nothing moves.
+        'fade-only': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        // A new price comes up from below inside its clipped line.
+        'price-in': {
+          from: { opacity: '0', transform: 'translateY(60%)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        // A step of a flow comes in from the right, where it starts in Arabic.
+        'step-in': {
+          from: { opacity: '0', transform: 'translateX(24px)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        // The quiz's answer and the success circle grow into place - never from nothing.
+        'result-in': {
+          from: { opacity: '0', transform: 'scale(.92)' },
+          to: { opacity: '1', transform: 'none' },
+        },
+        'pop-in': {
+          '0%': { opacity: '0', transform: 'scale(.6)' },
+          '70%': { opacity: '1', transform: 'scale(1.06)' },
+          '100%': { opacity: '1', transform: 'none' },
+        },
+        // Rating bars and the struck-out old price grow from the start (right) edge;
+        // no "to" - each ends at its own transform.
+        'grow-x': {
+          from: { transform: 'scaleX(0)' },
+        },
         // The favourite heart: shrinks, grows, settles.
         heart: {
           '0%': { transform: 'scale(1)' },
@@ -218,10 +253,17 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-up': 'fade-up 0.26s var(--ease-out)',
         pop: 'pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        shimmer: 'shimmer 1.6s infinite',
+        shimmer: 'shimmer 1.6s linear infinite',
         'badge-pulse': 'badge-pulse 300ms var(--ease-out)',
-        shake: 'shake 400ms ease',
+        shake: 'shake 400ms var(--ease-out)',
         heart: 'heart 300ms var(--ease-out)',
+        'drop-in': 'drop-in 150ms var(--ease-out)',
+        'fade-only': 'fade-only 200ms var(--ease-out)',
+        'price-in': 'price-in 200ms var(--ease-out)',
+        'step-in': 'step-in 250ms var(--ease-out)',
+        'result-in': 'result-in 300ms var(--ease-out) both',
+        'pop-in': 'pop-in 350ms var(--ease-out) both',
+        'grow-x': 'grow-x 400ms var(--ease-out) both',
         'rv-in': 'rv-in 500ms var(--ease-out) 400ms both',
         'rv-shift': 'rv-shift 500ms var(--ease-out) 400ms both',
       },

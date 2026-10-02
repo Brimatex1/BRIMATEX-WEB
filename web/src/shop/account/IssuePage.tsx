@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { CheckCircle2, ImagePlus, Package, X } from 'lucide-react';
+import { ImagePlus, Package, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -10,7 +10,7 @@ import { useTitle } from '../hooks';
 import { photoOf } from '../ProductCard';
 import { Link, useRouter } from '../router';
 import { lineItem, useShop } from '../state';
-import { EmptyState, Skeleton, SizeText, StatusDot } from '../ui';
+import { AFTER_MARK, EmptyState, SizeText, Skeleton, StatusDot, SuccessMark } from '../ui';
 import { AccountLayout, useMyOrders } from './AccountLayout';
 
 type IssueType = 'delay' | 'damaged' | 'wrong' | 'missing' | 'billing' | 'other';
@@ -122,10 +122,10 @@ export function IssuePage({ orderName }: { orderName: string }) {
     return (
       <AccountLayout section="orders" crumbs={crumbs}>
         <div className="flex max-w-lg flex-col items-start gap-4">
-          <CheckCircle2 className="size-14 text-success" strokeWidth={1.8} aria-hidden />
-          <h1 className="font-display text-[28px] font-bold">استلمنا بلاغك</h1>
-          <p className="text-[15px] text-muted-foreground">سيتواصل معك فريق خدمة العملاء لترتيب الحل المناسب.</p>
-          <div className="flex w-full flex-col gap-2.5 rounded-lg border border-border p-5 text-[15px]">
+          <SuccessMark />
+          <h1 className={cn('font-display text-[28px] font-bold', AFTER_MARK)}>استلمنا بلاغك</h1>
+          <p className={cn('text-[15px] text-muted-foreground', AFTER_MARK)}>سيتواصل معك فريق خدمة العملاء لترتيب الحل المناسب.</p>
+          <div className={cn('flex w-full flex-col gap-2.5 rounded-lg border border-border p-5 text-[15px]', AFTER_MARK)}>
             <span className="flex justify-between">
               <span className="text-muted-foreground">رقم البلاغ</span>
               <bdi dir="ltr">{sent}</bdi>
@@ -139,7 +139,7 @@ export function IssuePage({ orderName }: { orderName: string }) {
               <StatusDot tone="warning">قيد المراجعة</StatusDot>
             </span>
           </div>
-          <div className="flex gap-3">
+          <div className={cn('flex gap-3', AFTER_MARK)}>
             <Button size="store" onClick={() => go({ name: 'order', orderName: order.orderName })}>
               العودة إلى الطلب
             </Button>
@@ -211,7 +211,7 @@ export function IssuePage({ orderName }: { orderName: string }) {
             {photos.map((src, i) => (
               <span key={i} className="relative">
                 <img src={src} alt={`صورة ${i + 1}`} className="size-24 rounded-lg object-cover" />
-                <button type="button" aria-label="إزالة الصورة" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -end-2 -top-2 grid size-7 place-items-center rounded-full border border-border bg-background">
+                <button type="button" aria-label="إزالة الصورة" onClick={() => setPhotos((p) => p.filter((_, j) => j !== i))} className="absolute -end-2 -top-2 grid size-7 place-items-center rounded-full border border-border bg-background after:absolute after:-inset-2">
                   <X className="size-3.5" />
                 </button>
               </span>

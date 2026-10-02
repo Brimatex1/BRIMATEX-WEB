@@ -261,6 +261,28 @@ export function CheckoutPage() {
     );
   }
 
+  // A guest who closed the login drawer: say why the form is not here, never a dead «تأكيد الطلب».
+  if (!user) {
+    return (
+      <Container className="flex flex-col items-center gap-4 py-24 text-center">
+        <p className="text-lg font-bold">{shop.auth.checking ? 'جارٍ التحميل…' : 'سجّل الدخول لإتمام الطلب'}</p>
+        {shop.auth.checking ? null : (
+          <>
+            <p className="max-w-md text-[15px] text-muted-foreground">نرسل رمز الدخول على واتساب. تبقى السلة كما هي.</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button size="store" onClick={() => shop.requireLogin('checkout')}>
+                تسجيل الدخول
+              </Button>
+              <Button asChild variant="outline" size="store">
+                <Link to={{ name: 'cart' }}>العودة إلى السلة</Link>
+              </Button>
+            </div>
+          </>
+        )}
+      </Container>
+    );
+  }
+
   const summaryLines = (
     <div className="flex flex-col gap-3">
       {lines.map(({ line, product, variant }) => {

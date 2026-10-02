@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 
 import { describe, displayName } from '../catalog';
 import { LinePartsText } from '../CartDrawer';
-import { useTitle } from '../hooks';
+import { animateChange, useTitle } from '../hooks';
 import { photoOf, ProductCard } from '../ProductCard';
 import { readViewed } from '../recent';
 import { Link, useRouter } from '../router';
@@ -83,7 +83,7 @@ export function CartPage() {
             </div>
           ) : null}
           {lines.map(({ line, product, variant }) => (
-            <div key={line.id} className="flex gap-4 border-b border-border py-5">
+            <div key={line.id} className="flex gap-4 border-b border-border py-5" style={{ viewTransitionName: `cart-line-${line.id}` }}>
               {product ? (
                 <Link to={{ name: 'product', id: product.id }} className="shrink-0">
                   <img src={photoOf(product)} alt="" className="size-24 bg-image-bg object-cover lg:size-32" />
@@ -92,13 +92,15 @@ export function CartPage() {
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <b className="text-base">{product ? displayName(product) : line.name}</b>
-                  <Price amount={line.price * line.qty} size="row" className="text-lg" />
+                  <span className="overflow-hidden" aria-live="polite">
+                    <Price key={line.price * line.qty} amount={line.price * line.qty} size="row" className="animate-price-in text-lg" />
+                  </span>
                 </div>
                 <span className="text-[13px] text-muted-foreground">{product ? describe(product, variant).split('،')[0] : ''}</span>
                 <LinePartsText variant={variant} />
                 <div className="mt-2 flex flex-wrap items-center gap-4">
                   <QuantityStepper value={line.qty} onChange={(q) => shop.cart.setQty(line.id, q)} label={product ? displayName(product) : line.name} />
-                  <button type="button" className="text-sm font-bold underline underline-offset-4" onClick={() => shop.cart.remove(line.id)}>
+                  <button type="button" className="text-sm font-bold underline underline-offset-4" onClick={() => animateChange(() => shop.cart.remove(line.id))}>
                     حذف
                   </button>
                   {product ? (
@@ -107,7 +109,7 @@ export function CartPage() {
                       className="text-sm font-bold underline underline-offset-4"
                       onClick={() => {
                         if (!shop.favorites.has(product.id)) shop.toggleFavorite(product);
-                        shop.cart.remove(line.id);
+                        animateChange(() => shop.cart.remove(line.id));
                       }}
                     >
                       نقل إلى المفضّلة

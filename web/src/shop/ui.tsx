@@ -4,7 +4,7 @@
  * empty state, page container. Colours come from the CSS variables only.
  */
 import type { ReactNode } from 'react';
-import { Minus, Plus, Star } from 'lucide-react';
+import { Check, Minus, Plus, Star } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -109,13 +109,13 @@ export function StatusDot({ tone, children, className }: { tone: Tone; children:
 export function QuantityStepper({ value, onChange, min = 1, max = 99, label }: { value: number; onChange: (v: number) => void; min?: number; max?: number; label: string }) {
   return (
     <div className="inline-flex h-10 items-center rounded-full border border-border" role="group" aria-label={`الكمية: ${label}`}>
-      <button type="button" className="grid size-10 place-items-center rounded-full disabled:opacity-40" onClick={() => onChange(value + 1)} disabled={value >= max} aria-label="زيادة الكمية">
+      <button type="button" className="relative grid size-10 place-items-center rounded-full after:absolute after:-inset-y-1 disabled:opacity-40" onClick={() => onChange(value + 1)} disabled={value >= max} aria-label="زيادة الكمية">
         <Plus className="size-4" />
       </button>
       <span className="min-w-6 text-center text-[15px] font-bold tabular-nums" aria-live="polite">
         {value}
       </span>
-      <button type="button" className="grid size-10 place-items-center rounded-full disabled:opacity-40" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label="إنقاص الكمية">
+      <button type="button" className="relative grid size-10 place-items-center rounded-full after:absolute after:-inset-y-1 disabled:opacity-40" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label="إنقاص الكمية">
         <Minus className="size-4" />
       </button>
     </div>
@@ -138,7 +138,29 @@ export function EmptyState({ icon, title, body, action, onAction, className }: {
   );
 }
 
-/** A grey block in place of what is loading (static under reduced motion). */
+/** A grey block in place of what is loading, a slow shimmer across it (static under reduced motion). */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse bg-image-bg motion-reduce:animate-none', className)} aria-hidden />;
+  return (
+    <div
+      className={cn(
+        'relative overflow-hidden bg-image-bg before:absolute before:inset-0 before:translate-x-full before:animate-shimmer before:bg-gradient-to-l before:from-transparent before:via-white/50 before:to-transparent dark:before:via-white/[0.06]',
+        className
+      )}
+      aria-hidden
+    />
+  );
 }
+
+/**
+ * Done (MOTION.md «Order placed»): the circle pops in, the check draws itself,
+ * then whatever follows fades up - give it `AFTER_MARK`.
+ */
+export function SuccessMark({ solid = false }: { solid?: boolean }) {
+  return (
+    <span className={cn('grid size-16 animate-pop-in place-items-center rounded-full', solid ? 'bg-success text-white' : 'bg-success/10 text-success')} aria-hidden>
+      <Check className="draw-check size-8" strokeWidth={2.5} />
+    </span>
+  );
+}
+
+export const AFTER_MARK = 'animate-fade-up [animation-delay:350ms] [animation-fill-mode:both]';

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useId } from 'react';
 import { Check, ChevronDown, Search, SlidersHorizontal, Store, Tag, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -208,6 +208,8 @@ export function CategoryPage({ mode }: { mode: Mode }) {
                 type="number"
                 inputMode="numeric"
                 min={0}
+                // Keyed by the address's value: removing the chip or «مسح الكل» clears the box too.
+                key={f[k] ?? ''}
                 defaultValue={f[k] ?? ''}
                 onBlur={(e) => setQuery({ [k]: e.target.value || null })}
                 onKeyDown={(e) => e.key === 'Enter' && setQuery({ [k]: (e.target as HTMLInputElement).value || null })}
@@ -380,10 +382,12 @@ function countText(n: number): string {
 }
 
 function Chip({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+  const id = useId();
   return (
     <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-foreground ps-3.5 pe-1.5 text-sm font-bold">
-      {children}
-      <button type="button" onClick={onRemove} className="grid size-6 place-items-center rounded-full hover:bg-accent" aria-label="إزالة">
+      <span id={id}>{children}</span>
+      {/* 24 px to the eye, 44 px to the finger. */}
+      <button type="button" onClick={onRemove} className="relative grid size-6 place-items-center rounded-full after:absolute after:-inset-2.5 hover:bg-accent" aria-label="إزالة الفلتر" aria-describedby={id}>
         <X className="size-3.5" />
       </button>
     </span>

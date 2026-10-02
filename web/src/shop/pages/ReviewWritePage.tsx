@@ -1,8 +1,9 @@
 import { useEffect, useId, useState } from 'react';
-import { Check, MessageSquareText, Star } from 'lucide-react';
+import { MessageSquareText, Star } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import type { OrderSummary, Product } from '@/types';
 
 import { describe, displayName, lineParts } from '../catalog';
@@ -11,7 +12,7 @@ import { isCancelled } from '../orders';
 import { photoOf } from '../ProductCard';
 import { Link, useRouter } from '../router';
 import { lineItem, useShop } from '../state';
-import { Container, EmptyState, RatingStars, Skeleton, SizeText, StatusDot } from '../ui';
+import { AFTER_MARK, Container, EmptyState, RatingStars, SizeText, Skeleton, StatusDot, SuccessMark } from '../ui';
 import { useMyOrders } from '../account/AccountLayout';
 import { Breadcrumb } from './CategoryPage';
 import { ASPECTS, reviewDate } from './ReviewsPage';
@@ -135,12 +136,10 @@ function WriteForm({ product, orderName, onBack }: { product: Product; orderName
   if (sent) {
     return (
       <div className="flex max-w-xl flex-col items-start gap-5 py-6">
-        <span className="grid size-16 place-items-center rounded-full bg-success text-white">
-          <Check className="size-8" strokeWidth={2.5} aria-hidden />
-        </span>
-        <h1 className="font-display text-[28px] font-bold lg:text-[36px]">شكراً لتقييمك</h1>
-        <p className="text-[15px] text-muted-foreground">نراجع التقييمات قبل نشرها، وسيظهر تقييمك على صفحة المرتبة بعد الموافقة عليه.</p>
-        <div className="flex w-full items-center gap-4 rounded-lg border border-border p-4">
+        <SuccessMark solid />
+        <h1 className={cn('font-display text-[28px] font-bold lg:text-[36px]', AFTER_MARK)}>شكراً لتقييمك</h1>
+        <p className={cn('text-[15px] text-muted-foreground', AFTER_MARK)}>نراجع التقييمات قبل نشرها، وسيظهر تقييمك على صفحة المرتبة بعد الموافقة عليه.</p>
+        <div className={cn('flex w-full items-center gap-4 rounded-lg border border-border p-4', AFTER_MARK)}>
           <img src={photoOf(product)} alt="" className="size-16 bg-image-bg object-cover" />
           <span className="flex flex-1 flex-col gap-1">
             <b className="text-[15px]">{name}</b>
@@ -148,7 +147,7 @@ function WriteForm({ product, orderName, onBack }: { product: Product; orderName
           </span>
           <StatusDot tone="warning">قيد المراجعة</StatusDot>
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        <div className={cn('flex flex-wrap items-center gap-4', AFTER_MARK)}>
           <Button size="store" onClick={onBack}>
             العودة إلى المرتبة
           </Button>

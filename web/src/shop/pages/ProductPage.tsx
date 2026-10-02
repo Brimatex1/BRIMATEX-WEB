@@ -18,6 +18,7 @@ import { SizePicker } from '../SizePicker';
 import { useShop } from '../state';
 import { Container, EmptyState, Price, RatingStars, Skeleton, SizeText, StatusDot, TierTag } from '../ui';
 import { Breadcrumb } from './CategoryPage';
+import { Bar } from './ReviewsPage';
 
 /** The cutaway's layer colours, top to bottom (handoff WebProduct «ماذا بداخلها؟»). */
 const LAYER_COLOURS = ['bg-paper border border-border', 'bg-nebula', 'bg-porcelain', 'bg-blue-violet', 'bg-dark-ocean', 'bg-image-bg border border-border'];
@@ -72,7 +73,7 @@ function Gallery({ product }: { product: Product }) {
         >
           {photos.map((src, i) => (
             <div key={src} className={cn('aspect-square w-full shrink-0 snap-center bg-image-bg lg:aspect-[4/3.4]', i !== index && 'lg:hidden', i === 1 && 'bg-white')}>
-              <img src={src} alt={i === 0 ? `مرتبة ${displayName(product)}` : `طبقات مرتبة ${displayName(product)}`} className={cn('size-full animate-fade-up motion-reduce:animate-none', i === 1 ? 'object-contain' : 'object-cover')} />
+              <img src={src} alt={i === 0 ? `مرتبة ${displayName(product)}` : `طبقات مرتبة ${displayName(product)}`} className={cn('size-full animate-fade-only', i === 1 ? 'object-contain' : 'object-cover')} />
             </div>
           ))}
         </div>
@@ -153,14 +154,12 @@ function ReviewsSummary({ product }: { product: Product }) {
               <b className="text-[34px] tabular-nums">{data.average?.toFixed(1)}</b>
               <RatingStars average={data.average ?? 0} count={data.count} />
             </div>
-            {[5, 4, 3, 2, 1].map((n) => {
+            {[5, 4, 3, 2, 1].map((n, i) => {
               const c = data.distribution?.[String(n) as '5'] ?? 0;
               return (
                 <div key={n} className="flex items-center gap-3 text-[13px]" aria-label={`${n} نجوم: ${c}`}>
                   <span className="w-12 text-muted-foreground">{n} نجوم</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-image-bg">
-                    <span className="block h-full rounded-full bg-foreground" style={{ width: `${(c / max) * 100}%` }} />
-                  </span>
+                  <Bar value={c} max={max} index={i} />
                   <span className="w-6 text-end tabular-nums text-muted-foreground">{c}</span>
                 </div>
               );
@@ -311,7 +310,7 @@ export function ProductPage({ id }: { id: number }) {
               ) : null}
               {/* A new size's price comes in from below (design/docs/MOTION.md «Change size»). */}
               <span aria-live="polite" className="mt-2 overflow-hidden">
-                <Price key={variant.price} amount={variant.price} size="page" className="animate-fade-up motion-reduce:animate-none" />
+                <Price key={variant.price} amount={variant.price} size="page" className="animate-price-in" />
               </span>
               <StatusDot tone={availabilityTone(availability)}>{availabilityText(availability, product.leadDays)}</StatusDot>
             </div>

@@ -34,10 +34,11 @@ export function reviewDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ar-LY', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function Bar({ value, max, tone = 'bg-foreground', className = 'flex-1' }: { value: number; max: number; tone?: string; className?: string }) {
+/** A rating bar; it grows from the start edge once, each a beat after the one before (MOTION.md «Reviews»). */
+export function Bar({ value, max, index = 0, tone = 'bg-foreground', className = 'flex-1' }: { value: number; max: number; index?: number; tone?: string; className?: string }) {
   return (
     <span className={cn('block h-1.5 overflow-hidden rounded-full bg-image-bg', className)}>
-      <span className={cn('block h-full rounded-full', tone)} style={{ width: `${max ? (value / max) * 100 : 0}%` }} />
+      <span className={cn('block h-full origin-right animate-grow-x rounded-full', tone)} style={{ transform: `scaleX(${max ? value / max : 0})`, animationDelay: `${index * 80}ms` }} />
     </span>
   );
 }
@@ -128,12 +129,12 @@ export function ReviewsPage({ productId }: { productId: number }) {
                   <bdi className="tabular-nums">{data.count}</bdi> تقييم
                 </span>
                 <div className="mt-2 flex flex-col gap-2.5">
-                  {[5, 4, 3, 2, 1].map((n) => {
+                  {[5, 4, 3, 2, 1].map((n, i) => {
                     const c = data.distribution?.[String(n) as '5'] ?? 0;
                     return (
                       <div key={n} className="flex items-center gap-3 text-sm" aria-label={`${n} نجوم: ${c}`}>
                         <span className="w-14 shrink-0">{n} نجوم</span>
-                        <Bar value={c} max={max} />
+                        <Bar value={c} max={max} index={i} />
                         <span className="w-8 text-end tabular-nums text-muted-foreground">{c}</span>
                       </div>
                     );
@@ -141,7 +142,7 @@ export function ReviewsPage({ productId }: { productId: number }) {
                 </div>
                 {ASPECTS.some((a) => data.subAverages?.[a.key] !== undefined) ? (
                   <div className="mt-3 flex flex-col gap-3 border-t border-border pt-4">
-                    {ASPECTS.map((a) => {
+                    {ASPECTS.map((a, i) => {
                       const v = data.subAverages?.[a.key];
                       if (v === undefined) return null;
                       return (
@@ -152,7 +153,7 @@ export function ReviewsPage({ productId }: { productId: number }) {
                               <bdi dir="ltr">{v.toFixed(1)}/5</bdi>
                             </b>
                           </span>
-                          <Bar value={v} max={5} tone="bg-dark-ocean dark:bg-blue-violet" className="w-full" />
+                          <Bar value={v} max={5} index={5 + i} tone="bg-dark-ocean dark:bg-blue-violet" className="w-full" />
                         </div>
                       );
                     })}

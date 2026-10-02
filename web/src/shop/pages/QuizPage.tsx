@@ -85,15 +85,15 @@ export function QuizPage() {
           aria-valuenow={step + 1}
           aria-valuetext={`السؤال ${step + 1} من ${QUESTIONS.length}`}
         >
-          <span className="block h-full rounded-full bg-primary transition-[width] duration-base ease-out-strong" style={{ width: `${((step + 1) / QUESTIONS.length) * 100}%` }} />
+          <span className="block h-full origin-right rounded-full bg-primary transition-transform duration-slow ease-out-strong" style={{ transform: `scaleX(${(step + 1) / QUESTIONS.length})` }} />
         </span>
         <span className="text-sm text-muted-foreground tabular-nums">
           {step + 1} من {QUESTIONS.length}
         </span>
       </div>
 
-      {/* A new question comes in from below (static under reduced motion). */}
-      <div key={question.id} className="flex animate-fade-up flex-col gap-[22px] motion-reduce:animate-none">
+      {/* A new question slides in from the right (a fade under reduced motion). */}
+      <div key={question.id} className="flex animate-step-in flex-col gap-[22px]">
         <div className="flex flex-col gap-2">
           <h2 ref={heading} tabIndex={-1} className="font-display text-[28px] font-bold leading-tight focus:outline-none lg:text-[40px]">
             {question.title}
@@ -205,7 +205,7 @@ function Result({ answers, onRestart, headingRef }: { answers: QuizAnswers; onRe
     <Container className="pb-16 pt-8 lg:pt-12">
       {header}
 
-      <div className="grid animate-fade-up border-2 border-foreground motion-reduce:animate-none lg:grid-cols-[1fr_1.4fr]">
+      <div className="grid animate-result-in border-2 border-foreground lg:grid-cols-[1fr_1.4fr]">
         <div className="relative aspect-[4/3] min-w-0 overflow-hidden bg-image-bg lg:order-last lg:aspect-auto lg:h-full lg:min-h-[460px]">
           <img src={photoOf(best.product)} alt={`مرتبة ${name}`} className="absolute inset-0 size-full object-cover" />
         </div>

@@ -79,7 +79,7 @@ export function SizePicker({ product, value, onChange }: Props) {
                 role="radio"
                 aria-checked={chosen.height === h}
                 onClick={() => pickHeight(h)}
-                className={cn('h-10 rounded-full text-[15px] font-bold transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', chosen.height === h ? 'bg-foreground text-background' : 'hover:bg-background')}
+                className={cn('relative h-10 rounded-full text-[15px] font-bold transition-colors after:absolute after:-inset-y-1 duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', chosen.height === h ? 'bg-foreground text-background' : 'hover:bg-background')}
               >
                 {h} سم
               </button>

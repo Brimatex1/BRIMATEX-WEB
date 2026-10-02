@@ -163,7 +163,7 @@ export function LoginDrawer() {
         ) : null}
 
         {step === 'code' ? (
-          <div className="flex flex-col gap-4">
+          <div className="flex animate-step-in flex-col gap-4">
             <div className="flex flex-col gap-2">
               <b className="text-[15px]">رقم واتساب</b>
               <div className="flex items-center justify-between rounded-lg bg-image-bg px-4 py-3">
@@ -228,7 +228,7 @@ export function LoginDrawer() {
         ) : null}
 
         {step === 'name' ? (
-          <form onSubmit={finish} className="flex flex-col gap-4">
+          <form onSubmit={finish} className="flex animate-step-in flex-col gap-4">
             <label className="flex flex-col gap-2">
               <b className="text-[15px]">الاسم الكامل</b>
               <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" autoFocus aria-invalid={Boolean(error)} aria-describedby={error ? 'login-error' : undefined} className={fieldClass(Boolean(error))} />

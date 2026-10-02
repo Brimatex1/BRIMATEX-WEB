@@ -104,7 +104,7 @@ export function SearchBox({ className }: { className?: string }) {
 
   return (
     <div ref={box} className={cn('relative', className)}>
-      <form role="search" onSubmit={submit} className="flex h-12 items-center gap-3 rounded-full bg-image-bg px-5">
+      <form role="search" onSubmit={submit} className="flex h-12 items-center gap-3 rounded-full bg-image-bg px-5 focus-within:ring-2 focus-within:ring-ring">
         <Search className="size-[22px] shrink-0 text-muted-foreground" strokeWidth={1.8} aria-hidden />
         <input
           value={q}
@@ -129,7 +129,7 @@ export function SearchBox({ className }: { className?: string }) {
       </form>
 
       {showPanel ? (
-        <div id={listId} role="listbox" aria-label="اقتراحات البحث" className="absolute inset-x-0 top-[calc(100%+8px)] z-50 grid animate-fade-up gap-6 motion-reduce:animate-none rounded-lg border border-border bg-popover p-4 shadow-lg md:grid-cols-[1fr_1.4fr]">
+        <div id={listId} role="listbox" aria-label="اقتراحات البحث" className="absolute inset-x-0 top-[calc(100%+8px)] z-50 grid animate-drop-in gap-6 rounded-lg border border-border bg-popover p-4 shadow-lg md:grid-cols-[1fr_1.4fr]">
           <div className="flex flex-col gap-2">
             {sizeHints.length ? (
               <>

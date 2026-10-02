@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, MessageSquare } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 import { displayName, lineParts } from '../catalog';
 import { useTitle } from '../hooks';
 import { photoOf } from '../ProductCard';
 import { Link } from '../router';
 import { lineItem, useShop } from '../state';
-import { Container, Price, SizeText } from '../ui';
+import { AFTER_MARK, Container, Price, SizeText, SuccessMark } from '../ui';
 import { SummaryRow } from './CartPage';
 import { LAST_ORDER_KEY, type PlacedOrder } from './CheckoutPage';
 
@@ -67,12 +68,10 @@ export function ConfirmedPage({ order }: { order: string }) {
   return (
     <Container className="grid gap-10 py-10 lg:grid-cols-[1fr_440px] lg:gap-16 lg:py-16">
       <div className="flex flex-col items-start gap-5">
-        <span className="grid size-16 place-items-center rounded-full bg-success/10 text-success">
-          <CheckCircle2 className="size-9" strokeWidth={1.8} aria-hidden />
-        </span>
-        <h1 className="font-display text-[28px] font-bold lg:text-[40px]">استلمنا طلبك</h1>
-        <p className="text-base leading-relaxed text-muted-foreground lg:text-lg">سنُعلمك عند تجهيز المراتب وخروجها للتوصيل. يتصل بك السائق قبل الوصول.</p>
-        <div className="flex flex-wrap gap-3">
+        <SuccessMark />
+        <h1 className={cn('font-display text-[28px] font-bold lg:text-[40px]', AFTER_MARK)}>استلمنا طلبك</h1>
+        <p className={cn('text-base leading-relaxed text-muted-foreground lg:text-lg', AFTER_MARK)}>سنُعلمك عند تجهيز المراتب وخروجها للتوصيل. يتصل بك السائق قبل الوصول.</p>
+        <div className={cn('flex flex-wrap gap-3', AFTER_MARK)}>
           <Button asChild size="store">
             <Link to={{ name: 'order', orderName: placed.orderName }}>تتبّع الطلب</Link>
           </Button>

@@ -7,7 +7,7 @@ import { useTitle } from '../hooks';
 import { ProductCard } from '../ProductCard';
 import { useRouter } from '../router';
 import { useShop } from '../state';
-import { Container, EmptyState } from '../ui';
+import { Container, EmptyState, Skeleton } from '../ui';
 import { Breadcrumb } from './CategoryPage';
 
 /**
@@ -59,7 +59,15 @@ export function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
         </div>
       ) : null}
 
-      {saved.length ? (
+      {!guest && saved.length ? <p className="-mt-3 mb-6 text-sm text-muted-foreground">تظهر المفضّلة على كل أجهزتك ما دمت مسجّلاً بنفس رقم الهاتف.</p> : null}
+
+      {shop.loading && shop.favorites.ids.length && !saved.length ? (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-8 lg:grid-cols-4 lg:gap-x-6">
+          {shop.favorites.ids.slice(0, 4).map((id) => (
+            <Skeleton key={id} className="aspect-[4/5]" />
+          ))}
+        </div>
+      ) : saved.length ? (
         <div className="grid grid-cols-2 gap-x-3 gap-y-8 lg:grid-cols-4 lg:gap-x-6">
           {saved.map((p) => (
             <ProductCard key={p.id} product={p} />

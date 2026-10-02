@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 
+import { toast } from 'sonner';
+
 import { Toaster } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
 import { captureClickId, disablePixel, forgetPixelPerson, initPixel, setPixelPerson, trackPageView } from '@/lib/pixel';
@@ -26,7 +28,7 @@ import { ConfirmedPage } from './pages/ConfirmedPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
 import { LegalPage } from './pages/LegalPage';
-import { NotFoundPage, PageErrorBoundary } from './pages/NotFoundPage';
+import { ErrorPage, NotFoundPage, PageErrorBoundary } from './pages/NotFoundPage';
 import { ProductPage } from './pages/ProductPage';
 import { QuizPage } from './pages/QuizPage';
 import { ReviewsPage } from './pages/ReviewsPage';
@@ -41,6 +43,29 @@ function isFocused(route: Route): boolean {
   return route.name === 'checkout' || route.name === 'confirmed' || route.name === 'quiz';
 }
 
+/** Pages that are nothing without the catalogue. */
+const CATALOGUE_PAGES = new Set<Route['name']>(['home', 'category', 'offers', 'search', 'product', 'compare', 'reviews', 'reviewWrite', 'cart', 'checkout']);
+
+/**
+ * Offline (MOTION.md «Offline»): a toast while the connection is gone, then
+ * «عاد الاتصال» for two seconds when it is back.
+ */
+function ConnectionNotice() {
+  useEffect(() => {
+    const ID = 'connection';
+    const off = () => toast.error('لا يوجد اتصال بالإنترنت', { id: ID, duration: Infinity, description: 'تحقّق من الاتصال، وسنكمل من حيث توقفت.' });
+    const on = () => toast.success('عاد الاتصال', { id: ID, duration: 2000, description: undefined });
+    if (!navigator.onLine) off();
+    window.addEventListener('offline', off);
+    window.addEventListener('online', on);
+    return () => {
+      window.removeEventListener('offline', off);
+      window.removeEventListener('online', on);
+    };
+  }, []);
+  return null;
+}
+
 function PageLoading() {
   return (
     <div className="grid min-h-[50vh] place-items-center" role="status" aria-label="جارٍ التحميل">
@@ -53,6 +78,8 @@ function Pages() {
   const { route, location } = useRouter();
   const shop = useShop();
   if (import.meta.env.DEV && location.pathname === '/dev/ds') return <DesignSystemPage />;
+  // The catalogue did not load: say so, with a retry - never an empty grid that looks like «no results».
+  if (shop.error && !shop.products.length && CATALOGUE_PAGES.has(route.name)) return <ErrorPage onRetry={() => void shop.reload()} />;
   switch (route.name) {
     case 'home':
       return <HomePage />;
@@ -161,6 +188,7 @@ function Layout() {
       <CartDrawer />
       <LoginDrawer />
       <Tracking />
+      <ConnectionNotice />
       <Toaster position="top-center" dir="rtl" />
     </div>
   );

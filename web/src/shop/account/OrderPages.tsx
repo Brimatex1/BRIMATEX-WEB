@@ -198,7 +198,7 @@ export function OrdersPage() {
       <h1 className="pb-5 font-display text-[28px] font-bold lg:text-[36px]">طلباتي</h1>
       <div role="tablist" aria-label="الطلبات" className="mb-2 inline-flex gap-1 rounded-full bg-image-bg p-1">
         {(['current', 'past'] as const).map((t) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn('h-10 rounded-full px-6 text-[15px] font-bold', tab === t ? 'bg-foreground text-background' : 'hover:bg-background')}>
+          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={cn('relative h-10 rounded-full px-6 text-[15px] font-bold after:absolute after:-inset-y-1', tab === t ? 'bg-foreground text-background' : 'hover:bg-background')}>
             {t === 'current' ? 'الحالية' : 'السابقة'}
           </button>
         ))}
