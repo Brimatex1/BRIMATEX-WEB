@@ -6,7 +6,7 @@ import { CITIES } from '@/shop/CityDialog';
 
 import { panelApi, PanelError, type AppSettings, type PanelMe, type SettingsPayload, type TeamMember } from '../api';
 import { PageBody, PageHeader } from '../Shell';
-import { Button, Card, CardHead, ErrorCard, Icon, ROLE_LABEL, Skeleton, Switch, buttonClass, formatLibyan, formatPhone } from '../ui';
+import { Button, Card, CardHead, ErrorCard, Field, Icon, ROLE_LABEL, Skeleton, SwitchRow, buttonClass, formatLibyan, formatPhone } from '../ui';
 
 const ROLE_OPTIONS: TeamMember['role'][] = ['admin', 'marketing', 'support', 'customer'];
 
@@ -205,7 +205,7 @@ export function SettingsPage({ me, token }: { me: PanelMe; token: string }) {
               <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="flex flex-col gap-1">
                   <b className="text-[17px]">الإعدادات المتقدمة</b>
-                  <span className="text-sm text-[#5F6373]">التقييمات والعملاء وبكسل ميتا والاتصال بأودو في اللوحة السابقة حالياً.</span>
+                  <span className="text-sm text-[#5F6373]">قائمة العملاء، والمخزون، وتعديلات المنتجات وصورها، وصور الإعلانات وإنستغرام في اللوحة السابقة حالياً.</span>
                 </span>
                 <a href="/admin/classic" className={cn(buttonClass('outline'), 'no-underline')}>
                   <Icon name="external" size={18} />
@@ -239,78 +239,6 @@ function SettingsSkeleton() {
           ))}
         </div>
       ))}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  error,
-  ltr,
-  multiline,
-  maxLength,
-  type = 'text',
-  inputMode,
-  autoComplete,
-  className,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  error?: string;
-  ltr?: boolean;
-  multiline?: boolean;
-  maxLength?: number;
-  type?: 'text' | 'time';
-  inputMode?: 'decimal' | 'tel' | 'email';
-  autoComplete?: string;
-  className?: string;
-}) {
-  const box = cn(
-    'w-full rounded-[10px] bg-white px-3 text-[14.5px] text-[#16161F] outline-none placeholder:text-[#5F6373] focus-visible:shadow-[inset_0_0_0_1.5px_#282868]',
-    error ? 'shadow-[inset_0_0_0_1.5px_#A12020]' : 'shadow-[inset_0_0_0_1px_#E4E6EE]',
-    // Numbers, versions and the email read left to right but sit at the start (right), as in the design.
-    ltr && 'text-right'
-  );
-  return (
-    <label className={cn('flex flex-col gap-1.5', className)}>
-      <span className="text-[13px] font-semibold text-[#5F6373]">{label}</span>
-      {multiline ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} maxLength={maxLength} rows={2} aria-invalid={Boolean(error)} className={cn(box, 'resize-none py-2.5 leading-relaxed')} />
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          dir={ltr || type === 'time' ? 'ltr' : undefined}
-          inputMode={inputMode}
-          autoComplete={autoComplete}
-          maxLength={maxLength}
-          aria-invalid={Boolean(error)}
-          className={cn(box, 'h-[42px]', type === 'time' && 'text-right')}
-        />
-      )}
-      {error ? <span className="text-[12.5px] text-[#A12020]">{error}</span> : null}
-    </label>
-  );
-}
-
-function SwitchRow({ title, line, checked, onChange, children }: { title: string; line: string; checked: boolean; onChange: (v: boolean) => void; children?: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-3 border-t border-[#E4E6EE] py-3">
-      <div className="flex items-center gap-3">
-        <span className="flex flex-1 flex-col gap-0.5">
-          <b className="text-sm">{title}</b>
-          <span className="text-[12.5px] text-[#5F6373]">{line}</span>
-        </span>
-        <Switch checked={checked} onChange={onChange} label={title} />
-      </div>
-      {children}
     </div>
   );
 }

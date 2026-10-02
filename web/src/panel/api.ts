@@ -5,7 +5,7 @@
  */
 
 export type StaffRole = 'admin' | 'marketing' | 'support';
-export type Section = 'overview' | 'orders' | 'home' | 'push' | 'quiz' | 'products' | 'settings';
+export type Section = 'overview' | 'orders' | 'home' | 'push' | 'quiz' | 'products' | 'reviews' | 'integrations' | 'settings';
 export type OrderStatus = 'new' | 'confirmed' | 'preparing' | 'out' | 'delivered' | 'cancelled';
 export type Channel = 'ios' | 'android' | 'app' | 'web';
 export type Period = 'today' | '7d' | '30d' | 'all';
@@ -17,8 +17,11 @@ export interface PanelMe {
   canConfirm: boolean;
   /** Odoo's address for people, or null when the server has none. */
   odooUrl: string | null;
-  /** New orders waiting for «تأكيد»; null when the role has no orders section. */
-  badges: { orders: number | null };
+  /**
+   * The sidebar's counts: new orders waiting for «تأكيد», reviews waiting to
+   * be published or hidden - null when the role does not open that section.
+   */
+  badges: { orders: number | null; reviews: number | null };
 }
 
 export interface ChannelRow {

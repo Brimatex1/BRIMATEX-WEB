@@ -81,6 +81,18 @@ const ICON_PATHS = {
       <path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5" />
     </>
   ),
+  plug: <path d="M9 3.5V8M15 3.5V8M6.5 8h11v3.5a5.5 5.5 0 01-11 0zM12 17v3.5" />,
+  refresh: <path d="M19.5 12a7.5 7.5 0 01-13.3 4.8M4.5 12a7.5 7.5 0 0113.3-4.8M18 3.5v4h-4M6 20.5v-4h4" />,
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  eyeOff: <path d="M4 4l16 16M10 6a9.5 9.5 0 0111.5 6 13 13 0 01-2.6 3.3M6.6 7.6A13 13 0 002.5 12S6 18.5 12 18.5a9 9 0 004-.9M9.9 9.9a3 3 0 004.2 4.2" />,
+  chat: <path d="M4.5 19.5l1.2-3.6A8 8 0 1112 20a8 8 0 01-3.9-1z" />,
+  megaphone: <path d="M4 10v4h3l7 4V6L7 10zM17.5 9a4 4 0 010 6" />,
+  factory: <path d="M3.5 20V10l5 3V10l5 3V5h4l1 15zM3 20h18" />,
   users: (
     <>
       <circle cx="9" cy="8.5" r="3.5" />
@@ -118,6 +130,8 @@ export const SECTION_META: Record<Section, { label: string; icon: IconName; subt
   push: { label: 'الإشعارات', icon: 'bell', subtitle: 'إشعارات العروض للتطبيقين عبر Firebase' },
   quiz: { label: 'ساعدني أختار', icon: 'help', subtitle: 'قواعد الاقتراح في التطبيقين والموقع' },
   products: { label: 'المراتب', icon: 'bed', subtitle: 'محتوى المراتب في التطبيق والموقع' },
+  reviews: { label: 'التقييمات', icon: 'star', subtitle: 'تقييمات العملاء قبل ظهورها في صفحة المرتبة' },
+  integrations: { label: 'الربط والتكاملات', icon: 'plug', subtitle: 'أودو وواتساب وميتا والطلب المسبق' },
   settings: { label: 'الإعدادات', icon: 'gear', subtitle: 'إعدادات التطبيقين والموقع' },
 };
 
@@ -219,6 +233,121 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
         )}
       />
     </button>
+  );
+}
+
+/**
+ * A labelled input (AdminSettings): 42px, hairline ring, the ocean ring on
+ * focus and a red one with the message under it on an error. `hint` is the
+ * grey line under the box; `aside` sits after the label (e.g. «محفوظ»).
+ */
+export function Field({
+  label,
+  aside,
+  value,
+  onChange,
+  placeholder,
+  error,
+  hint,
+  ltr,
+  multiline,
+  rows = 2,
+  maxLength,
+  type = 'text',
+  inputMode,
+  autoComplete,
+  spellCheck,
+  className,
+  boxClassName,
+}: {
+  label: string;
+  aside?: ReactNode;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  error?: string;
+  hint?: ReactNode;
+  ltr?: boolean;
+  multiline?: boolean;
+  rows?: number;
+  maxLength?: number;
+  type?: 'text' | 'time' | 'password' | 'url';
+  inputMode?: 'decimal' | 'numeric' | 'tel' | 'email' | 'url';
+  autoComplete?: string;
+  spellCheck?: boolean;
+  className?: string;
+  boxClassName?: string;
+}) {
+  const box = cn(
+    'w-full rounded-[10px] bg-white px-3 text-[14.5px] text-[#16161F] outline-none placeholder:text-[#5F6373] focus-visible:shadow-[inset_0_0_0_1.5px_#282868]',
+    error ? 'shadow-[inset_0_0_0_1.5px_#A12020]' : 'shadow-[inset_0_0_0_1px_#E4E6EE]',
+    // Numbers, versions and the email read left to right but sit at the start (right), as in the design.
+    ltr && 'text-right'
+  );
+  return (
+    <label className={cn('flex flex-col gap-1.5', className)}>
+      <span className="text-[13px] font-semibold text-[#5F6373]">
+        {label}
+        {aside ? <span className="ms-2 text-[12px] font-normal">{aside}</span> : null}
+      </span>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          maxLength={maxLength}
+          rows={rows}
+          aria-invalid={Boolean(error)}
+          className={cn(box, 'resize-none py-2.5 leading-relaxed', boxClassName)}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          dir={ltr || type === 'time' ? 'ltr' : undefined}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          spellCheck={spellCheck}
+          maxLength={maxLength}
+          aria-invalid={Boolean(error)}
+          className={cn(box, 'h-[42px]', type === 'time' && 'text-right', boxClassName)}
+        />
+      )}
+      {error ? <span className="text-[12.5px] text-[#A12020]">{error}</span> : null}
+      {hint ? <span className="text-[12.5px] leading-relaxed text-[#5F6373]">{hint}</span> : null}
+    </label>
+  );
+}
+
+/** A setting with a switch (AdminSettings): title and line, hairline above; `children` opens under it. */
+export function SwitchRow({
+  title,
+  line,
+  checked,
+  onChange,
+  disabled,
+  children,
+}: {
+  title: string;
+  line: ReactNode;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 border-t border-[#E4E6EE] py-3">
+      <div className="flex items-center gap-3">
+        <span className="flex flex-1 flex-col gap-0.5">
+          <b className="text-sm">{title}</b>
+          <span className="text-[12.5px] text-[#5F6373]">{line}</span>
+        </span>
+        <Switch checked={checked} onChange={onChange} label={title} disabled={disabled} />
+      </div>
+      {children}
+    </div>
   );
 }
 

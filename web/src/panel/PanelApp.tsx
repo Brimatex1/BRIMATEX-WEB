@@ -6,8 +6,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { panelApi, PanelError, type PanelMe, type Section } from './api';
 import { Loading, NoAccess, PanelLogin } from './Gate';
 import { OrdersPage } from './pages/OrdersPage';
+import { IntegrationsPage } from './pages/IntegrationsPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { ReviewsPage } from './pages/ReviewsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { navigate, parseSection, sectionHref, useLocation } from './router';
 import { Shell } from './Shell';
@@ -19,6 +21,8 @@ const TITLE: Record<Section, string> = {
   push: 'الإشعارات',
   quiz: 'ساعدني أختار',
   products: 'المراتب',
+  reviews: 'التقييمات',
+  integrations: 'الربط والتكاملات',
   settings: 'الإعدادات',
 };
 
@@ -65,9 +69,15 @@ export default function PanelApp() {
     document.title = `${allowed ? TITLE[allowed] : 'الإدارة'} · إدارة بريماتكس`;
   }, [allowed]);
 
-  const adjustBadge = useCallback((delta: number) => {
-    setMe((m) => (m && m.badges.orders != null ? { ...m, badges: { orders: Math.max(0, m.badges.orders + delta) } } : m));
+  /** A sidebar count after an action on the page (an order confirmed, a review decided). */
+  const adjustBadge = useCallback((badge: keyof PanelMe['badges'], delta: number) => {
+    setMe((m) => {
+      const value = m?.badges[badge];
+      return m && value != null ? { ...m, badges: { ...m.badges, [badge]: Math.max(0, value + delta) } } : m;
+    });
   }, []);
+  const adjustOrders = useCallback((delta: number) => adjustBadge('orders', delta), [adjustBadge]);
+  const adjustReviews = useCallback((delta: number) => adjustBadge('reviews', delta), [adjustBadge]);
 
   let body: JSX.Element;
   if (auth.checking || (auth.token && state === 'loading')) body = <Loading />;
@@ -90,7 +100,9 @@ export default function PanelApp() {
     body = (
       <Shell me={me} current={allowed} onSignOut={auth.signOut}>
         {allowed === 'overview' ? <OverviewPage me={me} token={token} /> : null}
-        {allowed === 'orders' ? <OrdersPage me={me} token={token} search={search} onBadgeChange={adjustBadge} /> : null}
+        {allowed === 'orders' ? <OrdersPage me={me} token={token} search={search} onBadgeChange={adjustOrders} /> : null}
+        {allowed === 'reviews' ? <ReviewsPage me={me} token={token} search={search} onBadgeChange={adjustReviews} /> : null}
+        {allowed === 'integrations' ? <IntegrationsPage me={me} token={token} /> : null}
         {allowed === 'settings' ? <SettingsPage me={me} token={token} /> : null}
         {allowed === 'home' || allowed === 'push' || allowed === 'quiz' || allowed === 'products' ? <PlaceholderPage me={me} section={allowed} /> : null}
       </Shell>

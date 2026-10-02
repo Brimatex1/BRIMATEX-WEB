@@ -70,7 +70,7 @@ function SidebarBody({ me, current, onSignOut }: { me: PanelMe; current: Section
         {me.sections.map((s) => {
           const meta = SECTION_META[s];
           const active = s === current;
-          const badge = s === 'orders' ? me.badges.orders : null;
+          const badge = s === 'orders' ? me.badges.orders : s === 'reviews' ? me.badges.reviews : null;
           return (
             <Link
               key={s}
@@ -84,7 +84,7 @@ function SidebarBody({ me, current, onSignOut }: { me: PanelMe; current: Section
               <Icon name={meta.icon} />
               <span className="flex-1">{meta.label}</span>
               {badge ? (
-                <span className="inline-flex h-[26px] items-center rounded-full bg-[#FFF4D6] px-2.5 text-[12.5px] font-semibold text-[#7A5300]" aria-label={`${badge} بانتظار التأكيد`}>
+                <span className="inline-flex h-[26px] items-center rounded-full bg-[#FFF4D6] px-2.5 text-[12.5px] font-semibold text-[#7A5300]" aria-label={`${badge} ${s === 'reviews' ? 'بانتظار المراجعة' : 'بانتظار التأكيد'}`}>
                   {badge}
                 </span>
               ) : null}

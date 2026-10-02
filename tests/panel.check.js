@@ -146,8 +146,13 @@ async function run() {
 
     console.log('\n\x1b[1m2. الأدوار\x1b[0m');
     const me = await req('GET', '/api/panel/me', null, bearer(admin.token));
-    ok('المدير: كل الأقسام السبعة', me.status === 200 && me.json?.role === 'admin' && me.json?.sections?.length === 7);
+    ok(
+      'المدير: كل الأقسام التسعة بترتيب الشريط',
+      me.status === 200 && me.json?.role === 'admin' && me.json?.sections?.join() === 'overview,orders,home,push,quiz,products,reviews,integrations,settings',
+      JSON.stringify(me.json?.sections)
+    );
     ok('المدير يؤكد', me.json?.canConfirm === true);
+    ok('المدير: عدّاد التقييمات بانتظار المراجعة', typeof me.json?.badges?.reviews === 'number', JSON.stringify(me.json?.badges));
 
     ok('دور مجهول ← 400', (await req('PATCH', `/api/panel/users/${marketing.id}/role`, { role: 'سلطان' }, bearer(admin.token))).status === 400);
     ok('لا يُعدَّل مدير ADMIN_PHONES ← 409', (await req('PATCH', `/api/panel/users/${admin.id}/role`, { role: 'support' }, bearer(admin.token))).status === 409);
@@ -161,7 +166,7 @@ async function run() {
 
     const mk = await req('GET', '/api/panel/me', null, bearer(marketing.token));
     ok('التسويق: الواجهة، الإشعارات، ساعدني أختار، المراتب', mk.status === 200 && mk.json.sections.join() === 'home,push,quiz,products', JSON.stringify(mk.json?.sections));
-    ok('التسويق بلا عدّاد طلبات', mk.json?.badges?.orders === null);
+    ok('التسويق بلا عدّاد طلبات ولا تقييمات', mk.json?.badges?.orders === null && mk.json?.badges?.reviews === null);
     ok('التسويق لا يرى نظرة عامة ← 403', (await req('GET', '/api/panel/overview', null, bearer(marketing.token))).status === 403);
     ok('التسويق لا يرى الطلبات ← 403', (await req('GET', '/api/panel/orders', null, bearer(marketing.token))).status === 403);
     ok('التسويق لا يرى الفريق ← 403', (await req('GET', '/api/panel/users', null, bearer(marketing.token))).status === 403);
@@ -172,6 +177,28 @@ async function run() {
     ok('خدمة العملاء ترى نظرة عامة', (await req('GET', '/api/panel/overview', null, bearer(support.token))).status === 200);
     ok('خدمة العملاء لا تعيّن الأدوار ← 403', (await req('PATCH', `/api/panel/users/${customer.id}/role`, { role: 'admin' }, bearer(support.token))).status === 403);
     ok('خدمة العملاء لا تدخل اللوحة القديمة ← 403', (await req('GET', '/api/admin/overview', null, bearer(support.token))).status === 403);
+    ok('خدمة العملاء بلا عدّاد تقييمات', sp.json?.badges?.reviews === null);
+
+    // التقييمات and الربط والتكاملات: admin only - the sections and the routes they call.
+    const ADMIN_ONLY_READS = [
+      '/api/admin/reviews',
+      '/api/admin/settings/odoo',
+      '/api/admin/settings/whatsapp-support',
+      '/api/admin/settings/facebook-pixel',
+      '/api/admin/settings/preorder',
+    ];
+    for (const [label, who] of [['التسويق', marketing], ['خدمة العملاء', support]]) {
+      const sections = (label === 'التسويق' ? mk : sp).json?.sections || [];
+      ok(`${label}: لا التقييمات ولا الربط في الشريط`, !sections.includes('reviews') && !sections.includes('integrations'));
+      for (const path of ADMIN_ONLY_READS) {
+        ok(`${label}: ${path} ← 403`, (await req('GET', path, null, bearer(who.token))).status === 403);
+      }
+      ok(`${label}: نشر تقييم ← 403`, (await req('PATCH', '/api/admin/reviews/00000000-0000-0000-0000-000000000000', { hidden: false }, bearer(who.token))).status === 403);
+      ok(`${label}: المزامنة ← 403`, (await req('POST', '/api/admin/sync', null, bearer(who.token))).status === 403);
+    }
+    for (const path of ADMIN_ONLY_READS) {
+      ok(`المدير: ${path} ← 200`, (await req('GET', path, null, bearer(admin.token))).status === 200);
+    }
 
     console.log('\n\x1b[1m3. الطلبات والمرشّحات\x1b[0m');
     const products = await req('GET', '/api/products');
@@ -237,7 +264,7 @@ async function run() {
     ok('لخدمة العملاء: بلا تقييمات ولا صور', ovSupport.json?.reviewsPending === null && ovSupport.json?.productsWithoutPhoto === null);
 
     console.log('\n\x1b[1m6. العناوين\x1b[0m');
-    for (const path of ['/admin', '/admin/orders', '/admin/settings', '/admin/classic']) {
+    for (const path of ['/admin', '/admin/orders', '/admin/reviews', '/admin/integrations', '/admin/settings', '/admin/classic']) {
       const r = await req('GET', path);
       ok(`${path} ← 200 الواجهة`, r.status === 200 && r.text.includes('<div id="root">'), 'status ' + r.status);
     }

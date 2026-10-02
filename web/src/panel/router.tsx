@@ -8,7 +8,8 @@ import type { Section } from './api';
  *
  *   /admin            نظرة عامة
  *   /admin/orders     الطلبات (filters in the query)
- *   /admin/home  /admin/push  /admin/quiz  /admin/products  /admin/settings
+ *   /admin/home  /admin/push  /admin/quiz  /admin/products
+ *   /admin/reviews (the filter in the query)  /admin/integrations  /admin/settings
  *
  * /admin/classic is the old dashboard - main.tsx mounts that one instead.
  */
@@ -19,6 +20,8 @@ const PATHS: Record<Section, string> = {
   push: '/admin/push',
   quiz: '/admin/quiz',
   products: '/admin/products',
+  reviews: '/admin/reviews',
+  integrations: '/admin/integrations',
   settings: '/admin/settings',
 };
 

@@ -4,7 +4,9 @@
  * Staff only, and per section: every route, reads included, checks the
  * caller's role against the section it serves (src/lib/auth.js sectionsFor):
  *
- *   admin      مدير            every section
+ *   admin      مدير            every section (التقييمات and الربط والتكاملات are
+ *                              admin only; their reads and writes are the classic
+ *                              dashboard's admin-only routes, src/routes/admin.js)
  *   marketing  تسويق           الواجهة، الإشعارات، ساعدني أختار، المراتب
  *   support    خدمة العملاء     نظرة عامة، الطلبات
  *
@@ -98,7 +100,7 @@ function createPanelRoutes() {
   return async function handlePanelRoutes(req, res, url) {
     if (!url.pathname.startsWith('/api/panel/')) return NOT_HANDLED;
 
-    // Who is signed in, what they may open, and the orders badge.
+    // Who is signed in, what they may open, and the sidebar's badges.
     if (req.method === 'GET' && url.pathname === '/api/panel/me') {
       const user = await staffFor(req, res, null);
       if (!user) return;
@@ -107,13 +109,18 @@ function createPanelRoutes() {
       if (sections.includes('orders')) {
         pendingOrders = (await allOrders()).filter((o) => panel.statusOf(o) === 'new').length;
       }
+      // Reviews waiting to be published or hidden (التقييمات - admin only).
+      let pendingReviews = null;
+      if (sections.includes('reviews')) {
+        pendingReviews = (await perks.adminReviews().catch(() => [])).filter((r) => r.pending).length;
+      }
       return sendJson(res, 200, {
         user: { id: user.id, name: user.name || '', phone: user.phone || '' },
         role: auth.roleOf(user),
         sections,
         canConfirm: CONFIRMERS.includes(auth.roleOf(user)),
         odooUrl: odoo.webUrl(),
-        badges: { orders: pendingOrders },
+        badges: { orders: pendingOrders, reviews: pendingReviews },
       });
     }
 
@@ -124,7 +131,7 @@ function createPanelRoutes() {
       const [list, index, products] = await Promise.all([allOrders(), platforms(), catalogue()]);
       const numbers = panel.overview(list, { index });
 
-      // Reviews and photos are an admin's to deal with (the classic dashboard, المراتب).
+      // Reviews and photos are an admin's to deal with (التقييمات, المراتب).
       let reviewsPending = null;
       let productsWithoutPhoto = null;
       if (isAdmin) {

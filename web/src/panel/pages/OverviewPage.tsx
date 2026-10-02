@@ -198,8 +198,7 @@ function Attention({ data, me }: { data: Overview | null; me: PanelMe }) {
       tone: 'ocean',
       icon: 'star',
       text: `${counted(data.reviewsPending, ['تقييم واحد', 'تقييمان', 'تقييمات', 'تقييماً'])} بانتظار المراجعة`,
-      // Reviews are moderated in the classic dashboard for now.
-      href: '/admin/classic',
+      href: sectionHref('reviews', { status: 'pending' }),
     });
   }
   if (data.productsWithoutPhoto?.count && me.sections.includes('products')) {
