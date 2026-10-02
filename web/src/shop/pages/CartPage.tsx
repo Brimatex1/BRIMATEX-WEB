@@ -124,7 +124,7 @@ export function CartPage() {
         <aside className="flex h-fit flex-col gap-3 rounded-lg border border-border p-6 lg:sticky lg:top-40">
           <b className="text-lg">ملخّص الطلب</b>
           <SummaryRow label={`المنتجات (${shop.cart.count})`} value={<Price amount={shop.cart.total} size="row" />} />
-          <SummaryRow label="التوصيل" value={<span className="text-muted-foreground">يُحدَّد بالعنوان</span>} />
+          <SummaryRow label="التوصيل" value="مجاني" />
           <SummaryRow strong label="الإجمالي" value={<Price amount={shop.cart.total} />} />
           <Button size="store" className="mt-2 hidden lg:inline-flex" onClick={checkout}>
             إتمام الطلب

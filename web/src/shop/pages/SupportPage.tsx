@@ -16,7 +16,7 @@ import { Breadcrumb } from './CategoryPage';
  * terms (../legal.ts); a bracketed one is still pending from the owner.
  */
 const FAQ: { id: string; q: string; a: ReactNode }[] = [
-  { id: 'delivery', q: 'كم يستغرق التوصيل؟', a: '[الإجابة]' },
+  { id: 'delivery', q: 'كم يستغرق التوصيل؟', a: 'التوصيل مجاني إلى كل المدن. تختار اليوم والفترة عند إتمام الطلب، ويتصل بك السائق قبل الوصول.' },
   {
     id: 'firmness',
     q: 'كيف أختار صلابة المرتبة؟',

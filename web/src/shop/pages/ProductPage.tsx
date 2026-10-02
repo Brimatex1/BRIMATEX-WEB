@@ -337,7 +337,7 @@ export function ProductPage({ id }: { id: number }) {
                 title="توصيل إلى المنزل"
                 sub={
                   <>
-                    <span className="text-success">● متوفّر</span> · {shop.city ?? 'اختر مدينتك'}
+                    <span className="text-success">● مجاني</span> · {shop.city ?? 'إلى كل المدن'}
                   </>
                 }
               />
