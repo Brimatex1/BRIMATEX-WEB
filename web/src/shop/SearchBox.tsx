@@ -2,7 +2,6 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type Keybo
 import { ScanBarcode, Search } from 'lucide-react';
 
 import { searchProducts } from '@/lib/productSearch';
-import { trackSearch } from '@/lib/pixel';
 import { cn } from '@/lib/utils';
 
 import { TIER_KEYS, TIER_TITLE, describe, displayName, featuredVariant, parseSize, sizeText, variantsOf } from './catalog';
@@ -83,7 +82,6 @@ export function SearchBox({ className }: { className?: string }) {
     if (active >= 0 && options[active]) return openTo(options[active].to);
     const query = q.trim();
     if (!query) return;
-    trackSearch(query);
     go({ name: 'search', query } as Route);
   }
 

@@ -4,6 +4,7 @@ import { MessageSquare, Minus, Phone, Plus, Store } from 'lucide-react';
 
 import { Accordion, AccordionContent, AccordionItem } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
+import { trackContact } from '@/lib/pixel';
 
 import { CONTACT, PLACEHOLDER, SHOWROOM, showroomHours, useWhatsAppDigits } from '../contact';
 import { useTitle } from '../hooks';
@@ -61,10 +62,10 @@ export function SupportPage() {
       <p className="mb-6 mt-2.5 text-base text-muted-foreground lg:mb-8 lg:text-[17px]">فريق خدمة العملاء جاهز لمساعدتك في الاختيار والطلبات والضمان.</p>
 
       <div className="grid gap-3 sm:grid-cols-3 lg:gap-5">
-        <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className={CARD}>
+        <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className={CARD} onClick={() => trackContact('whatsapp')}>
           <Channel icon={<MessageSquare strokeWidth={1.8} />} title="محادثة واتساب" line={`نرد عادةً خلال ${CONTACT.replyTime ?? PLACEHOLDER.replyTime}`} />
         </a>
-        <a href={`tel:${CONTACT.phone.tel}`} className={CARD}>
+        <a href={`tel:${CONTACT.phone.tel}`} className={CARD} onClick={() => trackContact('phone')}>
           <Channel icon={<Phone strokeWidth={1.8} />} title="اتصل بنا" line={<bdi dir="ltr">{CONTACT.phone.display}</bdi>} />
         </a>
         <Link to={{ name: 'showroom' }} className={CARD}>

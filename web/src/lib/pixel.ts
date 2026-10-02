@@ -223,12 +223,13 @@ export function trackPageView() {
 }
 
 /**
- * A product page: reported as the size it opens on - the first of the
- * owner's main sizes (src/lib/sizes.js on the server orders them) - so the
- * catalogue ads show the size most homes buy.
+ * A product page: reported as the size it opens on - the one in its address
+ * (a catalogue ad links to a size), else the first of the owner's main sizes
+ * (src/lib/sizes.js on the server orders them) - so the ad that brought the
+ * visitor is the item credited.
  */
-export function trackViewContent(product: Product) {
-  const size = product.variants?.[0];
+export function trackViewContent(product: Product, opened?: { id: number; price: number }) {
+  const size = opened ?? product.variants?.[0];
   track('ViewContent', {
     content_ids: [size?.id ?? product.id],
     content_type: 'product',
@@ -332,9 +333,12 @@ export function trackAddPaymentInfo(lines: CartLine[], total: number) {
   });
 }
 
-/** A message sent to customer care - Meta's standard event for a customer reaching out. */
-export function trackContact() {
-  track('Contact', { contact_channel: 'support_form' });
+/**
+ * The customer reaching out - Meta's standard event. The channel: the support
+ * form, or the WhatsApp / phone buttons on the help and showroom pages.
+ */
+export function trackContact(channel: 'support_form' | 'whatsapp' | 'phone' = 'support_form') {
+  track('Contact', { contact_channel: channel });
 }
 
 /**

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { MapPin, Phone, ShoppingBasket, Store } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { trackContact } from '@/lib/pixel';
 
 import wave from '../assets/wave-pattern-white.png';
 import showroomPhoto from '../assets/photos/sport-grey.jpg';
@@ -83,7 +84,9 @@ export function ShowroomPage() {
               </a>
             </Button>
             <Button asChild variant="outline" size="store">
-              <a href={`tel:${call.tel}`}>اتصل بالصالة</a>
+              <a href={`tel:${call.tel}`} onClick={() => trackContact('phone')}>
+                اتصل بالصالة
+              </a>
             </Button>
           </div>
         </div>

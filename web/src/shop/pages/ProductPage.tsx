@@ -224,8 +224,8 @@ export function ProductPage({ id }: { id: number }) {
 
   // ViewContent once the catalogue has the product - a visitor from an ad counts too.
   useEffect(() => {
-    if (!product) return;
-    trackViewContent(product);
+    if (!product || !variant) return;
+    trackViewContent(product, variant);
     recordViewed(product.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);

@@ -4,6 +4,7 @@ import { AlertTriangle, LockKeyhole } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { api } from '@/lib/api';
+import { trackCompleteRegistration } from '@/lib/pixel';
 import { cn, toLatinDigits } from '@/lib/utils';
 
 import { Link } from './router';
@@ -111,6 +112,8 @@ export function LoginDrawer() {
     setError(null);
     try {
       const r = await api.completePhoneSignup(signupToken, name.trim());
+      // A new account, now that the WhatsApp code proved the number.
+      trackCompleteRegistration();
       shop.auth.signIn(r.token, r.user);
       shop.closeLogin(true);
     } catch (err) {
