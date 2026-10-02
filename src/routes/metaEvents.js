@@ -52,6 +52,25 @@ async function personFor(req) {
   }
 }
 
+// An event ID already relayed: the same event twice (a retry, a page sending it
+// again) would count twice in Events Manager. Kept two days, at most 20,000.
+const SEEN_MS = 48 * 60 * 60_000;
+const seen = new Map();
+
+function alreadySent(eventName, eventId) {
+  const key = `${eventName}:${eventId}`;
+  const now = Date.now();
+  if (seen.has(key) && now - seen.get(key) < SEEN_MS) return true;
+  seen.set(key, now);
+  if (seen.size > 20_000) {
+    for (const [k, at] of seen) {
+      if (now - at >= SEEN_MS || seen.size > 15_000) seen.delete(k);
+      else break;
+    }
+  }
+  return false;
+}
+
 async function handleMetaEventRoutes(req, res, url) {
   if (url.pathname !== '/api/meta/events') return NOT_HANDLED;
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'POST only' });
@@ -73,7 +92,7 @@ async function handleMetaEventRoutes(req, res, url) {
   const ua = String(req.headers['user-agent'] || '');
   const { pixelId, lydPerUsd } = settings.readPublicFacebookPixel();
   // Accepted and dropped: nothing for Meta, but nothing for the browser to retry either.
-  if (!pixelId || !metaCapi.isConfigured() || !ua || BOT.test(ua) || overLimit(ip)) {
+  if (!pixelId || !metaCapi.isConfigured() || !ua || BOT.test(ua) || overLimit(ip) || alreadySent(eventName, eventId)) {
     res.writeHead(204);
     return res.end();
   }
@@ -98,4 +117,4 @@ async function handleMetaEventRoutes(req, res, url) {
   return res.end();
 }
 
-module.exports = { handleMetaEventRoutes, NOT_HANDLED };
+module.exports = { handleMetaEventRoutes, NOT_HANDLED, _alreadySent: alreadySent };

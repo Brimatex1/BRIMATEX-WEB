@@ -3,7 +3,7 @@ import { AlertTriangle, Banknote, Building2, Check, ChevronDown, ChevronLeft, Cr
 
 import { Button } from '@/components/ui/button';
 import { api, ApiError } from '@/lib/api';
-import { setPixelPerson, trackAddPaymentInfo, trackInitiateCheckout, trackPurchase, trackingContext } from '@/lib/pixel';
+import { forgetCheckout, setPixelPerson, trackAddPaymentInfo, trackCheckoutOnce, trackPurchase, trackingContext } from '@/lib/pixel';
 import { cn, formatPrice, toLatinDigits } from '@/lib/utils';
 import type { LoyaltyChoice } from '@/types';
 
@@ -181,14 +181,19 @@ export function CheckoutPage() {
     if (!date || !days.some((d) => isoDay(d) === date)) setDate(isoDay(days[0]));
   }, [days, date]);
 
-  // InitiateCheckout once, on arrival with something in the cart.
+  // InitiateCheckout once per checkout (lib/pixel.ts trackCheckoutOnce), signed in and with
+  // the customer's hashed phone, name and city in place first, so both the Pixel and the
+  // server's copy carry them.
   const started = useRef(false);
   useEffect(() => {
-    if (started.current || !shop.cart.lines.length) return;
+    if (started.current || !shop.cart.lines.length || !user) return;
     started.current = true;
-    trackInitiateCheckout(shop.cart.lines, total);
+    const lines = shop.cart.lines;
+    void setPixelPerson({ id: user.id, name: user.name, phone: user.phone, city: city || user.addresses?.[0]?.city })
+      .catch(() => {})
+      .then(() => trackCheckoutOnce(lines, total));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shop.cart.lines.length]);
+  }, [shop.cart.lines.length, user]);
 
   // Off, or the balance could not be read: no box, no lines, nothing sent.
   const perks = shop.loyalty.info;
@@ -276,6 +281,7 @@ export function CheckoutPage() {
       // Advanced Matching: the Purchase carries who ordered (hashed).
       await setPixelPerson({ id: user.id, name: user.name, phone, city: orderCity });
       trackPurchase(result, shop.cart.lines);
+      forgetCheckout();
       const placed: PlacedOrder = {
         orderName: result.orderName,
         total: result.total || payable,

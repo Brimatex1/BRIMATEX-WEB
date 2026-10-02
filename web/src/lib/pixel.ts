@@ -255,7 +255,11 @@ function contentsOf(lines: CartLine[]) {
   return lines.map((l) => ({ id: l.id, quantity: l.qty, delivery_category: 'home_delivery' }));
 }
 
-export function trackInitiateCheckout(lines: CartLine[], total: number) {
+/**
+ * Checkout started. `eventID` (ic_<cart>_<time>) is the one the server's copy
+ * carries too, so Meta keeps one of the two.
+ */
+export function trackInitiateCheckout(lines: CartLine[], total: number, eventID?: string) {
   track('InitiateCheckout', {
     content_ids: lines.map((l) => l.id),
     content_type: 'product',
@@ -263,7 +267,57 @@ export function trackInitiateCheckout(lines: CartLine[], total: number) {
     num_items: lines.reduce((n, l) => n + l.qty, 0),
     value: total,
     currency: CURRENCY_ISO,
-  });
+  }, eventID ? { eventID } : undefined);
+}
+
+/* One InitiateCheckout per checkout: a cart's own ID, and the cart it was sent for. */
+const CART_ID_KEY = 'brimatex:cart-id';
+const CHECKOUT_SENT_KEY = 'brimatex:checkout-sent';
+
+function cartId(): string {
+  try {
+    let id = localStorage.getItem(CART_ID_KEY);
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(CART_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    return 'nocart';
+  }
+}
+
+/** The cart as it stands - the same lines in any order give the same text. */
+function cartSignature(lines: CartLine[]): string {
+  return lines.map((l) => `${l.id}x${l.qty}`).sort().join(',');
+}
+
+/**
+ * InitiateCheckout once per checkout: going back to the cart and returning
+ * with the same cart sends nothing; a changed cart is a new checkout. Returns
+ * the event ID sent, or null when this cart was already counted.
+ */
+export function trackCheckoutOnce(lines: CartLine[], total: number): string | null {
+  const signature = `${cartId()}:${cartSignature(lines)}`;
+  try {
+    if (sessionStorage.getItem(CHECKOUT_SENT_KEY) === signature) return null;
+    sessionStorage.setItem(CHECKOUT_SENT_KEY, signature);
+  } catch {
+    /* storage blocked - the page's own guard still sends it once per visit */
+  }
+  const eventID = `ic_${cartId()}_${Date.now()}`;
+  trackInitiateCheckout(lines, total, eventID);
+  return eventID;
+}
+
+/** After an order: the next cart is a new one, with its own checkout. */
+export function forgetCheckout() {
+  try {
+    localStorage.removeItem(CART_ID_KEY);
+    sessionStorage.removeItem(CHECKOUT_SENT_KEY);
+  } catch {
+    /* storage blocked */
+  }
 }
 
 /**
