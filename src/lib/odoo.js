@@ -282,7 +282,7 @@ async function fetchProducts() {
 
   const variantIds = templates.flatMap((t) => t.product_variant_ids);
   const variants = await readInBatches('product.product', variantIds, {
-    fields: ['id', 'default_code', 'lst_price', 'qty_available', 'product_template_attribute_value_ids'],
+    fields: ['id', 'default_code', 'barcode', 'lst_price', 'qty_available', 'product_template_attribute_value_ids'],
   });
 
   // Each size's price from the retail price list (see retailPricelistId).
@@ -308,6 +308,8 @@ async function fetchProducts() {
         // still a usable (if ugly) label rather than a blank option.
         label: v.product_template_attribute_value_ids.map((id) => ptavNameById.get(id) || id).join(' / '),
         sku: v.default_code || '',
+        // The EAN on the mattress label - the app's scanner finds the size by it.
+        barcode: v.barcode || null,
         // The retail price list's price for this size; the card's lst_price (the
         // variant's own, attribute extras included) only when the list has none.
         price: prices.byVariant.get(v.id) ?? prices.byTemplate.get(t.id) ?? v.lst_price,

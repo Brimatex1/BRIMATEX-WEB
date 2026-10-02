@@ -1,6 +1,7 @@
 /**
  * Each mattress's details from the printed catalogue - its description, spec
- * icons, warranty and layers - shipped with the site in
+ * icons, warranty and layers, and the short line the app's cards show under
+ * the name ("tagline": «مرتبة نوابض بوسادة علوية») - shipped with the site in
  * src/data/product-details.json and matched by the Odoo product (template)
  * id, like the photos (src/lib/productPhotos.js) - the id survives the renames
  * a name does not. Odoo holds none of this; the dashboard can still
@@ -14,6 +15,7 @@ const MAP_FILE = path.join(__dirname, '..', 'data', 'product-details.json');
 function clean(entry) {
   return {
     description: typeof entry.description === 'string' && entry.description.trim() ? entry.description.trim() : null,
+    tagline: typeof entry.tagline === 'string' && entry.tagline.trim() ? entry.tagline.trim() : null,
     iconKeys: Array.isArray(entry.iconKeys) ? entry.iconKeys.filter((k) => typeof k === 'string') : [],
     warrantyYears: Number.isInteger(entry.warrantyYears) && entry.warrantyYears > 0 ? entry.warrantyYears : null,
     layers: Array.isArray(entry.layers) ? entry.layers.filter((l) => typeof l === 'string' && l.trim()) : [],
@@ -38,7 +40,7 @@ function load() {
 // Read once: the file only changes with a deploy, which restarts the server.
 const DETAILS = load();
 
-const NONE = Object.freeze({ description: null, iconKeys: [], warrantyYears: null, layers: [] });
+const NONE = Object.freeze({ description: null, tagline: null, iconKeys: [], warrantyYears: null, layers: [] });
 
 /** The catalogue's details for a product (by its Odoo template id) - empty fields when it has none. */
 function detailsFor(product) {

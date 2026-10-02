@@ -41,7 +41,10 @@ for (const [key, entry] of entries) {
   const name = entry.product || key;
   check(`${name}: keyed by an Odoo id`, /^\d+$/.test(key), key);
   const d = detailsFor({ templateId: Number(key) });
-  check(`${name}: has a description`, Boolean(d.description) && d.description.length > 60);
+  // A mattress the printed catalogue does not cover (بالانس) carries only its
+  // short line and layers; any description it has must be a real one.
+  check(`${name}: a description, or none at all`, entry.description === undefined ? d.description === null : Boolean(d.description) && d.description.length > 60);
+  check(`${name}: a short line for the app's cards`, Boolean(d.tagline) && d.tagline.length <= 40, String(d.tagline));
   const unknown = d.iconKeys.filter((k) => !KNOWN.has(k));
   check(`${name}: every icon exists`, unknown.length === 0, unknown.join(', '));
   check(`${name}: no icon twice`, new Set(d.iconKeys).size === d.iconKeys.length);
@@ -51,7 +54,7 @@ for (const [key, entry] of entries) {
     d.warrantyYears ? warrantyIcons.length === 1 && warrantyIcons[0] === `warranty-${d.warrantyYears}` : warrantyIcons.length === 0,
     warrantyIcons.join(', ')
   );
-  check(`${name}: nothing dropped while reading`, d.iconKeys.length === entry.iconKeys.length && d.layers.length === entry.layers.length);
+  check(`${name}: nothing dropped while reading`, d.iconKeys.length === (entry.iconKeys ?? []).length && d.layers.length === (entry.layers ?? []).length);
 }
 
 group('Matching');
