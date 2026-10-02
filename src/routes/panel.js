@@ -10,8 +10,9 @@
  *
  * The classic dashboard (/admin/classic, src/routes/admin.js) stays admin only.
  *
- * Odoo is written to in one place only: «تأكيد» on a new order runs the sale
- * order's action_confirm, when an admin or support user presses it.
+ * Odoo is written to in two places only: «تأكيد» on a new order runs the sale
+ * order's action_confirm, when an admin or support user presses it; and
+ * «حفظ» in الإعدادات sets the system parameter brimatex.app.settings (admin).
  */
 'use strict';
 
@@ -23,6 +24,8 @@ const perks = require('../lib/perks');
 const devices = require('../lib/devices');
 const banners = require('../lib/banners');
 const panel = require('../lib/panel');
+const appSettings = require('../lib/appSettings');
+const { DAYS_TEXT } = require('../lib/delivery');
 const { getProducts, visibleOnly, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
 
@@ -193,6 +196,35 @@ function createPanelRoutes() {
       const [index, products] = await Promise.all([platforms(), catalogue()]);
       return sendJson(res, 200, {
         order: panel.toRow(panel.normalize(updated), { index, lookup: productLookup(products), odooUrl: odoo.webUrl() }),
+      });
+    }
+
+    // ---- الإعدادات: the apps' and the website's settings (admin only) ----
+
+    if ((req.method === 'GET' || req.method === 'PUT') && url.pathname === '/api/panel/settings') {
+      const user = await staffFor(req, res, 'settings');
+      if (!user) return;
+      if (!auth.isAdmin(user)) return sendJson(res, 403, { error: 'للمدير فقط', code: 'section' });
+
+      let value;
+      try {
+        if (req.method === 'GET') {
+          value = await appSettings.load();
+        } else {
+          const body = await jsonBody(req, res);
+          if (!body) return;
+          value = await appSettings.save(body.settings ?? body);
+          console.log(`[panel] settings saved by ${user.id} (${appSettings.storage()})`);
+        }
+      } catch (err) {
+        if (!(err instanceof appSettings.AppSettingsError)) throw err;
+        return sendJson(res, err.status, { error: err.message, field: err.field, code: err.code });
+      }
+      return sendJson(res, 200, {
+        settings: value,
+        storage: appSettings.storage(),
+        // «مدن التوصيل» is read-only: free to every city, on these days.
+        delivery: { fee: 0, days: DAYS_TEXT },
       });
     }
 

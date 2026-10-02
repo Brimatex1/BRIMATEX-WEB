@@ -449,6 +449,24 @@ export interface ConversionsApiStatus {
   } | null;
 }
 
+/**
+ * GET /api/app/v1/config - what the admin panel's «الإعدادات» sets for the
+ * apps and the website (src/lib/appSettings.js). Phones in local form.
+ * More keys join later (the home page, the quiz).
+ */
+export interface AppConfig {
+  settings: {
+    minVersion: { ios: string; android: string };
+    forceUpdate: boolean;
+    /** On: ordering stops everywhere and `message` shows. */
+    maintenance: { on: boolean; message: string };
+    /** Off: adding to the cart asks for sign-in first. */
+    guestBrowsing: boolean;
+    contact: { phone: string; whatsapp: string; email: string; showroom: string };
+    quietHours?: { from: string; to: string };
+  };
+}
+
 export interface WhatsappSupportSettings {
   phone: string | null;
   message: string;

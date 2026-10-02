@@ -4,7 +4,7 @@
  * empty state, page container. Colours come from the CSS variables only.
  */
 import type { ReactNode } from 'react';
-import { Check, Minus, Plus, Star } from 'lucide-react';
+import { Check, Minus, Plus, Star, TriangleAlert } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -135,6 +135,16 @@ export function EmptyState({ icon, title, body, action, onAction, className }: {
         </Button>
       ) : null}
     </div>
+  );
+}
+
+/** Why «إتمام الطلب» is off: the maintenance message (the admin panel's «وضع الصيانة»). */
+export function MaintenanceNote({ message, className }: { message: string; className?: string }) {
+  return (
+    <p role="status" className={cn('flex items-start gap-2 text-[13px] font-semibold text-[#7A5300] dark:text-[#F3D58A]', className)}>
+      <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.8} aria-hidden />
+      <span>{message}</span>
+    </p>
   );
 }
 

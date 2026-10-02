@@ -2,6 +2,7 @@ import { useEffect, type MouseEvent } from 'react';
 
 import { cn } from '@/lib/utils';
 
+import { useContact } from '../contact';
 import { useTitle } from '../hooks';
 import { LEGAL, type LegalPageKey, type LegalText } from '../legal';
 import { Link } from '../router';
@@ -19,10 +20,18 @@ function scrollToSection(id: string) {
 }
 
 function Paragraph({ parts }: { parts: LegalText[] }) {
+  const contact = useContact();
   return (
     <p className="text-[15px] leading-[1.9] lg:text-base">
-      {parts.map((part, i) =>
-        typeof part === 'string' ? (
+      {parts.map((raw, i) => {
+        // The shop's email and phone as the admin panel sets them.
+        const part: LegalText =
+          typeof raw !== 'string' && raw.contact === 'email'
+            ? { ltr: contact.email, href: `mailto:${contact.email}` }
+            : typeof raw !== 'string' && raw.contact === 'phone'
+              ? { ltr: contact.phone.display, href: `tel:${contact.phone.tel}` }
+              : raw;
+        return typeof part === 'string' ? (
           part
         ) : part.href ? (
           <a key={i} href={part.href} className="text-brand-text underline-offset-4 hover:underline">
@@ -32,8 +41,8 @@ function Paragraph({ parts }: { parts: LegalText[] }) {
           <bdi key={i} dir="ltr">
             {part.ltr}
           </bdi>
-        )
-      )}
+        );
+      })}
     </p>
   );
 }

@@ -14,7 +14,7 @@ import { CouponCodeForm, CouponIcon, formatPoints, Minus, PointsIcon } from '../
 import { photoOf } from '../ProductCard';
 import { Link, useRouter } from '../router';
 import { lineItem, useShop } from '../state';
-import { Container, Price, SizeText } from '../ui';
+import { Container, MaintenanceNote, Price, SizeText } from '../ui';
 import { SummaryRow } from './CartPage';
 
 type Payment = 'cash' | 'card' | 'transfer';
@@ -249,7 +249,8 @@ export function CheckoutPage() {
   }
 
   async function confirm() {
-    if (submitting || !user || !lines.length || !validate()) return;
+    // Maintenance: the server refuses too (503); this saves the round trip.
+    if (submitting || shop.maintenance || !user || !lines.length || !validate()) return;
     setSubmitting(true);
     setFailure(null);
     const address = pickup ? SHOWROOM_ADDRESS : usingSaved ? chosenSaved!.address : `${area.trim()}، ${street.trim()}`;
@@ -576,7 +577,8 @@ export function CheckoutPage() {
           {summaryLines}
           <div className="border-t border-border pt-4">{totals}</div>
           {failure ? <FailureLine text={failure} /> : null}
-          <Button size="store" loading={submitting} onClick={() => void confirm()} aria-busy={submitting}>
+          {shop.maintenance ? <MaintenanceNote message={shop.maintenance} /> : null}
+          <Button size="store" loading={submitting} disabled={Boolean(shop.maintenance)} onClick={() => void confirm()} aria-busy={submitting}>
             تأكيد الطلب
           </Button>
           <span className="text-center text-[13px] text-muted-foreground">
@@ -592,7 +594,8 @@ export function CheckoutPage() {
       {/* Phones: «تأكيد الطلب · الإجمالي» at hand. */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-border bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 lg:hidden">
         {failure ? <FailureLine text={failure} /> : null}
-        <Button size="store" className="w-full" loading={submitting} onClick={() => void confirm()}>
+        {shop.maintenance ? <MaintenanceNote message={shop.maintenance} /> : null}
+        <Button size="store" className="w-full" loading={submitting} disabled={Boolean(shop.maintenance)} onClick={() => void confirm()}>
           تأكيد الطلب · <Price amount={payable} size="row" className="text-primary-foreground" />
         </Button>
       </div>

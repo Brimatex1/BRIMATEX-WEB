@@ -22,6 +22,7 @@ const TITLE = {
   checkout: 'سجّل الدخول لإتمام الطلب',
   favorites: 'سجّل الدخول لتبقى المفضّلة معك',
   account: 'تسجيل الدخول',
+  cart: 'سجّل الدخول للإضافة إلى السلة',
 } as const;
 
 /**
@@ -135,7 +136,11 @@ export function LoginDrawer() {
         </span>
         <SheetTitle className="font-display text-2xl font-bold sm:text-[28px]">{step === 'name' ? 'مرحباً بك' : TITLE[reason]}</SheetTitle>
         <SheetDescription className="text-[15px] leading-relaxed text-muted-foreground">
-          {step === 'name' ? 'ما اسمك؟ نستخدمه على طلباتك وفاتورتك.' : 'التصفّح والإضافة إلى السلة والمفضّلة متاحة دون حساب. نطلب الدخول لإتمام الطلب فقط.'}
+          {step === 'name'
+            ? 'ما اسمك؟ نستخدمه على طلباتك وفاتورتك.'
+            : shop.config?.guestBrowsing === false
+              ? 'التصفّح والمفضّلة متاحان دون حساب. نطلب الدخول للإضافة إلى السلة وإتمام الطلب.'
+              : 'التصفّح والإضافة إلى السلة والمفضّلة متاحة دون حساب. نطلب الدخول لإتمام الطلب فقط.'}
         </SheetDescription>
         {/* The loyalty add-on's one line for guests - shown even while the program is off. */}
         {step !== 'name' ? (

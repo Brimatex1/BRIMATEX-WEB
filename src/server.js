@@ -31,6 +31,7 @@ const push = require('./lib/push');
 const orders = require('./lib/orders');
 const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
+const appSettings = require('./lib/appSettings');
 const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
@@ -253,6 +254,13 @@ async function handleApi(req, res, url) {
     const product = products.find((p) => p.id === id || (p.variants ?? []).some((v) => v.id === id));
     const ids = product ? [product.id, ...(product.variants ?? []).map((v) => v.id)] : [id];
     return sendJson(res, 200, await perksLib.publicReviews(ids));
+  }
+
+  // The apps' and the website's settings (the panel's الإعدادات, src/lib/appSettings.js):
+  // public, kept 5 minutes in memory and by every client; a save replaces it at once here.
+  if (req.method === 'GET' && url.pathname === '/api/app/v1/config') {
+    const value = await appSettings.current();
+    return sendJson(res, 200, appSettings.publicConfig(value), { 'Cache-Control': 'public, max-age=300' });
   }
 
   // The home page's sliding banners - set from the dashboard (src/lib/banners.js).

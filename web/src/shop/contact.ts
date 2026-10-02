@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
 
+import { useShop } from './state';
+
 /**
  * How to reach Brimatex, in one place for «تواصل معنا» and «صالة العرض».
  * A null value is still pending from the owner: the pages show the handoff's
- * bracketed placeholder in its place.
+ * bracketed placeholder in its place. The admin panel's «التواصل» replaces
+ * these once /api/app/v1/config answers - see useContact.
  */
 export const CONTACT = {
   /** The shop's line (the server's default WhatsApp number, src/lib/settings.js), shown as Libyans write it. */
@@ -71,4 +74,34 @@ export function useWhatsAppDigits(): string {
     };
   }, []);
   return digits;
+}
+
+/** 0935770070 → «093 577 00 70», as the shop writes its line. */
+function localDisplay(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  return /^0\d{9}$/.test(d) ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6, 8)} ${d.slice(8)}` : phone;
+}
+
+export interface LiveContact {
+  phone: { display: string; tel: string };
+  /** wa.me digits. */
+  whatsapp: string;
+  email: string;
+  /** The showroom's address in one line: «حي الأندلس، طرابلس». */
+  showroom: string;
+}
+
+/**
+ * The contact details the admin panel sets (الإعدادات → التواصل), with this
+ * file's values until they arrive - or if they never do.
+ */
+export function useContact(): LiveContact {
+  const live = useShop().config?.contact;
+  const whatsapp = useWhatsAppDigits();
+  return {
+    phone: live?.phone ? { display: localDisplay(live.phone), tel: `+${waDigits(live.phone)}` } : CONTACT.phone,
+    whatsapp: live?.whatsapp ? waDigits(live.whatsapp) : whatsapp,
+    email: live?.email || CONTACT.email,
+    showroom: live?.showroom || `${SHOWROOM.area} · ${SHOWROOM.city}`,
+  };
 }

@@ -21,6 +21,8 @@ const LIBYA_OFFSET_HOURS = 2;
 const SLOT_HOUR = { morning: 9, evening: 17 };
 /** How far ahead a day can be chosen. */
 const MAX_DAYS_AHEAD = 45;
+/** The rule above in words, for the panel's «مدن التوصيل» (every city alike). */
+const DAYS_TEXT = 'كل الأيام عدا الجمعة، صباحاً أو مساءً';
 
 const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -73,4 +75,4 @@ function readDelivery(order, now = new Date()) {
   return { method, date, slot, paymentMethod: pay || null, commitmentDate, noteLines: lines };
 }
 
-module.exports = { readDelivery, dayLabel, libyaToday, METHODS, SLOTS, PAYMENTS };
+module.exports = { readDelivery, dayLabel, libyaToday, METHODS, SLOTS, PAYMENTS, DAYS_TEXT };

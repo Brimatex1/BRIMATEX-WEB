@@ -6,7 +6,7 @@ import { Accordion, AccordionContent, AccordionItem } from '@/components/ui/acco
 import { Button } from '@/components/ui/button';
 import { trackContact } from '@/lib/pixel';
 
-import { CONTACT, PLACEHOLDER, SHOWROOM, showroomHours, useWhatsAppDigits } from '../contact';
+import { CONTACT, PLACEHOLDER, SHOWROOM, showroomHours, useContact } from '../contact';
 import { useTitle } from '../hooks';
 import { Link } from '../router';
 import { Container } from '../ui';
@@ -53,7 +53,8 @@ function Channel({ icon, title, line }: { icon: ReactNode; title: string; line: 
 /** تواصل معنا (handoff WebSupport, /help): WhatsApp, a call, the showroom, the hours, then common questions. */
 export function SupportPage() {
   useTitle('تواصل معنا');
-  const whatsapp = useWhatsAppDigits();
+  const contact = useContact();
+  const whatsapp = contact.whatsapp;
 
   return (
     <Container className="pb-16 lg:pb-24">
@@ -65,11 +66,11 @@ export function SupportPage() {
         <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noopener noreferrer" className={CARD} onClick={() => trackContact('whatsapp')}>
           <Channel icon={<MessageSquare strokeWidth={1.8} />} title="محادثة واتساب" line={`نرد عادةً خلال ${CONTACT.replyTime ?? PLACEHOLDER.replyTime}`} />
         </a>
-        <a href={`tel:${CONTACT.phone.tel}`} className={CARD} onClick={() => trackContact('phone')}>
-          <Channel icon={<Phone strokeWidth={1.8} />} title="اتصل بنا" line={<bdi dir="ltr">{CONTACT.phone.display}</bdi>} />
+        <a href={`tel:${contact.phone.tel}`} className={CARD} onClick={() => trackContact('phone')}>
+          <Channel icon={<Phone strokeWidth={1.8} />} title="اتصل بنا" line={<bdi dir="ltr">{contact.phone.display}</bdi>} />
         </a>
         <Link to={{ name: 'showroom' }} className={CARD}>
-          <Channel icon={<Store strokeWidth={1.8} />} title="زيارة صالة العرض" line={`${SHOWROOM.area} · ${SHOWROOM.city}`} />
+          <Channel icon={<Store strokeWidth={1.8} />} title="زيارة صالة العرض" line={contact.showroom} />
         </Link>
       </div>
 

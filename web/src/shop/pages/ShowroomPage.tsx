@@ -7,7 +7,7 @@ import { trackContact } from '@/lib/pixel';
 import wave from '../assets/wave-pattern-white.png';
 import showroomPhoto from '../assets/photos/sport-grey.jpg';
 import { displayName } from '../catalog';
-import { CONTACT, PLACEHOLDER, SHOWROOM, showroomHours, showroomMapsUrl } from '../contact';
+import { PLACEHOLDER, SHOWROOM, showroomHours, showroomMapsUrl, useContact } from '../contact';
 import { useTitle } from '../hooks';
 import { ProductCard } from '../ProductCard';
 import { useShop } from '../state';
@@ -43,7 +43,8 @@ export function ShowroomPage() {
   const named = ON_THE_FLOOR.map((n) => shop.products.find((p) => displayName(p) === n)).filter((p): p is NonNullable<typeof p> => Boolean(p));
   const rest = [...shop.products].filter((p) => !named.includes(p)).sort((a, b) => (b.rating?.count ?? 0) - (a.rating?.count ?? 0));
   const floor = [...named, ...rest].slice(0, 4);
-  const call = SHOWROOM.phone ?? CONTACT.phone;
+  const contact = useContact();
+  const call = SHOWROOM.phone ?? contact.phone;
 
   return (
     <div className="flex flex-col pb-16 lg:pb-24">
@@ -66,7 +67,7 @@ export function ShowroomPage() {
       <Container className="grid gap-8 pt-8 lg:grid-cols-2 lg:gap-10 lg:pt-12">
         <div className="flex flex-col gap-5">
           <Fact icon={<MapPin strokeWidth={1.8} />} title="العنوان">
-            {SHOWROOM.area} · {SHOWROOM.city}
+            {contact.showroom}
           </Fact>
           <Fact icon={<Store strokeWidth={1.8} />} title="ساعات العمل">
             {showroomHours()}

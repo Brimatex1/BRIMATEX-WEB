@@ -13,7 +13,9 @@ const path = require('path');
  * browser. See readPublicOdoo.
  */
 
-const SETTINGS_FILE = path.join(__dirname, '..', 'data', 'settings.local.json');
+// BRIMATEX_SETTINGS_FILE lets a test server keep its own file, so a test that
+// switches maintenance on never touches the copy a developer runs with.
+const SETTINGS_FILE = process.env.BRIMATEX_SETTINGS_FILE || path.join(__dirname, '..', 'data', 'settings.local.json');
 
 const ENV_ODOO = {
   url: process.env.ODOO_URL || '',
@@ -270,7 +272,25 @@ function writeInstagram(list) {
   writeFile(data);
 }
 
+/**
+ * The apps' and the website's settings (src/lib/appSettings.js owns the
+ * rules) when Odoo is not connected - a local or demo server. With Odoo they
+ * live in its system parameter brimatex.app.settings instead. Null until saved.
+ */
+function readAppSettings() {
+  const stored = readFile().appSettings;
+  return stored && typeof stored === 'object' ? stored : null;
+}
+
+function writeAppSettings(value) {
+  const data = readFile();
+  data.appSettings = value;
+  writeFile(data);
+}
+
 module.exports = {
+  readAppSettings,
+  writeAppSettings,
   readBanners,
   writeBanners,
   readInstagram,

@@ -26,6 +26,7 @@ const { getProducts, productLookup } = require('../lib/catalogue');
 const { preorderNote } = require('../lib/preorder');
 const { sendJson, readBody } = require('../lib/respond');
 const { readDelivery } = require('../lib/delivery');
+const appSettings = require('../lib/appSettings');
 
 /**
  * Arabic-Indic (٠١٢…) and Persian (۰۱۲…) digits as 0-9 - what a phone set to
@@ -136,6 +137,14 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
             message: `طلبك ${alreadyPlaced.orderName} مسجّل لدينا بالفعل`,
           });
         }
+      }
+
+      // Maintenance (the panel's «وضع الصيانة»): no new order from any client,
+      // whatever its screens show. A retry of an order placed before it began
+      // still gets its reply above.
+      const app = await appSettings.current();
+      if (app.maintenance.on) {
+        return sendJson(res, 503, { error: app.maintenance.message, code: 'maintenance' });
       }
 
       // Orders are accepted without an account, but stamp the owner when the

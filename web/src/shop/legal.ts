@@ -4,8 +4,12 @@
  * handoff's placeholders, left for the owner to fill.
  */
 
-/** A piece of a paragraph: Arabic text, or a left-to-right value (an email, a phone) that may be a link. */
-export type LegalText = string | { ltr: string; href?: string };
+/**
+ * A piece of a paragraph: Arabic text, or a left-to-right value (an email, a
+ * phone) that may be a link. `contact` marks the shop's own email or phone,
+ * which the admin panel's «التواصل» replaces when set (LegalPage).
+ */
+export type LegalText = string | { ltr: string; href?: string; contact?: 'email' | 'phone' };
 
 export interface LegalSection {
   /** The anchor the sidebar scrolls to. */
@@ -23,8 +27,8 @@ export interface LegalDoc {
 export type LegalPageKey = 'privacy' | 'terms';
 
 /** The company's mail and phone (src/public/privacy.html, the shop's line in WhatsAppOrder.tsx). */
-const EMAIL = { ltr: 'info@brimatex.ly', href: 'mailto:info@brimatex.ly' };
-const PHONE = { ltr: '093 577 00 70', href: 'tel:+218935770070' };
+const EMAIL: LegalText = { ltr: 'info@brimatex.ly', href: 'mailto:info@brimatex.ly', contact: 'email' };
+const PHONE: LegalText = { ltr: '093 577 00 70', href: 'tel:+218935770070', contact: 'phone' };
 
 export const LEGAL: Record<LegalPageKey, LegalDoc> = {
   privacy: {

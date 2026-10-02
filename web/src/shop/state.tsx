@@ -13,7 +13,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api as http } from '@/lib/api';
 import { trackAddToCart, trackAddToWishlist } from '@/lib/pixel';
-import type { Product, ProductVariant } from '@/types';
+import type { AppConfig, Product, ProductVariant } from '@/types';
 
 import { shopProducts, variantsOf } from './catalog';
 import { useLoyaltyStore, type LoyaltyApi } from './loyalty';
@@ -42,6 +42,7 @@ function readCity(): string | null {
 }
 
 type Auth = ReturnType<typeof useAuth>;
+export type LoginReason = 'checkout' | 'favorites' | 'account' | 'cart';
 type Cart = ReturnType<typeof useCart>;
 type Wishlist = ReturnType<typeof useWishlist>;
 
@@ -66,8 +67,8 @@ interface ShopApi {
   setCartDrawerOpen: (open: boolean) => void;
 
   /** Runs `then` signed in: at once, or after the login drawer succeeds. */
-  requireLogin: (reason: 'checkout' | 'favorites' | 'account', then?: () => void) => void;
-  loginDrawer: { open: boolean; reason: 'checkout' | 'favorites' | 'account' };
+  requireLogin: (reason: LoginReason, then?: () => void) => void;
+  loginDrawer: { open: boolean; reason: LoginReason };
   closeLogin: (signedIn: boolean) => void;
 
   /** Saves or unsaves - in the account, or in this browser for a guest. */
@@ -84,6 +85,11 @@ interface ShopApi {
 
   /** Points and the coupon for the next order (the loyalty add-on). */
   loyalty: LoyaltyApi;
+
+  /** The admin panel's settings (GET /api/app/v1/config), null until they arrive. */
+  config: AppConfig['settings'] | null;
+  /** «وضع الصيانة»: its message while ordering is stopped, else null. */
+  maintenance: string | null;
 }
 
 const ShopContext = createContext<ShopApi | null>(null);
@@ -96,7 +102,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const loyalty = useLoyaltyStore(auth.token, auth.user?.id, auth.checking);
 
   const [cartDrawer, setCartDrawer] = useState<{ open: boolean; addedId: number | null }>({ open: false, addedId: null });
-  const [loginDrawer, setLoginDrawer] = useState<{ open: boolean; reason: 'checkout' | 'favorites' | 'account' }>({ open: false, reason: 'account' });
+  const [loginDrawer, setLoginDrawer] = useState<{ open: boolean; reason: LoginReason }>({ open: false, reason: 'account' });
   const afterLogin = useRef<(() => void) | null>(null);
   const [city, setCityState] = useState<string | null>(readCity);
   const [cityDialogOpen, setCityDialogOpen] = useState(false);
@@ -122,16 +128,21 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     [catalogue.products]
   );
 
-  const addToCart = useCallback(
-    (product: Product, variant: ProductVariant) => {
-      // A cart line is the size itself, named after the mattress (as the site always stored it).
-      const asLine: Product = { ...product, id: variant.id, price: variant.price, sku: variant.sku, stock: variant.stock, inStock: variant.inStock, preorder: variant.preorder };
-      cart.add(asLine);
-      trackAddToCart(asLine);
-      setCartDrawer({ open: true, addedId: variant.id });
-    },
-    [cart]
-  );
+  // The panel's settings, read once per visit (the server keeps them 5 minutes).
+  const [config, setConfig] = useState<AppConfig['settings'] | null>(null);
+  useEffect(() => {
+    let live = true;
+    http
+      .getAppConfig()
+      .then((c) => live && setConfig(c.settings))
+      .catch(() => {
+        /* Without them the shop runs as before: open, with its own contact details. */
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const maintenance = config?.maintenance.on ? config.maintenance.message : null;
 
   const requireLogin = useCallback<ShopApi['requireLogin']>(
     (reason, then) => {
@@ -144,6 +155,32 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       setLoginDrawer({ open: true, reason });
     },
     [auth.user]
+  );
+
+  const addLine = useCallback(
+    (product: Product, variant: ProductVariant) => {
+      // A cart line is the size itself, named after the mattress (as the site always stored it).
+      const asLine: Product = { ...product, id: variant.id, price: variant.price, sku: variant.sku, stock: variant.stock, inStock: variant.inStock, preorder: variant.preorder };
+      cart.add(asLine);
+      trackAddToCart(asLine);
+      setCartDrawer({ open: true, addedId: variant.id });
+    },
+    [cart]
+  );
+  // Read after the login drawer closes, when this render's addLine may be stale.
+  const addLineRef = useRef(addLine);
+  addLineRef.current = addLine;
+
+  const addToCart = useCallback(
+    (product: Product, variant: ProductVariant) => {
+      // «السماح بالطلب كزائر حتى السلة» off: a guest signs in first, then the size goes in.
+      if (config?.guestBrowsing === false && !auth.user) {
+        requireLogin('cart', () => addLineRef.current(product, variant));
+        return;
+      }
+      addLine(product, variant);
+    },
+    [config?.guestBrowsing, auth.user, requireLogin, addLine]
   );
 
   const closeLogin = useCallback((signedIn: boolean) => {
@@ -252,8 +289,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       method,
       setMethod,
       loyalty,
+      config,
+      maintenance,
     }),
-    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty]
+    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty, config, maintenance]
   );
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;

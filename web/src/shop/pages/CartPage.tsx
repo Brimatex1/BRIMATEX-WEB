@@ -9,7 +9,7 @@ import { photoOf, ProductCard } from '../ProductCard';
 import { readViewed } from '../recent';
 import { Link, useRouter } from '../router';
 import { lineItem, useShop } from '../state';
-import { Container, EmptyState, Price, QuantityStepper } from '../ui';
+import { Container, EmptyState, MaintenanceNote, Price, QuantityStepper } from '../ui';
 
 /** «المنتجات (3)» and the rest of the summary - shared with checkout. */
 export function SummaryRow({ label, value, strong = false }: { label: React.ReactNode; value: React.ReactNode; strong?: boolean }) {
@@ -126,9 +126,10 @@ export function CartPage() {
           <SummaryRow label={`المنتجات (${shop.cart.count})`} value={<Price amount={shop.cart.total} size="row" />} />
           <SummaryRow label="التوصيل" value="مجاني" />
           <SummaryRow strong label="الإجمالي" value={<Price amount={shop.cart.total} />} />
-          <Button size="store" className="mt-2 hidden lg:inline-flex" onClick={checkout}>
+          <Button size="store" className="mt-2 hidden lg:inline-flex" onClick={checkout} disabled={Boolean(shop.maintenance)}>
             إتمام الطلب
           </Button>
+          {shop.maintenance ? <MaintenanceNote message={shop.maintenance} className="hidden lg:flex" /> : null}
           <span className="flex items-start gap-2 text-[13px] text-muted-foreground">
             <CreditCard className="mt-0.5 size-4 shrink-0" aria-hidden />
             الدفع عند الاستلام: نقداً أو بطاقة مصرفية أو حوالة مصرفية.
@@ -138,7 +139,8 @@ export function CartPage() {
 
       {/* Phones: «إتمام الطلب» stays at hand (MCart). */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 lg:hidden">
-        <Button size="store" className="w-full" onClick={checkout}>
+        {shop.maintenance ? <MaintenanceNote message={shop.maintenance} className="mb-2" /> : null}
+        <Button size="store" className="w-full" onClick={checkout} disabled={Boolean(shop.maintenance)}>
           إتمام الطلب
         </Button>
       </div>

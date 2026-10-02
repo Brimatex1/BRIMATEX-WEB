@@ -13,7 +13,8 @@
 
 const { sendBody } = require('./compress');
 
-function sendJson(res, status, payload) {
+/** `headers` adds to the defaults - a Cache-Control for a public, cacheable reply, say. */
+function sendJson(res, status, payload, headers = {}) {
   // Compressed when the browser takes it (src/lib/compress.js) - the catalogue is tens of kB.
   sendBody(res.req, res, status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -21,6 +22,7 @@ function sendJson(res, status, payload) {
     'X-Frame-Options': 'SAMEORIGIN',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
+    ...headers,
   }, JSON.stringify(payload));
 }
 

@@ -31,7 +31,11 @@ async function jsonRpc(method, params) {
   try {
     const data = await http.postJson(url, payload);
     if (data.error) {
-      throw new Error(data.error.data?.message || data.error.message);
+      const err = new Error(data.error.data?.message || data.error.message);
+      // Odoo's exception class (odoo.exceptions.AccessError, ...): lets a caller
+      // tell a missing right apart from a network or data problem.
+      err.odooName = data.error.data?.name || null;
+      throw err;
     }
 
     return data.result;

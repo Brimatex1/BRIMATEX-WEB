@@ -2,6 +2,7 @@ import type {
   PreorderSettings,
   Address,
   AdminReview,
+  AppConfig,
   Banner,
   InstagramPost,
   AdminCustomer,
@@ -119,6 +120,9 @@ export const api = {
 
   adminDeleteInstagram: (token: string, id: string) =>
     request<{ posts: InstagramPost[] }>(`/api/admin/instagram/${id}`, { method: 'DELETE', ...authHeaders(token) }),
+
+  /** The panel's settings for every client (maintenance, contact, ...) - public. */
+  getAppConfig: () => request<AppConfig>('/api/app/v1/config'),
 
   getPixelConfig: () => request<{ pixelId: string | null; lydPerUsd: number | null }>('/api/pixel-config'),
 

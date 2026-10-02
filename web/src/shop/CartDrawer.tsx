@@ -7,7 +7,7 @@ import { displayName, featuredVariant, lineParts, tierOf } from './catalog';
 import { photoOf } from './ProductCard';
 import { Link, useRouter } from './router';
 import { lineItem, useShop } from './state';
-import { Price, SizeText } from './ui';
+import { MaintenanceNote, Price, SizeText } from './ui';
 
 /** «3 منتجات» */
 export function itemsText(n: number): string {
@@ -65,6 +65,7 @@ export function CartDrawer() {
           {shop.cart.count > 0 ? (
             <Button
               size="store"
+              disabled={Boolean(shop.maintenance)}
               onClick={() => {
                 close();
                 shop.requireLogin('checkout', () => go({ name: 'checkout' }));
@@ -73,6 +74,7 @@ export function CartDrawer() {
               إتمام الطلب
             </Button>
           ) : null}
+          {shop.cart.count > 0 && shop.maintenance ? <MaintenanceNote message={shop.maintenance} /> : null}
           <Button asChild variant="outline" size="store">
             <Link to={{ name: 'cart' }} onClick={close}>
               عرض السلة

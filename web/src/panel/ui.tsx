@@ -197,6 +197,31 @@ export function Button({ variant = 'primary', size = 'md', className, ...rest }:
   return <button type="button" className={cn(buttonClass(variant, size), className)} {...rest} />;
 }
 
+/** The prototypes' switch: 40×24, green when on (AdminSettings). */
+export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (next: boolean) => void; label: string; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative inline-block h-6 w-10 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dark-ocean/40 disabled:opacity-50',
+        checked ? 'bg-[#2E9E5B]' : 'bg-[#D5D7E0]'
+      )}
+    >
+      <span
+        className={cn(
+          'absolute top-[3px] size-[18px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,.2)] transition-[left,right]',
+          checked ? 'left-[3px]' : 'left-[19px]'
+        )}
+      />
+    </button>
+  );
+}
+
 export function Skeleton({ className }: { className?: string }) {
   return <span className={cn('block animate-pulse rounded-lg bg-[#EDEEF3]', className)} />;
 }
@@ -225,6 +250,12 @@ export function money(value: number): string {
 export function formatPhone(phone: string): string {
   const d = phone.replace(/\D/g, '');
   return /^09\d{8}$/.test(d) ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : phone;
+}
+
+/** A Libyan number as the prototype writes it: 0935770070 → «093 577 00 70». */
+export function formatLibyan(phone: string): string {
+  const d = phone.replace(/\D/g, '');
+  return /^0\d{9}$/.test(d) ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6, 8)} ${d.slice(8)}` : phone;
 }
 
 /** Arabic counting for a noun: [one, two, few (3-10), many (11+)]. */

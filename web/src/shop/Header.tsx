@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, LayoutDashboard, Menu, ShoppingBasket, User } from 'lucide-react';
+import { Heart, LayoutDashboard, Menu, ShoppingBasket, TriangleAlert, User } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
@@ -53,6 +53,23 @@ function TopStrip() {
   );
 }
 
+/**
+ * «وضع الصيانة» (the admin panel's settings): the message under the strip on
+ * every page while ordering is stopped. The cart still works; checkout waits.
+ */
+export function MaintenanceBanner() {
+  const { maintenance } = useShop();
+  if (!maintenance) return null;
+  return (
+    <div role="status" className="border-b border-[#F0DFAE] bg-[#FFF4D6] text-[#7A5300] dark:border-[#4A3B12] dark:bg-[#2E2610] dark:text-[#F3D58A]">
+      <Container className="flex min-h-10 items-center gap-2.5 py-2 text-sm font-semibold">
+        <TriangleAlert className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
+        <span>{maintenance}</span>
+      </Container>
+    </div>
+  );
+}
+
 function IconLink({ to, label, children, onClick }: { to: Route; label: string; children: React.ReactNode; onClick?: (e: React.MouseEvent) => void }) {
   return (
     <Link to={to} aria-label={label} onClick={onClick} className="relative grid size-11 place-items-center rounded-full hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -95,6 +112,7 @@ export function Header() {
   return (
     <>
       <TopStrip />
+      <MaintenanceBanner />
       <header className="sticky top-0 z-40 border-b border-border bg-background">
         <Container>
           <div className="flex h-16 items-center gap-2 md:h-[84px] md:gap-8">
@@ -199,6 +217,7 @@ export function Header() {
 /** Checkout's own header: logo, title, back to the cart - nothing to leave the order by. */
 export function MinimalHeader({ title, back }: { title: string; back?: { label: string; to: Route } }) {
   return (
+    <>
     <header className="border-b border-border">
       <Container className="flex h-16 items-center justify-between gap-4 md:h-20">
         <Link to={{ name: 'home' }} aria-label="بريماتكس، الرئيسية">
@@ -214,5 +233,7 @@ export function MinimalHeader({ title, back }: { title: string; back?: { label: 
         )}
       </Container>
     </header>
+    <MaintenanceBanner />
+    </>
   );
 }

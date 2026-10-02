@@ -87,14 +87,37 @@ export interface TeamMember {
   locked: boolean;
 }
 
+/** The apps' and the website's settings (src/lib/appSettings.js) - phones in local form, 0XXXXXXXXX. */
+export interface AppSettings {
+  minVersion: { ios: string; android: string };
+  forceUpdate: boolean;
+  maintenance: { on: boolean; message: string };
+  /** السماح بالطلب كزائر حتى السلة. */
+  guestBrowsing: boolean;
+  contact: { phone: string; whatsapp: string; email: string; showroom: string };
+  /** HH:MM, Libyan time. */
+  quietHours: { from: string; to: string };
+}
+
+export interface SettingsPayload {
+  settings: AppSettings;
+  /** Odoo's system parameter, or the server's own file when Odoo is not connected. */
+  storage: 'odoo' | 'local';
+  /** «مدن التوصيل», read-only: free everywhere, on these days. */
+  delivery: { fee: number; days: string };
+}
+
 export class PanelError extends Error {
   status: number;
   code: string | null;
-  constructor(message: string, status: number, code: string | null = null) {
+  /** The setting the server refused («contact.email», ...), when it names one. */
+  field: string | null;
+  constructor(message: string, status: number, code: string | null = null, field: string | null = null) {
     super(message);
     this.name = 'PanelError';
     this.status = status;
     this.code = code;
+    this.field = field;
   }
 }
 
@@ -119,8 +142,8 @@ async function call<T>(token: string, path: string, init: RequestInit = {}): Pro
     /* empty or not JSON */
   }
   if (!res.ok) {
-    const body = (data ?? {}) as { error?: string; code?: string };
-    throw new PanelError(body.error || 'حدث خطأ غير متوقع', res.status, body.code ?? null);
+    const body = (data ?? {}) as { error?: string; code?: string; field?: string };
+    throw new PanelError(body.error || 'حدث خطأ غير متوقع', res.status, body.code ?? null, body.field ?? null);
   }
   return data as T;
 }
@@ -142,6 +165,9 @@ export const panelApi = {
   orders: (token: string, q: Partial<OrdersQuery>) => call<OrdersPage & { query: OrdersQuery }>(token, `/api/panel/orders?${ordersSearch(q)}`),
   confirm: (token: string, orderName: string) =>
     call<{ order: PanelOrder }>(token, `/api/panel/orders/${encodeURIComponent(orderName)}/confirm`, { method: 'POST' }),
+  settings: (token: string) => call<SettingsPayload>(token, '/api/panel/settings'),
+  saveSettings: (token: string, settings: AppSettings) =>
+    call<SettingsPayload>(token, '/api/panel/settings', { method: 'PUT', body: JSON.stringify({ settings }) }),
   team: (token: string, q = '') => call<{ users: TeamMember[] }>(token, `/api/panel/users${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   setRole: (token: string, userId: string, role: TeamMember['role']) =>
     call<{ id: string; role: TeamMember['role'] }>(token, `/api/panel/users/${encodeURIComponent(userId)}/role`, {
