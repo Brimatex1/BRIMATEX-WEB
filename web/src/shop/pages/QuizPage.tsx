@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Baby, BedDouble, BedSingle, BrickWall, CircleHelp, Feather, Layers, Sofa, User, Users, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, BedDouble, BedSingle, Bone, Crown, Dumbbell, Feather, PiggyBank, Snowflake, Sofa, User, Users, Waves, type LucideIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -7,25 +7,34 @@ import { cn } from '@/lib/utils';
 import { displayName, parseSize, sizeText, tierOf } from '../catalog';
 import { useTitle } from '../hooks';
 import { photoOf } from '../ProductCard';
-import { QUESTIONS, chipFor, recommend, type AnswerKey, type QuizAnswers, type QuizPick } from '../quiz';
+import { DEFAULT_RULES, chipFor, questionsOf, recommend, type QuizAnswers, type QuizPick } from '../quiz';
+
+// The factory's rules (quiz-rules.json); the questions come from them.
+const RULES = DEFAULT_RULES;
+const QUESTIONS = questionsOf(RULES);
+/** The last answers stay on this device, so «أعد الأسئلة» starts from them (docs/QUIZ.md). */
+const SAVED = 'brimatex:quiz-answers';
 import { Link, useRouter } from '../router';
 import { useShop } from '../state';
 import { Container, EmptyState, Price, Skeleton, SizeText, TierTag } from '../ui';
 
 /** One icon per option card (the handoff draws a bed on each). */
-const ICONS: Record<AnswerKey, LucideIcon> = {
-  single: User,
-  couple: Users,
-  child: Baby,
-  guest: Sofa,
-  side: BedSingle,
-  back: BedSingle,
-  stomach: BedSingle,
-  restless: BedDouble,
-  soft: Feather,
-  medium: Layers,
-  firm: BrickWall,
-  unsure: CircleHelp,
+const ICONS: Record<string, LucideIcon> = {
+  'who:me': User,
+  'who:couple': Users,
+  'who:guest': Sofa,
+  'position:side': BedSingle,
+  'position:back': BedSingle,
+  'position:stomach': BedSingle,
+  'position:toss': BedDouble,
+  'need:back': Bone,
+  'need:flex': Waves,
+  'need:joints': Feather,
+  'need:sport': Dumbbell,
+  'need:hot': Snowflake,
+  'need:luxury': Crown,
+  'need:basic': BadgeCheck,
+  'need:eco': PiggyBank,
 };
 
 type Draft = Partial<QuizAnswers>;
@@ -46,7 +55,13 @@ function productHref(pick: QuizPick): string {
 export function QuizPage() {
   useTitle('ساعدني أختار');
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<Draft>({});
+  const [answers, setAnswers] = useState<Draft>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(SAVED) || '{}') as Draft;
+    } catch {
+      return {};
+    }
+  });
   const heading = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
 
@@ -63,9 +78,17 @@ export function QuizPage() {
   const done = step >= QUESTIONS.length;
 
   function restart() {
-    setAnswers({});
     setStep(0);
   }
+
+  useEffect(() => {
+    if (!done) return;
+    try {
+      localStorage.setItem(SAVED, JSON.stringify(answers));
+    } catch {
+      /* storage blocked - the answers just aren't kept */
+    }
+  }, [done, answers]);
 
   if (done) return <Result answers={answers as QuizAnswers} onRestart={restart} headingRef={heading} />;
 
@@ -101,9 +124,9 @@ export function QuizPage() {
           <p className="text-[15px] text-muted-foreground lg:text-[17px]">{question.hint}</p>
         </div>
 
-        <div role="radiogroup" aria-label={question.title} className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-3.5">
+        <div role="radiogroup" aria-label={question.title} className={cn('mt-2 grid grid-cols-2 gap-3 sm:gap-3.5', question.options.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-4')}>
           {question.options.map((o) => {
-            const Icon = ICONS[o.key];
+            const Icon = ICONS[`${question.id}:${o.key}`] ?? BedDouble;
             const selected = chosen === o.key;
             return (
               <button
@@ -144,7 +167,7 @@ export function QuizPage() {
 function Result({ answers, onRestart, headingRef }: { answers: QuizAnswers; onRestart: () => void; headingRef: React.RefObject<HTMLHeadingElement> }) {
   const shop = useShop();
   const { go } = useRouter();
-  const result = useMemo(() => recommend(answers, shop.products), [answers, shop.products]);
+  const result = useMemo(() => recommend(answers, shop.products, RULES), [answers, shop.products]);
   const { best, alternative, reason } = result;
 
   const header = (
@@ -156,13 +179,13 @@ function Result({ answers, onRestart, headingRef }: { answers: QuizAnswers; onRe
         <ul className="flex flex-wrap gap-2" aria-label="إجاباتك">
           {QUESTIONS.map((q) => (
             <li key={q.id} className="inline-flex h-9 items-center rounded-full bg-image-bg px-3.5 text-sm font-semibold">
-              {chipFor(answers[q.id])}
+              {chipFor(RULES, q.id, answers[q.id])}
             </li>
           ))}
         </ul>
       </div>
       <button type="button" onClick={onRestart} className="text-[15px] font-bold underline underline-offset-4 hover:text-brand-text">
-        إعادة الاختبار
+        أعد الأسئلة
       </button>
     </div>
   );

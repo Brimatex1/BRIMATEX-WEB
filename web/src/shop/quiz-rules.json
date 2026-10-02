@@ -1,0 +1,335 @@
+{
+ "version": 3,
+ "source": "Brimatex catalog 2026 (tags) + Odoo list_price (tie-break only, read live)",
+ "mattresses": {
+  "crown": {
+   "name": "كراون",
+   "tier": "elite",
+   "tags": [
+    "pocket_springs",
+    "springs",
+    "memory_foam",
+    "pressure_relief",
+    "spine_support",
+    "edge_support",
+    "motion_isolation",
+    "cool_fabric",
+    "hotel_layer",
+    "high_flex"
+   ],
+   "support": 3,
+   "reasons": {
+    "pressure_relief": "طبقة Memory Foam تحتضن الجسم وتخفف الضغط على المفاصل.",
+    "spine_support": "نوابض Pocket Spring تتكيّف مع انحناءات الجسم وتدعم العمود الفقري.",
+    "motion_isolation": "النوابض المنفصلة تعزل الحركة، فلا يزعجك تقلّب الشريك.",
+    "cool_fabric": "قماش فاخر مبرّد يمنح إحساساً بالانتعاش.",
+    "edge_support": "إطار جانبي يعزز الثبات والمتانة.",
+    "springs": "نظام Pocket Spring لتوازن مثالي.",
+    "_default": "قمة الفخامة: راحة استثنائية تجمع بين الدعم المتوازن والرفاهية.",
+    "high_flex": "مرونة عالية: طبقة Memory Foam تحتضن الجسم بلطف."
+   }
+  },
+  "deluxe": {
+   "name": "ديلوكس",
+   "tier": "elite",
+   "tags": [
+    "pocket_springs",
+    "springs",
+    "pillow_top",
+    "spine_support",
+    "medical_support",
+    "edge_support",
+    "motion_isolation",
+    "summer_winter",
+    "high_density_foam"
+   ],
+   "support": 3,
+   "reasons": {
+    "spine_support": "نوابض منفصلة تمنح دعماً متوازناً للعمود الفقري.",
+    "medical_support": "دعم طبي مع حشوة إسفنجية عالية الكثافة.",
+    "motion_isolation": "النوابض المنفصلة تقلل انتقال الحركة.",
+    "summer_winter": "وجهان للصيف والشتاء.",
+    "edge_support": "إطار جانبي قوي لزيادة الثبات.",
+    "springs": "نظام Pocket Spring للنوابض المنفصلة.",
+    "support": "دعم لكل مناطق الجسم مع إطار Box System قوي.",
+    "_default": "تجربة نوم متكاملة: نوابض منفصلة، دعم طبي، وطبقة علوية فاخرة."
+   }
+  },
+  "hotel": {
+   "name": "هوتيل",
+   "tier": "premium",
+   "tags": [
+    "foam",
+    "memory_foam",
+    "pillow_top",
+    "pressure_relief",
+    "medical_support",
+    "motion_isolation",
+    "deep_sleep",
+    "hotel_layer",
+    "high_flex"
+   ],
+   "support": 2,
+   "reasons": {
+    "pressure_relief": "طبقة Pillow Top Memory Foam تتكيّف مع انحناءات الجسم وتخفف الضغط.",
+    "motion_isolation": "عزل ممتاز للحركة.",
+    "deep_sleep": "مصممة لنوم عميق وهادئ.",
+    "medical_support": "تجمع بين الدعم الطبي والراحة الفندقية.",
+    "foam": "قلب إسفنجي مضغوط 30 بدون نوابض.",
+    "support": "ثبات متوازن ودعم مريح للجسم.",
+    "_default": "راحة فندقية فاخرة بقلب إسفنجي مضغوط.",
+    "high_flex": "مرونة عالية: طبقة Pillow Top Memory Foam تتكيّف مع انحناءات الجسم."
+   }
+  },
+  "sport": {
+   "name": "سبورت",
+   "tier": "premium",
+   "tags": [
+    "pocket_springs",
+    "springs",
+    "athlete_support",
+    "spine_support",
+    "edge_support",
+    "motion_isolation",
+    "summer_winter",
+    "back_pain"
+   ],
+   "support": 2,
+   "reasons": {
+    "athlete_support": "مصممة للرياضيين: تساعد على الاسترخاء والاستشفاء العضلي.",
+    "spine_support": "تقلل الضغط على العمود الفقري والعضلات.",
+    "motion_isolation": "تقنية Pocket Spring تعزل الحركة.",
+    "summer_winter": "هيكل مزدوج الوجهين.",
+    "edge_support": "نظام Box System لثبات ومتانة طويلة الأمد.",
+    "springs": "نوابض منفصلة بارتفاع 30 سم.",
+    "support": "دعم صحي وراحة متوازنة للجسم.",
+    "_default": "مرتبة رياضية طبية بنوابض منفصلة.",
+    "back_pain": "نوابض Pocket Spring تقلل الضغط على العمود الفقري والعضلات."
+   }
+  },
+  "balance": {
+   "name": "بالانس",
+   "tier": "premium",
+   "tags": [
+    "bonnell_springs",
+    "springs",
+    "pillow_top",
+    "pressure_relief",
+    "medical_support",
+    "edge_support"
+   ],
+   "support": 2,
+   "reasons": {
+    "pressure_relief": "وسادة علوية Pillow Top تخفف الضغط عن المفاصل والعضلات.",
+    "medical_support": "دعم طبي بنوابض فولاذية معززة.",
+    "springs": "نوابض بونيل معززة لثبات متوازن.",
+    "edge_support": "نظام دعم الحواف.",
+    "support": "ثبات متوازن ودعم مريح للجسم.",
+    "_default": "دعم طبي ونوابض معززة مع طبقة علوية ناعمة."
+   }
+  },
+  "comfort": {
+   "name": "كمفورت",
+   "tier": "comfort",
+   "tags": [
+    "foam",
+    "summer_winter",
+    "ventilation",
+    "back_pain"
+   ],
+   "support": 2,
+   "reasons": {
+    "support": "قلب من الإسفنج المضغوط 30 لدعم الجسم بشكل متكامل.",
+    "ventilation": "نظام تهوية وعزل داخلي لنوم هادئ.",
+    "summer_winter": "مزدوجة الوجهين.",
+    "foam": "إسفنج مضغوط بدون نوابض.",
+    "_default": "راحة وأداء متوازن بقلب من الإسفنج المضغوط 30.",
+    "back_pain": "قلب من الإسفنج المضغوط 30 يمنح الظهر دعماً ثابتاً ومتكاملاً."
+   }
+  },
+  "daily": {
+   "name": "ديلي",
+   "tier": "comfort",
+   "tags": [
+    "foam",
+    "summer_winter",
+    "economy"
+   ],
+   "support": 1,
+   "reasons": {
+    "support": "إسفنج مضغوط 28 لدعم ثابت وراحة يومية.",
+    "summer_winter": "مزدوجة الوجهين تطيل عمر المرتبة.",
+    "economy": "خيار عملي للاستخدام اليومي.",
+    "foam": "إسفنج مضغوط بدون نوابض.",
+    "_default": "جودة عملية للاستخدام اليومي بإسفنج مضغوط 28 ودعم ثابت."
+   }
+  },
+  "classic": {
+   "name": "كلاسيك",
+   "tier": "comfort",
+   "tags": [
+    "foam",
+    "summer_winter",
+    "economy"
+   ],
+   "support": 0,
+   "reasons": {
+    "economy": "خيار اقتصادي يجمع بين الراحة والسعر المناسب.",
+    "summer_winter": "تعمل على الوجهين لزيادة عمر الاستخدام.",
+    "foam": "إسفنج مضغوط بدون نوابض.",
+    "_default": "الخيار الأوفر: راحة عملية للاستخدام اليومي بسعر مناسب."
+   }
+  }
+ },
+ "questions": [
+  {
+   "id": "who",
+   "title": "لمن المرتبة؟",
+   "type": "single",
+   "options": [
+    {
+     "id": "me",
+     "label": "لي وحدي",
+     "weights": {}
+    },
+    {
+     "id": "couple",
+     "label": "لشخصين",
+     "weights": {
+      "motion_isolation": 3
+     }
+    },
+    {
+     "id": "guest",
+     "label": "لطفل أو غرفة ضيوف",
+     "weights": {
+      "economy": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "position",
+   "title": "كيف تنام غالباً؟",
+   "subtitle": "تساعدنا وضعية نومك على اقتراح المرتبة الأنسب لك.",
+   "type": "single",
+   "options": [
+    {
+     "id": "side",
+     "label": "على جنبي",
+     "weights": {
+      "pressure_relief": 2
+     }
+    },
+    {
+     "id": "back",
+     "label": "على ظهري",
+     "weights": {
+      "spine_support": 2
+     }
+    },
+    {
+     "id": "stomach",
+     "label": "على بطني",
+     "weights": {
+      "support": 1
+     }
+    },
+    {
+     "id": "toss",
+     "label": "أتقلّب كثيراً",
+     "weights": {
+      "motion_isolation": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "need",
+   "title": "ما الأهم لك في المرتبة؟",
+   "type": "single",
+   "options": [
+    {
+     "id": "back",
+     "label": "تريح آلام الظهر",
+     "pair": [
+      "comfort",
+      "sport"
+     ],
+     "tag": "back_pain"
+    },
+    {
+     "id": "flex",
+     "label": "مرونة عالية",
+     "pair": [
+      "hotel",
+      "crown"
+     ],
+     "tag": "high_flex"
+    },
+    {
+     "id": "joints",
+     "label": "تخفف الضغط على المفاصل",
+     "pair": [
+      "balance",
+      "hotel"
+     ],
+     "tag": "pressure_relief"
+    },
+    {
+     "id": "sport",
+     "label": "أمارس الرياضة",
+     "pair": [
+      "sport",
+      "deluxe"
+     ],
+     "tag": "athlete_support"
+    },
+    {
+     "id": "hot",
+     "label": "أشعر بالحر أثناء النوم",
+     "pair": [
+      "crown",
+      "comfort"
+     ],
+     "tag": "cool_fabric"
+    },
+    {
+     "id": "luxury",
+     "label": "أعلى فخامة",
+     "pair": [
+      "crown",
+      "deluxe"
+     ],
+     "tag": null
+    },
+    {
+     "id": "basic",
+     "label": "جودة جيدة بسعر مقبول",
+     "pair": [
+      "daily",
+      "comfort"
+     ],
+     "tag": null
+    },
+    {
+     "id": "eco",
+     "label": "السعر الأوفر",
+     "pair": [
+      "classic",
+      "daily"
+     ],
+     "tag": "economy"
+    }
+   ]
+  }
+ ],
+ "rules": {
+  "pair": "question 3 picks two mattresses: [first choice, alternative] (factory rules)",
+  "order": "score both with the weights of questions 1 and 2; the first one gets +2; if the alternative scores higher, swap them",
+  "score": "sum of weights for every tag the mattress has; 'support' is multiplied by the mattress support level (0-3)",
+  "reason_line": "sentence 1: the first choice's reason for question 3's tag (or its _default); sentence 2: its reason for the tag that scored most in questions 1-2, if any",
+  "always": "the result always shows a first choice and an alternative"
+ },
+ "first_bonus": 2
+}
