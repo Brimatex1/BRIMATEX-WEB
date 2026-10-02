@@ -1,8 +1,8 @@
 import { Link, type Route } from './router';
 import { Container, Logo } from './ui';
 
-/** Brimatex's Instagram - not given yet; the link shows once it is set (as in components/SocialLinks.tsx). */
-const INSTAGRAM = '';
+/** Brimatex's Instagram (from the owner, 2 Oct 2026). */
+const INSTAGRAM = 'https://www.instagram.com/brimatex.ly/';
 
 const COLUMNS: { title: string; links: { label: string; to?: Route; href?: string }[] }[] = [
   {
