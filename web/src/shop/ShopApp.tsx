@@ -12,7 +12,12 @@ import { ShopProvider, useShop } from './state';
 import { isShopTier } from './catalog';
 import { Container } from './ui';
 
+import { CartDrawer } from './CartDrawer';
+import { LoginDrawer } from './LoginDrawer';
+import { CartPage } from './pages/CartPage';
 import { CategoryPage } from './pages/CategoryPage';
+import { CheckoutPage } from './pages/CheckoutPage';
+import { ConfirmedPage } from './pages/ConfirmedPage';
 import { HomePage } from './pages/HomePage';
 import { ProductPage } from './pages/ProductPage';
 
@@ -45,6 +50,12 @@ function Pages() {
       return <CategoryPage key={`s:${route.query}`} mode={{ kind: 'search', query: route.query }} />;
     case 'product':
       return <ProductPage key={route.id} id={route.id} />;
+    case 'cart':
+      return <CartPage />;
+    case 'checkout':
+      return <CheckoutPage />;
+    case 'confirmed':
+      return <ConfirmedPage order={route.order} />;
   }
   // The pages arrive phase by phase (design handoff build order).
   return (
@@ -93,6 +104,8 @@ function Layout() {
       </main>
       <Footer slim={focused} />
       <CityDialog />
+      <CartDrawer />
+      <LoginDrawer />
       <Tracking />
       <Toaster position="top-center" dir="rtl" />
     </div>

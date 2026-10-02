@@ -143,7 +143,9 @@ export const api = {
     /** One of the signed-in customer's vouchers; the server checks and applies it. */
     voucherCode?: string | null,
     /** Same on every retry of one checkout, so a retry cannot order twice. */
-    requestId?: string
+    requestId?: string,
+    /** The checkout's choices: home delivery on a day and slot, or the showroom; how it is paid on delivery. */
+    checkout?: { delivery: { method: 'home' | 'pickup'; date?: string; slot?: 'morning' | 'evening' }; paymentMethod: 'cash' | 'card' | 'transfer' }
   ) =>
     request<OrderResult>(
       '/api/orders',
@@ -156,6 +158,7 @@ export const api = {
           tracking,
           ...(voucherCode ? { voucherCode } : {}),
           ...(requestId ? { requestId } : {}),
+          ...(checkout ?? {}),
         },
         token
       )
@@ -194,6 +197,16 @@ export const api = {
 
   login: (phone: string, password: string) =>
     request<{ token: string; user: User }>('/api/auth/login', jsonBody({ phone, password })),
+
+  /* Signing in with a code (the 2026 storefront, as the iOS app): the number,
+     then the six digits sent on WhatsApp; a new number then gives its name. */
+  requestPhoneCode: (phone: string) => request<{ sent: boolean; resendIn: number }>('/api/auth/phone/request', jsonBody({ phone })),
+
+  verifyPhoneCode: (phone: string, code: string) =>
+    request<{ token: string; user: User } | { needsName: true; signupToken: string }>('/api/auth/phone/verify', jsonBody({ phone, code })),
+
+  completePhoneSignup: (signupToken: string, name: string) =>
+    request<{ token: string; user: User }>('/api/auth/phone/complete', jsonBody({ signupToken, name })),
 
   me: (token: string) => request<{ user: User }>('/api/auth/me', authHeaders(token)),
 

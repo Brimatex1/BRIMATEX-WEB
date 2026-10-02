@@ -180,3 +180,10 @@ export function priceFrom(product: Product): number {
 export function inStockNow(product: Product): boolean {
   return variantsOf(product).some((v) => v.inStock !== false);
 }
+
+/** «ارتفاع 28 سم» and the size, for a cart or order line: { size: '180×200', height: 28 }. */
+export function lineParts(variant: ProductVariant | undefined): { size: string; height: number | null } {
+  if (!variant) return { size: '', height: null };
+  const p = parseSize(variant);
+  return { size: sizeText(p), height: p.height };
+}

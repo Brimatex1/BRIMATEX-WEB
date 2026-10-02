@@ -251,6 +251,12 @@ export interface OrderSummary {
   shippedAt?: string | null;
   /** Made to order: days to make it (0 = no set time); null when nothing in it is. */
   leadDays?: number | null;
+  /** The checkout's choices read back (src/routes/user.js): home or showroom, the day and period, the payment. */
+  method?: 'home' | 'pickup' | null;
+  deliveryText?: string | null;
+  paymentText?: string | null;
+  /** It has not left for delivery yet, so the customer may still cancel it. */
+  cancellable?: boolean;
 }
 
 export type Role = 'customer' | 'admin';

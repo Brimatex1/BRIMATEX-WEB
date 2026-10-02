@@ -12,6 +12,7 @@ import { TIER_TITLE, availabilityOf, availabilityText, availabilityTone, canOrde
 import { useIsDesktop, useTitle } from '../hooks';
 import { HeartButton, photoOf, ProductCard } from '../ProductCard';
 import { Link, useRouter } from '../router';
+import { recordViewed } from '../recent';
 import { SizePicker } from '../SizePicker';
 import { useShop } from '../state';
 import { Container, EmptyState, Price, RatingStars, Skeleton, SizeText, StatusDot, TierTag } from '../ui';
@@ -223,7 +224,9 @@ export function ProductPage({ id }: { id: number }) {
 
   // ViewContent once the catalogue has the product - a visitor from an ad counts too.
   useEffect(() => {
-    if (product) trackViewContent(product);
+    if (!product) return;
+    trackViewContent(product);
+    recordViewed(product.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
