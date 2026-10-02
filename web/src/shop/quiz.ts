@@ -22,6 +22,8 @@ export interface QuizRuleOption {
   pair?: [string, string];
   /** Question 3: the need's tag - its reason sentence leads the result. */
   tag?: string | null;
+  /** Turned off in the admin panel: not offered. */
+  enabled?: boolean;
 }
 
 export interface QuizRuleQuestion {
@@ -74,7 +76,7 @@ export function questionsOf(rules: QuizRules): QuizQuestion[] {
     id: q.id,
     title: q.title,
     hint: q.subtitle ?? HINTS[q.id] ?? '',
-    options: q.options.map((o) => ({ key: o.id, label: o.label })),
+    options: q.options.filter((o) => o.enabled !== false).map((o) => ({ key: o.id, label: o.label })),
   }));
 }
 
