@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessageSquareText } from 'lucide-react';
+import { Check, MessageSquareText } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
@@ -50,7 +50,10 @@ function ReviewRow({ review }: { review: PublicReview }) {
     <article className="grid gap-3 border-b border-border py-7 sm:grid-cols-[180px_1fr] sm:gap-8">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:flex-col sm:items-start">
         <b className="text-[15px]">{review.name}</b>
-        {review.verified !== false ? <span className="text-[13px] font-bold text-success">✓ مشترٍ مؤكَّد</span> : null}
+        {review.verified !== false ? <span className="inline-flex items-center gap-1 text-[13px] font-bold text-success">
+            <Check className="size-3.5" strokeWidth={3} aria-hidden />
+            مشترٍ مؤكَّد
+          </span> : null}
         {size ? (
           <span className="text-[13px] text-muted-foreground">
             المقاس <SizeText>{size}</SizeText>
