@@ -78,16 +78,18 @@ function CartBadge({ count }: { count: number }) {
  */
 export function Header() {
   const shop = useShop();
-  const { route } = useRouter();
+  const { route, go } = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const user = shop.auth.user;
   const firstName = user?.name.trim().split(/\s+/)[0];
 
   // Guests: the account opens the login drawer instead of a page (favourites work signed out).
+  // Signing in from here lands on the home page; a login opened for an action
+  // (the basket's checkout, a protected page) carries on where it was instead.
   const gate = (reason: 'account') => (e: React.MouseEvent) => {
     if (user) return;
     e.preventDefault();
-    shop.requireLogin(reason);
+    shop.requireLogin(reason, () => go({ name: 'home' }));
   };
 
   return (
@@ -133,8 +135,10 @@ export function Header() {
             </nav>
           </div>
           <SearchBox className="mb-3 md:hidden" />
-          <nav aria-label="الأقسام" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none] md:mx-0 md:gap-8 md:overflow-visible md:px-0 md:pb-0">
-            {NAV.map((item) => {
+          {/* Phones: the five sections share the width inside the same 16 px margins as the search;
+              «ساعدني أختار» and «صالة العرض» follow by scrolling the row (and are in the menu). */}
+          <nav aria-label="الأقسام" className="-mx-4 flex gap-1.5 overflow-x-auto overscroll-x-contain px-4 pb-3 [scrollbar-width:none] md:mx-0 md:gap-8 md:overflow-visible md:px-0 md:pb-0">
+            {NAV.map((item, i) => {
               const on = isCurrent(route, item.to);
               return (
                 <Link
@@ -142,9 +146,10 @@ export function Header() {
                   to={item.to}
                   aria-current={on ? 'page' : undefined}
                   className={cn(
-                    'shrink-0 whitespace-nowrap text-[15px] font-bold',
-                    // Phones: chips. Desktop: text with a 3 px underline on the current one.
-                    'rounded-full border border-border px-4 py-2 md:rounded-none md:border-0 md:border-b-[3px] md:px-0 md:py-3.5',
+                    'shrink-0 whitespace-nowrap text-center font-bold md:text-[15px]',
+                    // Phones: chips, the first five a fifth of the row each. Desktop: text with a 3 px underline on the current one.
+                    i < 5 ? 'w-[calc((100vw-56px)/5)] px-1 text-[13px] min-[360px]:text-sm md:w-auto' : 'px-3.5 text-sm',
+                    'rounded-full border border-border py-2 md:rounded-none md:border-0 md:border-b-[3px] md:px-0 md:py-3.5',
                     on ? 'border-foreground bg-foreground text-background md:border-foreground md:bg-transparent md:text-foreground' : 'md:border-transparent hover:md:border-border'
                   )}
                 >

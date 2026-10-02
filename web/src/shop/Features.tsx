@@ -47,7 +47,10 @@ export function FeatureIcon({ name, className }: { name: string; className?: str
   const url = fileFor(name);
   if (!url) return null;
   if (KEEP_COLOURS.has(name)) return <img src={url} alt="" className={cn('object-contain', className)} />;
-  return <span aria-hidden className={cn('inline-block bg-brand-text', className)} style={{ maskImage: `url(${url})`, WebkitMaskImage: `url(${url})`, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center' }} />;
+  // Quoted: the build inlines small icons as data: addresses, and their spaces
+  // and quotes broke an unquoted url() - the mask failed and showed a solid square.
+  const mask = `url("${url.replace(/"/g, '%22')}")`;
+  return <span aria-hidden className={cn('inline-block bg-brand-text', className)} style={{ maskImage: mask, WebkitMaskImage: mask, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat', WebkitMaskRepeat: 'no-repeat', maskPosition: 'center', WebkitMaskPosition: 'center' }} />;
 }
 
 export function Features({ names }: { names: string[] }) {
@@ -55,10 +58,10 @@ export function Features({ names }: { names: string[] }) {
   if (!known.length) return null;
   return (
     <div className="flex flex-col gap-4">
-      {/* Phones: one row that scrolls; desktop: six to a row. */}
-      <ul className="-mx-4 flex gap-3 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-6 lg:overflow-visible lg:px-0">
+      {/* Three to a row on phones, four on tablets, six on desktop - never wider than the page. */}
+      <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-6">
         {known.map((n) => (
-          <li key={n} className="flex w-[92px] shrink-0 flex-col items-center gap-2 rounded-lg border border-border px-2 py-3 text-center lg:w-auto">
+          <li key={n} className="flex min-w-0 flex-col items-center gap-2 rounded-lg border border-border px-1.5 py-3 text-center">
             <FeatureIcon name={n} className={n === 'made-in-libya' ? 'size-12 rounded-full dark:bg-white' : 'size-12'} />
             <span className="text-xs font-bold leading-snug">{LABEL[n]}</span>
           </li>

@@ -116,8 +116,9 @@ export function AccountLayout({ section, crumbs, children }: { section: AccountS
   return (
     <Container className="pb-16">
       <Breadcrumb items={[{ label: 'حسابي', to: { name: 'account', section: 'orders' } }, ...(crumbs ?? [])]} />
-      <div className="grid gap-8 lg:grid-cols-[260px_1fr] lg:gap-12">
-        <aside aria-label="حسابي" className="flex flex-col gap-1 lg:sticky lg:top-40 lg:self-start">
+      {/* minmax(0, …): a column never grows to its widest child (the phone's tab row scrolls inside itself). */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-12">
+        <aside aria-label="حسابي" className="flex min-w-0 flex-col gap-1 lg:sticky lg:top-40 lg:self-start">
           <div className="mb-3 flex items-center gap-3">
             {user.avatarUrl ? (
               <img src={user.avatarUrl} alt="" className="size-14 rounded-full object-cover" />
@@ -133,7 +134,7 @@ export function AccountLayout({ section, crumbs, children }: { section: AccountS
               ) : null}
             </span>
           </div>
-          <nav aria-label="صفحات الحساب" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0">
+          <nav aria-label="صفحات الحساب" className="-mx-4 flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:px-0">
             {LINKS.map((l) => {
               const on = l.section !== undefined && l.section === section;
               return (

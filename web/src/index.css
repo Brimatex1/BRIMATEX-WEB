@@ -207,6 +207,21 @@
     line-height: 1.7;
   }
 
+  /*
+   * No page scrolls sideways: a grid column never grows to its widest child
+   * (a grid item's min-width is otherwise its content's), so a row meant to
+   * scroll - the account tabs, a chip row - scrolls inside itself instead of
+   * widening the page. A utility (min-w-*) still overrides it.
+   */
+  .grid > * {
+    min-width: 0;
+  }
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+  }
+
   /* الأرقام العربية تبقى بعرض ثابت لتصطف الأسعار */
   .tabular {
     font-variant-numeric: tabular-nums;
