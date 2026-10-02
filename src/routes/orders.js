@@ -20,6 +20,7 @@ const push = require('../lib/push');
 const whatsapp = require('../lib/whatsapp');
 const metaCapi = require('../lib/meta-capi');
 const perks = require('../lib/perks');
+const loyalty = require('../lib/loyalty');
 const settings = require('../lib/settings');
 const { getProducts, productLookup } = require('../lib/catalogue');
 const { preorderNote } = require('../lib/preorder');
@@ -175,6 +176,18 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           .filter(Boolean)
           .join('\n');
       }
+      // Loyalty add-on (src/lib/loyalty.js): the customer's points or one Odoo
+      // coupon - not both, and not with an old voucher. Odoo applies it on the
+      // order once it exists; the note says what was asked, for the team.
+      const loyaltyAsk = loyalty.readRequest(order.loyalty);
+      if (loyaltyAsk.error) return sendJson(res, 400, { error: loyaltyAsk.error });
+      if (loyaltyAsk.request) {
+        if (!orderSession) return sendJson(res, 401, { error: 'سجّل الدخول لاستخدام النقاط أو القسيمة' });
+        if (voucher) return sendJson(res, 400, { error: 'استخدم قسيمة واحدة في الطلب' });
+        note = [note.trim(), loyaltyAsk.request.usePoints ? 'يستخدم الزبون نقاطه في هذا الطلب' : `قسيمة: ${loyaltyAsk.request.coupon}`]
+          .filter(Boolean)
+          .join('\n');
+      }
       if (delivery.noteLines) note = [note.trim(), ...delivery.noteLines].filter(Boolean).join('\n');
       // Sizes out of stock ordered as pre-orders: the note tells the team what has to be made.
       const madeToOrder = preorderNote(order.items, result.products, settings.readPreorder());
@@ -201,6 +214,18 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           throw err;
         }
         if (voucher) await perks.attachVoucherToOrder(orderSession.userId, voucher.code, odooResult.name);
+        if (loyaltyAsk.request) {
+          // Odoo's own wizards write the reward line and spend the points or
+          // the coupon; the order total then includes it. A refusal leaves the
+          // order as placed - the note tells the team what the customer asked.
+          try {
+            const applied = await loyalty.applyToOrder(odooResult.id, loyaltyAsk.request);
+            if (applied.error) console.error('[loyalty] not applied to', odooResult.name, applied.error);
+            else if (applied.total != null) odooResult.total = applied.total;
+          } catch (err) {
+            console.error('[loyalty] not applied to', odooResult.name, err.message);
+          }
+        }
 
         // Persisted locally too — this used to return without saving anything,
         // so "my orders" and the admin dashboard never showed Odoo-backed orders.

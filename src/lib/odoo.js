@@ -797,6 +797,9 @@ async function invoicePdfUrl(invoiceId) {
 
 module.exports = {
   isConfigured,
+  // For src/lib/loyalty.js: Odoo's loyalty models are read straight through.
+  call,
+  phoneForms,
   cancelSaleOrder,
   invoicePdfUrl,
   testConnection,

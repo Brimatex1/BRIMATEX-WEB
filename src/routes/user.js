@@ -14,6 +14,7 @@
 const auth = require('../lib/auth');
 const orders = require('../lib/orders');
 const perks = require('../lib/perks');
+const loyalty = require('../lib/loyalty');
 const { leadDaysFromNote } = require('../lib/preorder');
 const avatar = require('../lib/avatar');
 const odoo = require('../lib/odoo');
@@ -365,6 +366,35 @@ async function handleUserRoutes(req, res, url) {
       voucher: vouchers.find((v) => v.code === result.redemption.code),
       points,
     });
+  }
+
+  // The loyalty add-on: points and coupons from Odoo's own modules (src/lib/loyalty.js).
+  if (req.method === 'GET' && (url.pathname === '/api/user/loyalty' || url.pathname === '/api/user/coupons')) {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const user = await auth.getUser(userId);
+    try {
+      return sendJson(res, 200, url.pathname === '/api/user/loyalty' ? await loyalty.summary(user) : await loyalty.coupons(user));
+    } catch (err) {
+      // Odoo unreachable or the program half set up: the shops hide loyalty rather than break.
+      console.error('[loyalty]', err.message);
+      return sendJson(res, 200, { enabled: false, available: [], used: [] });
+    }
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/user/coupons/check') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const payload = await jsonBody(req, res);
+    if (!payload) return;
+    const user = await auth.getUser(userId);
+    try {
+      const result = await loyalty.checkCoupon(user, payload.code, payload.subtotal);
+      return result.error ? sendJson(res, 400, { error: result.error }) : sendJson(res, 200, result);
+    } catch (err) {
+      console.error('[loyalty] coupon check:', err.message);
+      return sendJson(res, 503, { error: 'تعذّر التحقق من القسيمة الآن، حاول بعد قليل' });
+    }
   }
 
   if (req.method === 'GET' && url.pathname === '/api/user/reviews') {
