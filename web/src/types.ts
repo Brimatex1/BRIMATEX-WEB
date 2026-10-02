@@ -323,7 +323,7 @@ export interface OrderSummary {
   cancellable?: boolean;
 }
 
-export type Role = 'customer' | 'admin';
+export type Role = 'customer' | 'admin' | 'marketing' | 'support';
 
 /** Mirrors SUPPORT_TOPICS in src/server.js — the server rejects anything else. */
 export type SupportTopic = 'product' | 'order' | 'warranty' | 'complaint' | 'other';

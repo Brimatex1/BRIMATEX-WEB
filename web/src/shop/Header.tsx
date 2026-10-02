@@ -116,8 +116,8 @@ export function Header() {
                 <User className="size-[22px]" strokeWidth={1.8} />
                 <span className="hidden lg:inline">{user ? `أهلاً، ${firstName}` : 'أهلاً! سجّل الدخول'}</span>
               </Link>
-              {/* Admins only: the dashboard (/admin is its own app, so a plain link, not the shop's router). */}
-              {user?.role === 'admin' ? (
+              {/* Staff only (admin, marketing, customer service): the dashboard (/admin is its own app, so a plain link, not the shop's router). */}
+              {user?.role && user.role !== 'customer' ? (
                 <a href="/admin" className="flex h-11 items-center gap-2 rounded-full px-2.5 text-[15px] font-bold text-brand-text hover:bg-accent md:px-3.5" aria-label="لوحة التحكم">
                   <LayoutDashboard className="size-[22px]" strokeWidth={1.8} aria-hidden />
                   <span className="hidden lg:inline">لوحة التحكم</span>
@@ -183,7 +183,7 @@ export function Header() {
             <Link to={{ name: 'help' }} onClick={() => setMenuOpen(false)} className="py-2 text-[15px]">
               تواصل معنا
             </Link>
-            {user?.role === 'admin' ? (
+            {user?.role && user.role !== 'customer' ? (
               <a href="/admin" className="flex items-center gap-2 py-2 text-[15px] font-bold text-brand-text">
                 <LayoutDashboard className="size-5" strokeWidth={1.8} aria-hidden />
                 لوحة التحكم
