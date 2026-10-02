@@ -12,6 +12,10 @@ import { ShopProvider, useShop } from './state';
 import { isShopTier } from './catalog';
 import { Container } from './ui';
 
+import { AccountLayout } from './account/AccountLayout';
+import { AccountComingPage, AddressesPage, NotificationsPage, SettingsPage } from './account/AccountPages';
+import { IssuePage } from './account/IssuePage';
+import { OrderPage, OrdersPage } from './account/OrderPages';
 import { CartDrawer } from './CartDrawer';
 import { LoginDrawer } from './LoginDrawer';
 import { CartPage } from './pages/CartPage';
@@ -40,6 +44,7 @@ function PageLoading() {
 
 function Pages() {
   const { route, location } = useRouter();
+  const shop = useShop();
   if (import.meta.env.DEV && location.pathname === '/dev/ds') return <DesignSystemPage />;
   switch (route.name) {
     case 'home':
@@ -61,9 +66,32 @@ function Pages() {
     case 'confirmed':
       return <ConfirmedPage order={route.order} />;
     case 'account':
-      // Favourites work signed out (the rest of the account arrives with phase 3).
-      if (route.section === 'favorites') return <FavoritesPage />;
+      switch (route.section) {
+        case 'orders':
+          return <OrdersPage />;
+        case 'addresses':
+          return <AddressesPage />;
+        case 'settings':
+          return <SettingsPage />;
+        case 'notifications':
+          return <NotificationsPage />;
+        case 'warranty':
+          return <AccountComingPage section="warranty" title="الضمان" />;
+        case 'favorites':
+          // Favourites work signed out; signed in they sit in the account's frame.
+          return shop.auth.user ? (
+            <AccountLayout section="favorites" crumbs={[{ label: 'المفضّلة' }]}>
+              <FavoritesPage embedded />
+            </AccountLayout>
+          ) : (
+            <FavoritesPage />
+          );
+      }
       break;
+    case 'order':
+      return <OrderPage key={route.orderName} orderName={route.orderName} />;
+    case 'issue':
+      return <IssuePage key={route.orderName} orderName={route.orderName} />;
   }
   // The pages arrive phase by phase (design handoff build order).
   return (

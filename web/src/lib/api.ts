@@ -241,6 +241,25 @@ export const api = {
   getOrders: (token: string) =>
     request<{ orders: OrderSummary[] }>('/api/user/orders', authHeaders(token)),
 
+  /* The 2026 storefront's account (the same routes as the iOS app). */
+
+  /** The customer's name (settings). */
+  updateName: (token: string, name: string) => request<{ user: User }>('/api/auth/me', { ...jsonBody({ name }, token), method: 'PATCH' }),
+
+  /** Deletes the account and its data (App Store 5.1.1(v) asks the same of the app). */
+  deleteAccount: (token: string) => request<{ message: string }>('/api/auth/me', { method: 'DELETE', ...authHeaders(token) }),
+
+  /** Cancels an order that has not left for delivery yet, with the customer's reason. */
+  cancelOrder: (token: string, orderName: string, reason: string) =>
+    request<{ orderName: string; invoiceStatus: string }>(`/api/user/orders/${encodeURIComponent(orderName)}/cancel`, jsonBody({ reason }, token)),
+
+  /** A problem with an order: a Helpdesk ticket with up to four photos (data URLs). */
+  reportIssue: (token: string, orderName: string, body: { type: 'delay' | 'damaged' | 'wrong' | 'missing' | 'billing' | 'other'; products: string[]; description: string; photos: string[] }) =>
+    request<{ ref: string }>(`/api/user/orders/${encodeURIComponent(orderName)}/issues`, jsonBody(body, token)),
+
+  /** Where the order's invoice PDF can be opened (Odoo's portal link). */
+  invoiceUrl: (token: string, orderName: string) => request<{ url: string }>(`/api/user/orders/${encodeURIComponent(orderName)}/invoice`, authHeaders(token)),
+
   addAddress: (token: string, address: string, city: string) =>
     request<{ address: Address }>('/api/user/addresses', jsonBody({ address, city }, token)),
 

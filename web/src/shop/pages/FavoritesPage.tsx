@@ -15,7 +15,7 @@ import { Breadcrumb } from './CategoryPage';
  * «أضف الكل إلى السلة». A guest's are kept in this browser, with a note that
  * signing in carries them to the account (state.tsx merges them).
  */
-export function FavoritesPage() {
+export function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const shop = useShop();
   const { go } = useRouter();
   useTitle('المفضّلة');
@@ -34,8 +34,7 @@ export function FavoritesPage() {
   }
 
   return (
-    <Container className="pb-16">
-      <Breadcrumb items={[{ label: 'المفضّلة' }]} />
+    <Frame embedded={embedded}>
       <div className="flex flex-wrap items-center justify-between gap-4 pb-6">
         <h1 className="font-display text-[28px] font-bold lg:text-[40px]">المفضّلة</h1>
         {saved.length > 1 ? (
@@ -69,6 +68,17 @@ export function FavoritesPage() {
       ) : (
         <EmptyState icon={<Heart />} title="قائمة المفضّلة فارغة" body="اضغط على القلب في أي مرتبة لحفظها هنا والرجوع إليها لاحقاً." action="تصفّح المراتب" onAction={() => go({ name: 'category', tier: null })} />
       )}
+    </Frame>
+  );
+}
+
+/** Signed in, the page sits in the account's frame (which has its own breadcrumb); a guest's stands alone. */
+function Frame({ embedded, children }: { embedded: boolean; children: React.ReactNode }) {
+  if (embedded) return <>{children}</>;
+  return (
+    <Container className="pb-16">
+      <Breadcrumb items={[{ label: 'المفضّلة' }]} />
+      {children}
     </Container>
   );
 }
