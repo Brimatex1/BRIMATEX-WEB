@@ -20,11 +20,27 @@ export default {
         // had under Iwanzaza, which only ever had Arabic glyphs.
         // One font everywhere: IBM Plex Sans Arabic (as "Brimatex Plex", the
         // WOFF2 files in public/fonts) for Arabic, Latin and digits alike.
-        heading: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
-        sans: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
+        heading: ['IBM Plex Sans Arabic', 'Brimatex Plex', 'system-ui', 'sans-serif'],
+        // Google's IBM Plex Sans Arabic first: it has the 500 and 600 weights the
+        // 2026 design uses; the self-hosted files cover 400 and 700 if it is slow.
+        sans: ['IBM Plex Sans Arabic', 'Brimatex Plex', 'system-ui', 'sans-serif'],
         // The site's font (components/app) - IBM Plex Sans Arabic for every
         // character, digits and Latin included, exactly as in the iOS app.
         app: ['Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
+        // Page titles and hero headlines (the 2026 handoff): Readex Pro, with
+        // Plex behind it for anything Readex lacks.
+        display: ['Readex Pro', 'Brimatex Plex', 'IBM Plex Sans Arabic', 'system-ui', 'sans-serif'],
+      },
+      maxWidth: {
+        // The storefront's content width (design/docs/DESIGN.md).
+        content: '1280px',
+      },
+      transitionDuration: {
+        instant: 'var(--dur-instant)',
+        fast: 'var(--dur-fast)',
+        base: 'var(--dur-base)',
+        sheet: 'var(--dur-sheet)',
+        slow: 'var(--dur-slow)',
       },
       boxShadow: {
         // The iOS app's shadows (brimatex-ios/src/theme/index.ts): faint, and
@@ -107,6 +123,22 @@ export default {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
         },
+        // The 2026 handoff's extras (design/tokens/globals.css).
+        'brand-text': 'hsl(var(--highlight))',
+        'image-bg': 'hsl(var(--image-bg))',
+        'text-tertiary': 'hsl(var(--text-tertiary))',
+        warning: 'hsl(var(--warning))',
+        info: 'hsl(var(--info))',
+        discount: {
+          DEFAULT: 'hsl(var(--discount))',
+          underline: 'hsl(var(--discount-underline))',
+        },
+        overlay: 'hsl(var(--overlay))',
+        // The brand palette, the same in both modes.
+        'dark-ocean': '#282868',
+        'blue-violet': '#666BB1',
+        'sun-glare': '#DEE337',
+        paper: '#F4F5F1',
         popover: {
           DEFAULT: 'hsl(var(--popover))',
           foreground: 'hsl(var(--popover-foreground))',
@@ -149,6 +181,28 @@ export default {
         shimmer: {
           '100%': { transform: 'translateX(-200%)' },
         },
+        // The cart badge after an add (design/docs/MOTION.md).
+        'badge-pulse': {
+          '0%': { transform: 'scale(1)' },
+          '40%': { transform: 'scale(1.3)' },
+          '70%': { transform: 'scale(.94)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        // A wrong sign-in code: the boxes shake once.
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%': { transform: 'translateX(-10px)' },
+          '40%': { transform: 'translateX(9px)' },
+          '60%': { transform: 'translateX(-6px)' },
+          '80%': { transform: 'translateX(4px)' },
+        },
+        // The favourite heart: shrinks, grows, settles.
+        heart: {
+          '0%': { transform: 'scale(1)' },
+          '30%': { transform: 'scale(.8)' },
+          '65%': { transform: 'scale(1.2)' },
+          '100%': { transform: 'scale(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -156,6 +210,9 @@ export default {
         'fade-up': 'fade-up 0.26s var(--ease-out)',
         pop: 'pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         shimmer: 'shimmer 1.6s infinite',
+        'badge-pulse': 'badge-pulse 300ms var(--ease-out)',
+        shake: 'shake 400ms ease',
+        heart: 'heart 300ms var(--ease-out)',
       },
     },
   },

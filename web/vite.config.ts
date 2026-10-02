@@ -20,9 +20,11 @@ export default defineConfig({
     // During `npm run dev`, forward API calls and admin-uploaded product
     // images to the Node backend — both are served from src/public/ at
     // runtime, which only the backend (not Vite's dev server) can see.
+    // API_TARGET points them elsewhere (a preview relay to the live shop, say).
     proxy: {
-      '/api': { target: 'http://localhost:3000', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:3000', changeOrigin: true },
+      '/api': { target: process.env.API_TARGET || 'http://localhost:3000', changeOrigin: true },
+      '/uploads': { target: process.env.API_TARGET || 'http://localhost:3000', changeOrigin: true },
+      '/images': { target: process.env.API_TARGET || 'http://localhost:3000', changeOrigin: true },
     },
   },
 });

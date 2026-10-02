@@ -13,6 +13,10 @@ const badgeVariants = cva(
         destructive: 'border-transparent bg-destructive text-destructive-foreground',
         success: 'border-transparent bg-success/10 text-success',
         outline: 'text-foreground',
+        // Tier tags: square, 22 px, the same colours in light and dark.
+        elite: 'h-[22px] rounded-none border-transparent bg-dark-ocean px-2 text-xs font-bold text-white',
+        premium: 'h-[22px] rounded-none border-transparent bg-porcelain px-2 text-xs font-bold text-dark-ocean',
+        comfort: 'h-[22px] rounded-none border-transparent bg-nebula px-2 text-xs font-bold text-dark-ocean',
       },
     },
     defaultVariants: { variant: 'default' },
