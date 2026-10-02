@@ -210,6 +210,11 @@ function unitPart() {
     ok('مرتبة غير موجودة: 404', (await raw('/product/987654')).status === 404);
     ok('ملف غير موجود: 404 لا الصفحة الرئيسية', (await raw('/logo.png')).status === 404);
     ok('الصفحات الموجودة: 200 بلا noindex', (await raw('/quiz')).status === 200 && !(await raw('/')).text.includes('noindex'));
+    // The 2026 storefront's addresses are pages, not 404s (web/src/shop/router.tsx).
+    for (const page of ['/mattresses', '/mattresses/comfort', '/offers', '/compare', '/checkout', '/help', '/showroom', '/privacy', '/terms', '/account/warranty', '/account/orders/S00001/issue', '/product/1/reviews']) {
+      ok(`صفحة المتجر الجديد ${page}: 200`, (await raw(page)).status === 200);
+    }
+    ok('قسم حساب غير موجود: 404', (await raw('/account/nothing')).status === 404);
     const slash = await raw('/shop/?category=comfort');
     ok('/shop/ → /shop (301)', slash.status === 301 && slash.location === `http://127.0.0.1:${PORT}/shop?category=comfort`, JSON.stringify(slash.location));
     const www = await raw('/product/1', { Host: 'www.example.com' });
@@ -221,11 +226,11 @@ function unitPart() {
 
     const robots = await req('GET', '/robots.txt');
     ok('robots.txt نص وليس الصفحة', robots.status === 200 && /text\/plain/.test(robots.type) && !robots.text.includes('<html'));
-    ok('robots.txt يمنع اللوحة ويشير للخريطة', robots.text.includes('Disallow: /admin') && !robots.text.includes('/api') && robots.text.includes(`Sitemap: http://127.0.0.1:${PORT}/sitemap.xml`));
+    ok('robots.txt يمنع اللوحة ويشير للخريطة', robots.text.includes('Disallow: /admin') && robots.text.includes('Disallow: /checkout') && !robots.text.includes('/api') && robots.text.includes(`Sitemap: http://127.0.0.1:${PORT}/sitemap.xml`));
     const map = await req('GET', '/sitemap.xml');
     ok('sitemap.xml بصيغة XML', map.status === 200 && /xml/.test(map.type) && map.text.startsWith('<?xml'));
     ok('الخريطة فيها كل منتج', products.every((x) => map.text.includes(`/product/${x.id}</loc>`)));
-    ok('والرئيسية والمتجر، بلا اللوحة', map.text.includes(`<loc>http://127.0.0.1:${PORT}/</loc>`) && map.text.includes('/shop</loc>') && !map.text.includes('/admin'));
+    ok('والرئيسية والمتجر، بلا اللوحة', map.text.includes(`<loc>http://127.0.0.1:${PORT}/</loc>`) && map.text.includes('/mattresses</loc>') && map.text.includes('/help</loc>') && !map.text.includes('/admin'));
 
     const register = async (phone) =>
       (await req('POST', '/api/auth/register', { name: 'تجربة', phone, password: 'secret1' })).json.token;
