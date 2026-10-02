@@ -267,11 +267,11 @@ do $$ begin
   ) then
     alter table reviews add column hidden boolean not null default false;
   end if;
-end $;
+end $$;
 -- Since the app's redesign, a review waits for the team before it shows
 -- (pending); the ones written before stay as they were. A title and three
 -- sub-ratings (comfort, quality, value for money) come with it.
-do $ begin
+do $$ begin
   if not exists (
     select 1 from information_schema.columns
     where table_name = 'reviews' and column_name = 'pending'
@@ -283,7 +283,7 @@ do $ begin
     alter table reviews add column sub_quality integer;
     alter table reviews add column sub_value integer;
   end if;
-end $;
+end $$;
 `;
 
 let migrated = false;
