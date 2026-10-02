@@ -139,6 +139,45 @@ async function run() {
       'POST برمز عميل ← 403',
       (await req('POST', '/api/invoices/1', { amount: 999 }, bearer(tok))).status === 403
     );
+
+    console.log('\n\x1b[1m5. طلب التطبيق: الإلغاء والبلاغ والفاتورة\x1b[0m');
+    // A day that is never a Friday nor today: the coming Saturday at least two days away.
+    const day = new Date(Date.now() + 2 * 86400000);
+    while (day.getUTCDay() === 5) day.setUTCDate(day.getUTCDate() + 1);
+    const placed = await req(
+      'POST',
+      '/api/orders',
+      {
+        customer: { name: 'عميل', phone: USER_PHONE, city: 'طرابلس', address: 'حي الأندلس، قرب الجامع' },
+        items: [{ productId: pid, quantity: 1 }],
+        channel: 'app',
+        delivery: { method: 'home', date: day.toISOString().slice(0, 10), slot: 'evening' },
+        paymentMethod: 'transfer',
+      },
+      bearer(tok)
+    );
+    ok('طلب بموعد ودفع (201)', placed.status === 201, JSON.stringify(placed.json));
+    const name = placed.json?.orderName;
+    const listed = (await req('GET', '/api/user/orders', null, bearer(tok))).json?.orders?.find((o) => o.orderName === name);
+    ok('القائمة تقرأ الموعد والدفع وتسمح بالإلغاء', listed?.method === 'home' && /مساءً/.test(listed?.deliveryText || '') && listed?.paymentText === 'حوالة مصرفية' && listed?.cancellable === true, JSON.stringify(listed));
+    ok('طلب بيوم الجمعة يُرفض', (await req('POST', '/api/orders', { customer: { name: 'عميل', phone: USER_PHONE, city: 'طرابلس', address: 'ش' }, items: [{ productId: pid, quantity: 1 }], delivery: { method: 'home', date: '2026-10-09', slot: 'morning' } }, bearer(tok))).status === 400);
+
+    const other = await req('POST', '/api/auth/register', { name: 'غريب', phone: '0919' + String(Date.now()).slice(-6), password: 'secret123' });
+    const otherTok = other.json?.token;
+    ok('زبون آخر لا يلغي طلبك (404)', (await req('POST', `/api/user/orders/${name}/cancel`, { reason: 'x' }, bearer(otherTok))).status === 404);
+    ok('بلا سبب ← 400', (await req('POST', `/api/user/orders/${name}/cancel`, {}, bearer(tok))).status === 400);
+
+    ok('بلاغ بلا نوع ← 400', (await req('POST', `/api/user/orders/${name}/issues`, { description: 'مشكلة' }, bearer(tok))).status === 400);
+    ok('ضرر بلا صورة ← 400', (await req('POST', `/api/user/orders/${name}/issues`, { type: 'damaged', description: 'تمزّق في القماش' }, bearer(tok))).status === 400);
+    ok('صورة مزيّفة ← 400', (await req('POST', `/api/user/orders/${name}/issues`, { type: 'damaged', photos: ['data:image/png;base64,AAAA'] }, bearer(tok))).status === 400);
+    const issue = await req('POST', `/api/user/orders/${name}/issues`, { type: 'delay', description: 'تأخّر الموعد يومين', products: ['هوتيل'] }, bearer(tok));
+    ok('بلاغ تأخير يُقبل برقم (201)', issue.status === 201 && Boolean(issue.json?.ref), JSON.stringify(issue.json));
+    ok('لا فاتورة بعد ← 404', (await req('GET', `/api/user/orders/${name}/invoice`, null, bearer(tok))).status === 404);
+
+    ok('الإلغاء بسبب (200)', (await req('POST', `/api/user/orders/${name}/cancel`, { reason: 'غيّرت رأيي' }, bearer(tok))).status === 200);
+    const after2 = (await req('GET', '/api/user/orders', null, bearer(tok))).json?.orders?.find((o) => o.orderName === name);
+    ok('صار ملغى ولا يُلغى ثانية', after2?.invoiceStatus === 'cancel' && after2?.cancellable === false);
+    ok('إلغاء ثانٍ ← 409', (await req('POST', `/api/user/orders/${name}/cancel`, { reason: 'x' }, bearer(tok))).status === 409);
   } catch (e) {
     fail++;
     failures.push('خطأ غير متوقع: ' + e.message);

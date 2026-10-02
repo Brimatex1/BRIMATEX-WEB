@@ -712,7 +712,7 @@ function escapeHtml(text) {
  * Returns the ticket's reference as shown in Odoo (ticket_ref), falling back to
  * the id when the reference can't be read back.
  */
-async function createHelpdeskTicket({ name, phone, email, subject, message, orderName }) {
+async function createHelpdeskTicket({ name, phone, email, subject, message, orderName, source, attachments = [] }) {
   const [partnerId, teamId] = await Promise.all([
     findOrCreatePartner({ name, phone, email }),
     findSupportTeam(),
@@ -721,7 +721,7 @@ async function createHelpdeskTicket({ name, phone, email, subject, message, orde
   const paragraphs = [
     message,
     orderName ? `رقم الطلب: ${orderName}` : null,
-    'المصدر: نموذج خدمة العملاء في الموقع',
+    `المصدر: ${source || 'نموذج خدمة العملاء في الموقع'}`,
   ].filter(Boolean);
   const description = paragraphs
     .map((p) => `<p>${escapeHtml(p).replace(/\r?\n/g, '<br>')}</p>`)
@@ -739,6 +739,13 @@ async function createHelpdeskTicket({ name, phone, email, subject, message, orde
     },
   ]);
 
+  // Photos the customer took (a damaged mattress) - attached to the ticket.
+  for (const [i, a] of attachments.entries()) {
+    await call('ir.attachment', 'create', [
+      { name: a.name || `صورة-${i + 1}.jpg`, datas: a.base64, mimetype: a.mimetype, res_model: 'helpdesk.ticket', res_id: id },
+    ]).catch((err) => console.error('[Odoo] ticket photo not attached:', err.message));
+  }
+
   let ref = null;
   try {
     const [row] = await call('helpdesk.ticket', 'read', [[id]], { fields: ['ticket_ref'] });
@@ -749,8 +756,49 @@ async function createHelpdeskTicket({ name, phone, email, subject, message, orde
   return { id, ref: ref || String(id) };
 }
 
+/* ---------------------------------------------------------------- customer actions */
+
+/**
+ * Cancels a shop order at the customer's request, while it has not left: a
+ * delivery slip already validated (the mattress is on its way) refuses with
+ * code 'shipped'. Odoo's own cancellation, without its warning wizard, then a
+ * note on the order with the reason, for the team.
+ */
+async function cancelSaleOrder(orderId, reason) {
+  const [order] = await call('sale.order', 'read', [[orderId]], { fields: ['state', 'picking_ids'] });
+  if (!order) throw Object.assign(new Error('الطلب غير موجود في أودو'), { code: 'missing' });
+  if (order.state === 'cancel') return { alreadyCancelled: true };
+  if (order.picking_ids?.length) {
+    const pickings = await call('stock.picking', 'read', [order.picking_ids], { fields: ['state', 'picking_type_code'] });
+    if (pickings.some((p) => p.picking_type_code === 'outgoing' && p.state === 'done')) {
+      throw Object.assign(new Error('خرج الطلب للتوصيل، ولا يمكن إلغاؤه'), { code: 'shipped' });
+    }
+  }
+  await call('sale.order', 'action_cancel', [[orderId]], { context: { disable_cancel_warning: true } });
+  await call('sale.order', 'message_post', [[orderId]], {
+    body: `ألغى الزبون الطلب من التطبيق. السبب: ${escapeHtml(reason)}`,
+    message_type: 'comment',
+    subtype_xmlid: 'mail.mt_note',
+  }).catch((err) => console.error('[Odoo] cancel reason not noted:', err.message));
+  return { cancelled: true };
+}
+
+/**
+ * The customer's copy of an invoice: Odoo's portal link to its PDF, with the
+ * invoice's own access token - no login needed, nothing else reachable.
+ */
+async function invoicePdfUrl(invoiceId) {
+  const [move] = await call('account.move', 'read', [[invoiceId]], { fields: ['state'] });
+  if (!move || move.state !== 'posted') return null;
+  const path = await call('account.move', 'get_portal_url', [[invoiceId]], { report_type: 'pdf', download: true });
+  const base = String(config().url || '').replace(/\/+$/, '');
+  return path ? `${base}${path}` : null;
+}
+
 module.exports = {
   isConfigured,
+  cancelSaleOrder,
+  invoicePdfUrl,
   testConnection,
   fetchProducts,
   createSaleOrder,
