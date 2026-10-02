@@ -4,6 +4,10 @@
  * session (the token in localStorage) and its sign-in calls.
  */
 
+import type { QuizRules } from '@/shop/quiz';
+
+export type { QuizRules };
+
 export type StaffRole = 'admin' | 'marketing' | 'support';
 export type Section = 'overview' | 'orders' | 'home' | 'push' | 'quiz' | 'products' | 'reviews' | 'integrations' | 'settings';
 export type OrderStatus = 'new' | 'confirmed' | 'preparing' | 'out' | 'delivered' | 'cancelled';
@@ -151,6 +155,93 @@ export interface HomePayload {
   limits: { maxPublished: number; maxBanners: number; titleMax: number };
 }
 
+/** «ساعدني أختار» (src/lib/quizRules.js): the rules as stored, and where. */
+export interface QuizPayload {
+  rules: QuizRules;
+  storage: 'odoo' | 'local';
+}
+
+/** «ما يظهر في المتجر» - a product as the shop shows it, and where each part comes from (src/lib/panelProducts.js). */
+export interface ShopSide {
+  /** The shop's product id (its first size) - the key of its override. */
+  id: number;
+  templateId: number | null;
+  name: string;
+  tier: { key: string; name: string } | null;
+  priceFrom: number | null;
+  sizes: number;
+  stock: number | null;
+  inStock: boolean;
+  warrantyYears: number | null;
+  enabled: boolean;
+  /** The photo customers see. */
+  image: string | null;
+  imageSource: 'upload' | 'catalogue' | 'odoo' | 'none';
+  /** The photo shipped with the site - what a removed upload goes back to. */
+  catalogueImage: string | null;
+  description: string;
+  descriptionOverride: string | null;
+  catalogueDescription: string | null;
+  /** The website's feature icons, in order. */
+  features: string[];
+  /** Null: the printed catalogue's (catalogueFeatures). */
+  featuresOverride: string[] | null;
+  catalogueFeatures: string[];
+}
+
+/** «في أودو» - the product template's own fields. */
+export interface OdooSide {
+  templateId: number;
+  name: string;
+  listPrice: number | null;
+  category: string | null;
+  tags: { id: number; name: string }[];
+  descriptionSale: string;
+  hasImage: boolean;
+  /** Odoo's small picture (image_128) as a data URL, null without one. */
+  image: string | null;
+  link: string | null;
+}
+
+export interface PanelProduct {
+  /** The catalogue's key (crown, deluxe ...), null for another product the shop sells. */
+  key: string | null;
+  name: string;
+  templateId: number | null;
+  /** Null: the shop does not sell it (كراون today). */
+  shop: ShopSide | null;
+  /** Null: not read from Odoo (not connected, or not there). */
+  odoo: OdooSide | null;
+  odooLink: string | null;
+}
+
+export interface ProductsPayload {
+  products: PanelProduct[];
+  /** Odoo's product tags to choose from. */
+  tags: { id: number; name: string }[];
+  odoo: { connected: boolean; url: string | null; error: string | null };
+  source: string;
+  catalogueError: string | null;
+  featureIcons: string[];
+}
+
+export interface ShopOverride {
+  productId: number;
+  description: string | null;
+  enabled: boolean;
+  imageUrl: string | null;
+  features: string[] | null;
+}
+
+export interface OdooProductChanges {
+  /** A new image_1920, as a data URL. */
+  image?: string;
+  tagIds?: number[];
+  /** Tags Odoo may not have yet - made by name. */
+  newTags?: string[];
+  descriptionSale?: string;
+}
+
 export interface InstagramPost {
   id: string;
   imageUrl: string;
@@ -232,6 +323,17 @@ export const panelApi = {
   reorderInstagram: (token: string, ids: string[]) =>
     call<{ posts: InstagramPost[] }>(token, '/api/panel/home/instagram/order', { method: 'PUT', body: JSON.stringify({ ids }) }),
   deleteInstagram: (token: string, id: string) => call<{ posts: InstagramPost[] }>(token, `/api/panel/home/instagram/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  quiz: (token: string) => call<QuizPayload>(token, '/api/panel/quiz'),
+  saveQuiz: (token: string, rules: QuizRules) => call<QuizPayload>(token, '/api/panel/quiz', { method: 'PUT', body: JSON.stringify({ rules }) }),
+  resetQuiz: (token: string) => call<QuizPayload>(token, '/api/panel/quiz/reset', { method: 'POST' }),
+  products: (token: string) => call<ProductsPayload>(token, '/api/panel/products'),
+  saveShop: (token: string, productId: number, changes: { description?: string | null; features?: string[] | null; enabled?: boolean }) =>
+    call<ShopOverride>(token, `/api/panel/products/${productId}/shop`, { method: 'PATCH', body: JSON.stringify(changes) }),
+  uploadShopImage: (token: string, productId: number, imageDataUrl: string) =>
+    call<ShopOverride>(token, `/api/panel/products/${productId}/shop/image`, { method: 'POST', body: JSON.stringify({ imageDataUrl }) }),
+  removeShopImage: (token: string, productId: number) => call<ShopOverride>(token, `/api/panel/products/${productId}/shop/image`, { method: 'DELETE' }),
+  saveOdooProduct: (token: string, templateId: number, changes: OdooProductChanges) =>
+    call<{ product: PanelProduct | null }>(token, `/api/panel/products/odoo/${templateId}`, { method: 'PUT', body: JSON.stringify(changes) }),
   team: (token: string, q = '') => call<{ users: TeamMember[] }>(token, `/api/panel/users${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   setRole: (token: string, userId: string, role: TeamMember['role']) =>
     call<{ id: string; role: TeamMember['role'] }>(token, `/api/panel/users/${encodeURIComponent(userId)}/role`, {

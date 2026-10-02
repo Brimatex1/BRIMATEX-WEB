@@ -1,13 +1,15 @@
-// File-backed product overrides (icons, description, enabled, image). Used
-// when DATABASE_URL is not set — see src/lib/productOverrides.js, which
+// File-backed product overrides (icons, description, enabled, image, and the
+// website's feature icons - `features`, null for the printed catalogue's).
+// Used when DATABASE_URL is not set — see src/lib/productOverrides.js, which
 // picks this or store/pg-product-overrides.js.
 
 const fs = require('fs');
 const path = require('path');
 
-const FILE = path.join(__dirname, '..', '..', 'data', 'product-overrides.local.json');
+// A test server keeps its own file (like BRIMATEX_QUIZ_FILE).
+const FILE = process.env.BRIMATEX_OVERRIDES_FILE || path.join(__dirname, '..', '..', 'data', 'product-overrides.local.json');
 
-const DEFAULTS = { iconKeys: [], description: null, enabled: true, imageUrl: null };
+const DEFAULTS = { iconKeys: [], description: null, enabled: true, imageUrl: null, features: null };
 
 function readAll() {
   try {

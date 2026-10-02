@@ -12,11 +12,14 @@
  *
  * The classic dashboard (/admin/classic, src/routes/admin.js) stays admin only.
  *
- * Odoo is written to in three places only: «تأكيد» on a new order runs the sale
+ * Odoo is written to in these places only: «تأكيد» on a new order runs the sale
  * order's action_confirm, when an admin or support user presses it; «حفظ» in
- * الإعدادات sets the system parameter brimatex.app.settings (admin); and «حفظ»
- * in الواجهة والبانرات sets brimatex.app.home (admin, marketing). The banners'
- * pictures stay files on this server (src/lib/home.js), not Odoo attachments.
+ * الإعدادات sets the system parameter brimatex.app.settings (admin); «حفظ» in
+ * الواجهة والبانرات sets brimatex.app.home and in ساعدني أختار brimatex.app.quiz
+ * (admin, marketing); and «حفظ» in المراتب writes a catalogue mattress's
+ * image_1920, product tags and description_sale (admin, marketing). The banners'
+ * pictures stay files on this server (src/lib/home.js), not Odoo attachments, and
+ * so does the shop's own photo of a mattress (src/lib/panelProducts.js).
  */
 'use strict';
 
@@ -30,6 +33,8 @@ const home = require('../lib/home');
 const instagram = require('../lib/instagram');
 const panel = require('../lib/panel');
 const appSettings = require('../lib/appSettings');
+const quizRules = require('../lib/quizRules');
+const panelProducts = require('../lib/panelProducts');
 const { DAYS_TEXT } = require('../lib/delivery');
 const { getProducts, visibleOnly, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
@@ -310,6 +315,107 @@ function createPanelRoutes() {
       }
       const one = url.pathname.match(/^\/api\/panel\/home\/instagram\/([a-f0-9]{16})$/);
       if (one && req.method === 'DELETE') return reply(instagram.remove(one[1]));
+      return sendJson(res, 404, { error: 'غير موجود' });
+    }
+
+    // ---- ساعدني أختار: the quiz's rules (admin and marketing) ----
+
+    if ((req.method === 'GET' || req.method === 'PUT') && url.pathname === '/api/panel/quiz') {
+      const user = await staffFor(req, res, 'quiz');
+      if (!user) return;
+      let value;
+      try {
+        if (req.method === 'GET') {
+          value = await quizRules.load();
+        } else {
+          const body = await jsonBody(req, res);
+          if (!body) return;
+          value = await quizRules.save(body.rules ?? body);
+          console.log(`[panel] quiz rules saved by ${user.id} (${quizRules.storage()})`);
+        }
+      } catch (err) {
+        if (!(err instanceof quizRules.QuizRulesError)) throw err;
+        return sendJson(res, err.status, { error: err.message, field: err.field, code: err.code });
+      }
+      return sendJson(res, 200, { rules: quizRules.publicRules(value), storage: quizRules.storage() });
+    }
+
+    // «استعادة قواعد المصنع»: the factory's rules (src/data/quiz-rules.json) replace the stored ones.
+    if (req.method === 'POST' && url.pathname === '/api/panel/quiz/reset') {
+      const user = await staffFor(req, res, 'quiz');
+      if (!user) return;
+      let value;
+      try {
+        value = await quizRules.reset();
+      } catch (err) {
+        if (!(err instanceof quizRules.QuizRulesError)) throw err;
+        return sendJson(res, err.status, { error: err.message, field: err.field, code: err.code });
+      }
+      console.log(`[panel] quiz rules reset to the factory's by ${user.id} (${quizRules.storage()})`);
+      return sendJson(res, 200, { rules: quizRules.publicRules(value), storage: quizRules.storage() });
+    }
+
+    // ---- المراتب: what the shop shows and Odoo's product fields (admin and marketing) ----
+
+    if (url.pathname === '/api/panel/products' || url.pathname.startsWith('/api/panel/products/')) {
+      const user = await staffFor(req, res, 'products');
+      if (!user) return;
+      const reply = async (work) => {
+        try {
+          return sendJson(res, 200, await work());
+        } catch (err) {
+          if (!(err instanceof panelProducts.PanelProductsError)) throw err;
+          return sendJson(res, err.status, { error: err.message, field: err.field, code: err.code });
+        }
+      };
+
+      if (req.method === 'GET' && url.pathname === '/api/panel/products') {
+        return reply(() => panelProducts.list());
+      }
+
+      // «ما يظهر في المتجر»: description, feature icons, shown or hidden - by the shop's product id.
+      const shopMatch = url.pathname.match(/^\/api\/panel\/products\/(\d+)\/shop$/);
+      if (shopMatch && req.method === 'PATCH') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        return reply(async () => {
+          const saved = await panelProducts.saveShop(Number(shopMatch[1]), body);
+          console.log(`[panel] product ${shopMatch[1]} (shop) saved by ${user.id}`);
+          return { productId: Number(shopMatch[1]), ...saved };
+        });
+      }
+
+      // The shop's photo: { imageDataUrl } uploads one; DELETE goes back to the catalogue's.
+      const imageMatch = url.pathname.match(/^\/api\/panel\/products\/(\d+)\/shop\/image$/);
+      if (imageMatch && (req.method === 'POST' || req.method === 'DELETE')) {
+        const id = Number(imageMatch[1]);
+        if (req.method === 'DELETE') return reply(async () => ({ productId: id, ...(await panelProducts.removeShopImage(id)) }));
+        let payload;
+        try {
+          // A 5 MB picture is about 6.7 MB as base64.
+          payload = JSON.parse(await readBody(req, 7_000_000));
+        } catch {
+          return sendJson(res, 413, { error: 'حجم الصورة كبير جداً', field: 'image' });
+        }
+        return reply(async () => ({ productId: id, ...(await panelProducts.saveShopImage(id, payload.imageDataUrl)) }));
+      }
+
+      // «في أودو»: image_1920, product tags, description_sale - by the Odoo template id.
+      const odooMatch = url.pathname.match(/^\/api\/panel\/products\/odoo\/(\d+)$/);
+      if (odooMatch && req.method === 'PUT') {
+        let payload;
+        try {
+          payload = JSON.parse((await readBody(req, 7_000_000)) || '{}');
+        } catch {
+          return sendJson(res, 413, { error: 'حجم الطلب كبير جداً' });
+        }
+        return reply(async () => {
+          const row = await panelProducts.saveOdoo(Number(odooMatch[1]), payload);
+          console.log(`[panel] product template ${odooMatch[1]} (Odoo) saved by ${user.id}`);
+          return { product: row };
+        });
+      }
+
       return sendJson(res, 404, { error: 'غير موجود' });
     }
 

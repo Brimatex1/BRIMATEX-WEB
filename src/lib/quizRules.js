@@ -196,6 +196,19 @@ async function save(input) {
   return next;
 }
 
+/**
+ * The rules in GET /api/app/v1/config: what the engines read (web/src/shop/quiz.ts
+ * and the app's src/catalog/quiz.ts) - the factory file's notes left out.
+ */
+function publicRules(value) {
+  return { version: value.version, mattresses: value.mattresses, questions: value.questions, first_bonus: value.first_bonus };
+}
+
+/** Where the rules are kept: Odoo's system parameter, or this server's file. */
+function storage() {
+  return odoo.isConfigured() ? 'odoo' : 'local';
+}
+
 /** Back to the factory's rules (the panel's «استعادة قواعد المصنع»). */
 async function reset() {
   return save(defaults());
@@ -206,4 +219,4 @@ function _resetCache() {
   cache = null;
 }
 
-module.exports = { PARAM, CACHE_MS, QuizRulesError, defaults, validate, load, current, save, reset, _resetCache };
+module.exports = { PARAM, CACHE_MS, QuizRulesError, defaults, validate, load, current, save, reset, publicRules, storage, _resetCache };

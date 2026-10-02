@@ -17,6 +17,7 @@ import type { AppConfig, Product, ProductVariant } from '@/types';
 
 import { shopProducts, variantsOf } from './catalog';
 import { useLoyaltyStore, type LoyaltyApi } from './loyalty';
+import { usableRules, type QuizRules } from './quiz';
 
 const CITY_KEY = 'brimatex:city';
 const METHOD_KEY = 'brimatex:delivery-method';
@@ -93,6 +94,8 @@ interface ShopApi {
    * its way, null when it could not be read (the home then shows its own hero).
    */
   home: AppConfig['home'] | null | undefined;
+  /** The panel's «ساعدني أختار» rules (the same answer), null until they arrive or without them. */
+  quiz: QuizRules | null;
   /** «وضع الصيانة»: its message while ordering is stopped, else null. */
   maintenance: string | null;
 }
@@ -136,6 +139,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   // The panel's settings, read once per visit (the server keeps them 5 minutes).
   const [config, setConfig] = useState<AppConfig['settings'] | null>(null);
   const [home, setHome] = useState<AppConfig['home'] | null | undefined>(undefined);
+  const [quiz, setQuiz] = useState<QuizRules | null>(null);
   useEffect(() => {
     let live = true;
     http
@@ -144,6 +148,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         if (!live) return;
         setConfig(c.settings);
         setHome(c.home ?? null);
+        setQuiz(usableRules(c.quiz));
       })
       .catch(() => {
         /* Without them the shop runs as before: open, with its own contact details and hero. */
@@ -302,9 +307,10 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       loyalty,
       config,
       home,
+      quiz,
       maintenance,
     }),
-    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty, config, home, maintenance]
+    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod, loyalty, config, home, quiz, maintenance]
   );
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;

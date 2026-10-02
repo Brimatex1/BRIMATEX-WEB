@@ -74,6 +74,8 @@ async function withOverrides(products) {
     return {
       ...p,
       ...shipped,
+      // The panel's «المراتب» may set the website's feature icons; null keeps the catalogue's.
+      featureIcons: Array.isArray(o.features) ? o.features : d.features,
       iconFeatures: o.iconKeys?.length ? o.iconKeys : d.iconKeys,
       description: o.description || d.description || p.description,
       enabled: o.enabled,

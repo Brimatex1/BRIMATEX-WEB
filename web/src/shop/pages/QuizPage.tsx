@@ -7,16 +7,13 @@ import { cn } from '@/lib/utils';
 import { displayName, parseSize, sizeText, tierOf } from '../catalog';
 import { useTitle } from '../hooks';
 import { photoOf } from '../ProductCard';
-import { DEFAULT_RULES, chipFor, questionsOf, recommend, type QuizAnswers, type QuizPick } from '../quiz';
-
-// The factory's rules (quiz-rules.json); the questions come from them.
-const RULES = DEFAULT_RULES;
-const QUESTIONS = questionsOf(RULES);
-/** The last answers stay on this device, so «أعد الأسئلة» starts from them (docs/QUIZ.md). */
-const SAVED = 'brimatex:quiz-answers';
+import { DEFAULT_RULES, chipFor, questionsOf, recommend, type QuizAnswers, type QuizPick, type QuizQuestion, type QuizRules } from '../quiz';
 import { Link, useRouter } from '../router';
 import { useShop } from '../state';
 import { Container, EmptyState, Price, Skeleton, SizeText, TierTag } from '../ui';
+
+/** The last answers stay on this device, so «أعد الأسئلة» starts from them (docs/QUIZ.md). */
+const SAVED = 'brimatex:quiz-answers';
 
 /** One icon per option card (the handoff draws a bed on each). */
 const ICONS: Record<string, LucideIcon> = {
@@ -50,10 +47,14 @@ function productHref(pick: QuizPick): string {
  * ساعدني أختار (handoff WebQuiz, WebQuizResult): three questions, one per step,
  * with a progress bar; then the best match with a line on why, «أضف … إلى
  * السلة», «جرّبها في الصالة» and one alternative. The answers live in this
- * page's state only; the matching rules are in ../quiz.ts.
+ * page's state only; the matching is in ../quiz.ts, on the rules the admin
+ * panel sets (/api/app/v1/config → quiz) - the factory's until they arrive.
  */
 export function QuizPage() {
   useTitle('ساعدني أختار');
+  const shop = useShop();
+  const rules = shop.quiz ?? DEFAULT_RULES;
+  const QUESTIONS = useMemo(() => questionsOf(rules), [rules]);
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Draft>(() => {
     try {
@@ -90,10 +91,11 @@ export function QuizPage() {
     }
   }, [done, answers]);
 
-  if (done) return <Result answers={answers as QuizAnswers} onRestart={restart} headingRef={heading} />;
+  if (done) return <Result rules={rules} questions={QUESTIONS} answers={answers as QuizAnswers} onRestart={restart} headingRef={heading} />;
 
   const question = QUESTIONS[step];
-  const chosen = answers[question.id];
+  // A kept answer the panel has since turned off is not offered - nor chosen.
+  const chosen = question.options.some((o) => o.key === answers[question.id]) ? answers[question.id] : undefined;
   const last = step === QUESTIONS.length - 1;
 
   return (
@@ -164,10 +166,22 @@ export function QuizPage() {
   );
 }
 
-function Result({ answers, onRestart, headingRef }: { answers: QuizAnswers; onRestart: () => void; headingRef: React.RefObject<HTMLHeadingElement> }) {
+function Result({
+  rules,
+  questions,
+  answers,
+  onRestart,
+  headingRef,
+}: {
+  rules: QuizRules;
+  questions: QuizQuestion[];
+  answers: QuizAnswers;
+  onRestart: () => void;
+  headingRef: React.RefObject<HTMLHeadingElement>;
+}) {
   const shop = useShop();
   const { go } = useRouter();
-  const result = useMemo(() => recommend(answers, shop.products, RULES), [answers, shop.products]);
+  const result = useMemo(() => recommend(answers, shop.products, rules), [answers, shop.products, rules]);
   const { best, alternative, reason } = result;
 
   const header = (
@@ -177,9 +191,9 @@ function Result({ answers, onRestart, headingRef }: { answers: QuizAnswers; onRe
           اقتراحنا لك
         </h2>
         <ul className="flex flex-wrap gap-2" aria-label="إجاباتك">
-          {QUESTIONS.map((q) => (
+          {questions.map((q) => (
             <li key={q.id} className="inline-flex h-9 items-center rounded-full bg-image-bg px-3.5 text-sm font-semibold">
-              {chipFor(RULES, q.id, answers[q.id])}
+              {chipFor(rules, q.id, answers[q.id])}
             </li>
           ))}
         </ul>

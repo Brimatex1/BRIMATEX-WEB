@@ -205,7 +205,7 @@ export function SettingsPage({ me, token }: { me: PanelMe; token: string }) {
               <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="flex flex-col gap-1">
                   <b className="text-[17px]">الإعدادات المتقدمة</b>
-                  <span className="text-sm text-[#5F6373]">قائمة العملاء، والمخزون، وتعديلات المنتجات وصورها، وصور الإعلانات وإنستغرام في اللوحة السابقة حالياً.</span>
+                  <span className="text-sm text-[#5F6373]">قائمة العملاء، والمخزون، وصور الإعلانات وإنستغرام في اللوحة السابقة حالياً. محتوى المراتب وصورها في «المراتب».</span>
                 </span>
                 <a href="/admin/classic" className={cn(buttonClass('outline'), 'no-underline')}>
                   <Icon name="external" size={18} />

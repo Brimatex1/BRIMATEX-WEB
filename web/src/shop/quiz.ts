@@ -51,6 +51,18 @@ export interface QuizRules {
 
 export const DEFAULT_RULES = DEFAULT_RULES_JSON as unknown as QuizRules;
 
+/**
+ * The panel's rules from /api/app/v1/config when they have the shape the engine
+ * needs (the server checks them on save), else null - the factory's then apply.
+ */
+export function usableRules(value: unknown): QuizRules | null {
+  const r = value as Partial<QuizRules> | null | undefined;
+  if (!r || typeof r !== 'object' || !r.mattresses || typeof r.mattresses !== 'object' || !Array.isArray(r.questions)) return null;
+  if (r.questions.map((q) => q?.id).join() !== 'who,position,need') return null;
+  if (!r.questions.every((q) => Array.isArray(q.options) && q.options.some((o) => o.enabled !== false))) return null;
+  return { version: Number(r.version) || 3, mattresses: r.mattresses, questions: r.questions, first_bonus: Number.isFinite(r.first_bonus) ? Number(r.first_bonus) : 2 };
+}
+
 /** Answers by question id: { who, position, need } → option id. */
 export type QuizAnswers = Record<string, string>;
 

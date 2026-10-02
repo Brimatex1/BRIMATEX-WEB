@@ -196,6 +196,33 @@ export function Pill({ tone, children, className }: { tone: Tone; children: Reac
   );
 }
 
+/** A mattress's tier as the prototypes draw it (AdminQuiz, AdminProducts): إليت navy, بريميوم teal, كمفورت grey-green. */
+const TIER_PILL: Record<string, { label: string; className: string }> = {
+  elite: { label: 'إليت', className: 'bg-dark-ocean text-white' },
+  premium: { label: 'بريميوم', className: 'bg-[#9dc9cf] text-dark-ocean' },
+  comfort: { label: 'كمفورت', className: 'bg-[#d9e3e2] text-dark-ocean' },
+};
+
+export function TierPill({ tier, label, className }: { tier: string | null | undefined; label?: string | null; className?: string }) {
+  const known = tier ? TIER_PILL[tier] : undefined;
+  const text = known?.label ?? label;
+  if (!text) return null;
+  return (
+    <span className={cn('inline-flex h-[26px] items-center whitespace-nowrap rounded-full px-2.5 text-[12.5px] font-semibold', known?.className ?? 'bg-[#F4F4F6] text-[#3B3E4C]', className)}>
+      {text}
+    </span>
+  );
+}
+
+/** A mattress's square photo (the shop's), or the bed icon when there is none. */
+export function Thumb({ src, size = 32, className }: { src: string | null | undefined; size?: number; className?: string }) {
+  return (
+    <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-lg bg-[#EEF0FA] text-[#5F6373]', className)} style={{ width: size, height: size }}>
+      {src ? <img src={src} alt="" className="size-full object-cover" /> : <Icon name="bed" size={Math.round(size * 0.55)} />}
+    </span>
+  );
+}
+
 export const STATUS_META: Record<OrderStatus, { label: string; tone: Tone }> = {
   new: { label: 'جديد', tone: 'amber' },
   confirmed: { label: 'مؤكد', tone: 'blue' },

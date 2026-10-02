@@ -210,6 +210,16 @@ do $$ begin
     alter table product_overrides add column image_url text;
   end if;
 end $$;
+-- The website's feature icons for the product (the panel's «المراتب»), in
+-- order; null keeps the printed catalogue's (src/data/product-details.json).
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'product_overrides' and column_name = 'features'
+  ) then
+    alter table product_overrides add column features json;
+  end if;
+end $$;
 drop table if exists product_icon_features;
 
 -- The profile photo's public path (src/lib/avatar.js); null without one.

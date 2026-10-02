@@ -33,6 +33,7 @@ const productOverrides = require('./lib/productOverrides');
 const settings = require('./lib/settings');
 const appSettings = require('./lib/appSettings');
 const home = require('./lib/home');
+const quizRules = require('./lib/quizRules');
 const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
@@ -257,13 +258,18 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, await perksLib.publicReviews(ids));
   }
 
-  // The apps' and the website's settings (the panel's الإعدادات, src/lib/appSettings.js)
-  // and the home (الواجهة والبانرات, src/lib/home.js) - ?platform=ios|android|web picks
-  // the banners for the caller (the website when it does not say). Public, kept 5
-  // minutes in memory and by every client; a save replaces it at once here.
+  // The apps' and the website's settings (the panel's الإعدادات, src/lib/appSettings.js),
+  // the home (الواجهة والبانرات, src/lib/home.js) and the «ساعدني أختار» rules
+  // (src/lib/quizRules.js) - ?platform=ios|android|web picks the banners for the
+  // caller (the website when it does not say). Public, kept 5 minutes in memory
+  // and by every client; a save replaces it at once here.
   if (req.method === 'GET' && url.pathname === '/api/app/v1/config') {
-    const [value, homeValue] = await Promise.all([appSettings.current(), home.current()]);
-    const config = { ...appSettings.publicConfig(value), home: home.publicHome(homeValue, home.platformOf(url.searchParams.get('platform'))) };
+    const [value, homeValue, quizValue] = await Promise.all([appSettings.current(), home.current(), quizRules.current()]);
+    const config = {
+      ...appSettings.publicConfig(value),
+      home: home.publicHome(homeValue, home.platformOf(url.searchParams.get('platform'))),
+      quiz: quizRules.publicRules(quizValue),
+    };
     return sendJson(res, 200, config, { 'Cache-Control': 'public, max-age=300' });
   }
 

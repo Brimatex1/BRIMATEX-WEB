@@ -10,6 +10,8 @@ import { HomeBannersPage } from './pages/HomeBannersPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { ProductsPage } from './pages/ProductsPage';
+import { QuizRulesPage } from './pages/QuizRulesPage';
 import { ReviewsPage } from './pages/ReviewsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { navigate, parseSection, sectionHref, useLocation } from './router';
@@ -106,7 +108,9 @@ export default function PanelApp() {
         {allowed === 'integrations' ? <IntegrationsPage me={me} token={token} /> : null}
         {allowed === 'settings' ? <SettingsPage me={me} token={token} /> : null}
         {allowed === 'home' ? <HomeBannersPage me={me} token={token} /> : null}
-        {allowed === 'push' || allowed === 'quiz' || allowed === 'products' ? <PlaceholderPage me={me} section={allowed} /> : null}
+        {allowed === 'quiz' ? <QuizRulesPage me={me} token={token} /> : null}
+        {allowed === 'products' ? <ProductsPage me={me} token={token} /> : null}
+        {allowed === 'push' ? <PlaceholderPage me={me} section={allowed} /> : null}
       </Shell>
     );
   }

@@ -1,4 +1,6 @@
-// Postgres-backed product overrides (icons, description, enabled, image).
+// Postgres-backed product overrides (icons, description, enabled, image, and
+// the catalogue's feature icons the website shows - `features`, null for the
+// catalogue's own).
 // Used when DATABASE_URL is set — see src/lib/productOverrides.js, which
 // picks this or store/file-product-overrides.js.
 
@@ -10,12 +12,13 @@ function toOverrides(row) {
     description: row?.description ?? null,
     enabled: row?.enabled ?? true,
     imageUrl: row?.image_url ?? null,
+    features: Array.isArray(row?.features) ? row.features : null,
   };
 }
 
 async function getOverridesForProduct(productId) {
   const { rows } = await db.query(
-    'select icon_keys, description, enabled, image_url from product_overrides where product_id = $1',
+    'select icon_keys, description, enabled, image_url, features from product_overrides where product_id = $1',
     [productId]
   );
   return toOverrides(rows[0]);
@@ -23,7 +26,7 @@ async function getOverridesForProduct(productId) {
 
 async function getAllOverrides() {
   const { rows } = await db.query(
-    'select product_id, icon_keys, description, enabled, image_url from product_overrides'
+    'select product_id, icon_keys, description, enabled, image_url, features from product_overrides'
   );
   const map = {};
   for (const row of rows) map[String(row.product_id)] = toOverrides(row);
@@ -42,18 +45,19 @@ async function setOverridesForProduct(productId, changes) {
     next.description,
     next.enabled,
     next.imageUrl,
+    Array.isArray(next.features) ? JSON.stringify(next.features) : null,
   ];
   const { rowCount } = await db.query(
     `update product_overrides
-       set icon_keys = $2, description = $3, enabled = $4, image_url = $5, updated_at = now()
+       set icon_keys = $2, description = $3, enabled = $4, image_url = $5, features = $6, updated_at = now()
      where product_id = $1`,
     params
   );
   if (rowCount === 0) {
     await db.query(
       `insert into product_overrides
-         (product_id, icon_keys, description, enabled, image_url, updated_at)
-       values ($1, $2, $3, $4, $5, now())`,
+         (product_id, icon_keys, description, enabled, image_url, features, updated_at)
+       values ($1, $2, $3, $4, $5, $6, now())`,
       params
     );
   }

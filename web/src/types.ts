@@ -1,3 +1,5 @@
+import type { QuizRules } from './shop/quiz';
+
 export type Category = 'mattress' | 'pillow' | 'bedding';
 
 export interface ProductSize {
@@ -484,6 +486,8 @@ export type HomeSectionKey = 'hero' | 'offers' | 'categories' | 'recent' | 'best
 export interface AppConfig {
   /** The panel's «الواجهة والبانرات»: live banners for this platform, and the home sections in order. */
   home?: { banners: WebBanner[]; sections: { key: HomeSectionKey; on: boolean }[] };
+  /** The panel's «ساعدني أختار»: the rules the quiz runs on (src/lib/quizRules.js); absent from older servers. */
+  quiz?: QuizRules;
   settings: {
     minVersion: { ios: string; android: string };
     forceUpdate: boolean;

@@ -14,7 +14,8 @@ function fileFor(name: string): string | undefined {
   return FILES[`./assets/feature-icons/${name}.svg`];
 }
 
-const LABEL: Record<string, string> = {
+/** Each icon's label - also the panel's «المراتب» list of icons to choose from. */
+export const FEATURE_LABELS: Record<string, string> = {
   'high-density-foam': 'إسفنج عالي الكثافة',
   'premium-quality': 'جودة فاخرة',
   'medical-support': 'دعم طبي',
@@ -54,7 +55,7 @@ export function FeatureIcon({ name, className }: { name: string; className?: str
 }
 
 export function Features({ names }: { names: string[] }) {
-  const known = names.filter((n) => fileFor(n) && LABEL[n]);
+  const known = names.filter((n) => fileFor(n) && FEATURE_LABELS[n]);
   if (!known.length) return null;
   return (
     <div className="flex flex-col gap-4">
@@ -63,7 +64,7 @@ export function Features({ names }: { names: string[] }) {
         {known.map((n) => (
           <li key={n} className="flex min-w-0 flex-col items-center gap-2 rounded-lg border border-border px-1.5 py-3 text-center">
             <FeatureIcon name={n} className={n === 'made-in-libya' ? 'size-12 rounded-full dark:bg-white' : 'size-12'} />
-            <span className="text-xs font-bold leading-snug">{LABEL[n]}</span>
+            <span className="text-xs font-bold leading-snug">{FEATURE_LABELS[n]}</span>
           </li>
         ))}
       </ul>
