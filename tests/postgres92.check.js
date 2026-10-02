@@ -99,6 +99,18 @@ for (const [rel, spec] of [
 const guard = read('src/lib/no-undici.js');
 check('الحارس يحذف الكائنات (لا يستبدلها بدالة ترمي خطأ)', /delete globalThis\[name\]/.test(guard));
 
+// The schema's do-blocks run at boot: one quoted with a single $ instead of
+// $$ is invalid SQL, and the server does not start (it happened on 2 Oct 2026).
+console.log('\n\x1b[1m3. كتل do في المخطط\x1b[0m');
+for (const rel of SQL_FILES) {
+  const code = read(rel);
+  const opens = (code.match(/\bdo\s+\$\$\s+begin\b/gi) || []).length;
+  const closes = (code.match(/\bend\s+\$\$\s*;/gi) || []).length;
+  const broken = code.match(/\bdo\s+\$(?!\$)|\bend\s+\$(?!\$)\s*;/i);
+  if (!opens && !broken) continue;
+  check(`${rel}: كل كتلة do $$ … end $$; مكتملة (${opens}/${closes})`, opens === closes && !broken, broken ? `وُجد «${broken[0]}»` : '');
+}
+
 /* ---------- report ---------- */
 
 console.log('\n' + '─'.repeat(52));
