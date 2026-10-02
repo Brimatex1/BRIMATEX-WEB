@@ -260,7 +260,9 @@ function testHtml() {
   // Cross-check every external origin in the shell against the CSP the
   // server actually sends, rather than against a hard-coded allowlist.
   const serverCode = fs.readFileSync(path.join(__dirname, '..', 'src', 'server.js'), 'utf8');
-  const csp = serverCode.match(/Content-Security-Policy'\]\s*=\s*"([^"]+)"/)?.[1] || '';
+  // The policy lives in one constant (SHELL_CSP), written as joined string pieces.
+  const cspSource = serverCode.match(/const SHELL_CSP\s*=\s*([\s\S]*?);\r?\n/)?.[1] || '';
+  const csp = [...cspSource.matchAll(/"([^"]*)"|`([^`]*)`/g)].map((m) => m[1] ?? m[2]).join('');
   const allowed = new Set([...csp.matchAll(/https:\/\/[a-z0-9.-]+/g)].map((m) => m[0]));
   const origins = [...html.matchAll(/href="(https:\/\/[a-z0-9.-]+)/g)].map((m) => m[1]);
   const blocked = [...new Set(origins)].filter((o) => !allowed.has(o));
