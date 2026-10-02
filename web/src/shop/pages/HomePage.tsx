@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import wave from '../assets/wave-pattern-white.png';
-import { TIER_TITLE, displayName, tierOf, type TierKey } from '../catalog';
+import { TIER_TITLE, displayName, featuredVariant, tierOf, type TierKey } from '../catalog';
 import { useTitle } from '../hooks';
 import { photoOf, ProductCard } from '../ProductCard';
+import { clearViewed, readViewed } from '../recent';
 import { Link } from '../router';
 import { useShop } from '../state';
-import { Container, Skeleton } from '../ui';
+import { Container, Price, Skeleton } from '../ui';
 
 /**
  * The campaign in the hero (handoff WebHome). The brief wants it from a small
@@ -35,9 +36,9 @@ const PROMISES = [
 ];
 
 const TILES: { tier: TierKey; line: string; className: string; arrow: string }[] = [
-  { tier: 'elite', line: 'أعلى درجات الراحة. ديلوكس بارتفاع 30 سم.', className: 'bg-dark-ocean text-white', arrow: 'bg-white text-dark-ocean' },
+  { tier: 'elite', line: 'كراون وديلوكس: نوابض منفصلة وطبقات فاخرة.', className: 'bg-dark-ocean text-white', arrow: 'bg-white text-dark-ocean' },
   { tier: 'premium', line: 'بالانس وهوتيل وسبورت. نوابض وإسفنج طبي.', className: 'bg-porcelain text-dark-ocean', arrow: 'bg-dark-ocean text-white' },
-  { tier: 'comfort', line: 'كلاسيك وكومفورت ودايلي. ثلاثة ارتفاعات.', className: 'bg-nebula text-dark-ocean', arrow: 'bg-dark-ocean text-white' },
+  { tier: 'comfort', line: 'كلاسيك وكمفورت وديلي. ثلاثة ارتفاعات.', className: 'bg-nebula text-dark-ocean', arrow: 'bg-dark-ocean text-white' },
 ];
 
 /** The App Store page - not published yet; the phone banner shows once it is. */
@@ -89,6 +90,8 @@ export function HomePage() {
     }
   });
   useTitle(null);
+  const [recentIds, setRecentIds] = useState<number[]>(readViewed);
+  const recent = recentIds.map((id) => shop.products.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => Boolean(p));
 
   const hero = shop.products.find((p) => displayName(p) === CAMPAIGN.product);
   const heroTier = hero ? tierOf(hero) : null;
@@ -156,6 +159,42 @@ export function HomePage() {
           ))}
         </div>
       </Container>
+
+      {/* ── Recently viewed (this browser only; hidden when empty) ── */}
+      {recent.length ? (
+        <Container>
+          <SectionHead
+            title="شاهدتها مؤخراً"
+            action={
+              <button
+                type="button"
+                className="text-[15px] font-bold underline-offset-4 hover:underline"
+                onClick={() => {
+                  clearViewed();
+                  setRecentIds([]);
+                }}
+              >
+                مسح السجل
+              </button>
+            }
+          />
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:gap-5 lg:px-0">
+            {recent.map((p, i) => (
+              <Link
+                key={p.id}
+                to={{ name: 'product', id: p.id }}
+                className={cn('flex w-[150px] shrink-0 flex-col gap-1.5 lg:w-[200px]', i === 0 ? 'animate-rv-in' : 'animate-rv-shift', 'motion-reduce:animate-none')}
+              >
+                <span className="relative h-[120px] overflow-hidden bg-image-bg lg:h-40">
+                  <img src={photoOf(p)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                </span>
+                <b className="text-[15px]">{displayName(p)}</b>
+                <Price amount={featuredVariant(p).price} size="row" className="text-lg" />
+              </Link>
+            ))}
+          </div>
+        </Container>
+      ) : null}
 
       {/* ── Best sellers ── */}
       <Container>

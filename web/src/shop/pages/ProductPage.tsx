@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import type { Product, ProductReviews, ProductVariant } from '@/types';
 
 import { TIER_TITLE, availabilityOf, availabilityText, availabilityTone, canOrderVariant, describe, displayName, featuredVariant, parseSize, sizeText, tierOf, variantFromQuery, variantsOf } from '../catalog';
+import { Features } from '../Features';
 import { useIsDesktop, useTitle } from '../hooks';
 import { HeartButton, photoOf, ProductCard } from '../ProductCard';
 import { Link, useRouter } from '../router';
@@ -308,17 +309,25 @@ export function ProductPage({ id }: { id: number }) {
                   <RatingStars average={product.rating.average} count={product.rating.count} />
                 </Link>
               ) : null}
-              <Price amount={variant.price} size="page" className="mt-2" />
+              {/* A new size's price comes in from below (design/docs/MOTION.md «Change size»). */}
+              <span aria-live="polite" className="mt-2 overflow-hidden">
+                <Price key={variant.price} amount={variant.price} size="page" className="animate-fade-up motion-reduce:animate-none" />
+              </span>
               <StatusDot tone={availabilityTone(availability)}>{availabilityText(availability, product.leadDays)}</StatusDot>
             </div>
 
             <div className="flex flex-col gap-2">
               <SizePicker product={product} value={variant} onChange={choose} />
-              {variantsOf(product).length > 1 ? (
-                <button type="button" className="self-start text-sm font-bold text-brand-text underline underline-offset-4" onClick={() => setGuide(true)}>
-                  دليل المقاسات
-                </button>
-              ) : null}
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {variantsOf(product).length > 1 ? (
+                  <button type="button" className="text-sm font-bold text-brand-text underline underline-offset-4" onClick={() => setGuide(true)}>
+                    دليل المقاسات
+                  </button>
+                ) : null}
+                <Link to={`/compare?ids=${product.id}`} className="text-sm font-bold text-brand-text underline underline-offset-4">
+                  قارن مع مراتب أخرى
+                </Link>
+              </div>
             </div>
 
             <div role="radiogroup" aria-label="طريقة الاستلام" className="flex flex-col divide-y divide-border rounded-lg border border-border">
@@ -353,20 +362,27 @@ export function ProductPage({ id }: { id: number }) {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-0 lg:mt-16 lg:grid-cols-2 lg:gap-12">
-          {product.layers?.length ? (
-            <Fold title="ماذا بداخلها؟" summary={`${product.layers.length} طبقات`} desktop={desktop}>
-              <span className="-mt-2 text-sm text-muted-foreground">الطبقات من الأعلى إلى الأسفل</span>
-              <ol className="mt-3 flex flex-col gap-2.5">
-                {product.layers.map((layer, i) => (
-                  <li key={i} className="flex items-center gap-3 text-[15px]">
-                    <span className={cn('h-3 w-14 shrink-0', LAYER_COLOURS[i % LAYER_COLOURS.length])} aria-hidden />
-                    {layer}
-                  </li>
-                ))}
-              </ol>
-            </Fold>
-          ) : null}
+        <div className="mt-8 grid gap-0 lg:mt-16 lg:grid-cols-[1.25fr_1fr] lg:gap-12">
+          <div className="flex flex-col gap-0 lg:gap-12">
+            {product.featureIcons?.length ? (
+              <Fold title="المميزات" desktop={desktop}>
+                <Features names={product.featureIcons} />
+              </Fold>
+            ) : null}
+            {product.layers?.length ? (
+              <Fold title="ماذا بداخلها؟" summary={`${product.layers.length} طبقات`} desktop={desktop}>
+                <span className="-mt-2 text-sm text-muted-foreground">الطبقات من الأعلى إلى الأسفل</span>
+                <ol className="mt-3 flex flex-col gap-2.5">
+                  {product.layers.map((layer, i) => (
+                    <li key={i} className="flex items-center gap-3 text-[15px]">
+                      <span className={cn('h-3 w-14 shrink-0', LAYER_COLOURS[i % LAYER_COLOURS.length])} aria-hidden />
+                      {layer}
+                    </li>
+                  ))}
+                </ol>
+              </Fold>
+            ) : null}
+          </div>
           <Fold title="مع بريماتكس" summary={warranty ?? undefined} desktop={desktop}>
             <div className="flex flex-col gap-5">
               {warranty ? (
@@ -407,19 +423,25 @@ export function ProductPage({ id }: { id: number }) {
         ) : null}
       </Container>
 
-      {/* Phones: size, price and the button, once the main one has scrolled away. */}
-      <div className={cn('fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-border bg-background px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 transition-transform duration-base ease-out-strong lg:hidden', mainVisible ? 'translate-y-full' : 'translate-y-0')} aria-hidden={mainVisible}>
-        <div className="flex flex-col">
-          {size.width !== null ? (
-            <span className="text-xs text-muted-foreground">
-              <SizeText>{sizeText(size)}</SizeText>
-            </span>
-          ) : null}
-          <Price amount={variant.price} size="row" />
-        </div>
-        <Button size="store" className="flex-1" onClick={add} disabled={!orderable} tabIndex={mainVisible ? -1 : 0}>
-          {added ? 'أُضيفت إلى السلة' : 'أضف إلى السلة'}
-        </Button>
+      {/* Size, price and the button once the main one has scrolled away - phones and desktop (MOTION.md «Sticky buy bar»). */}
+      <div className={cn('fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background pb-[max(12px,env(safe-area-inset-bottom))] pt-3 transition-transform duration-base ease-out-strong', mainVisible ? 'translate-y-full' : 'translate-y-0')} aria-hidden={mainVisible}>
+        <Container className="flex items-center gap-3 lg:gap-6">
+          <div className="hidden min-w-0 flex-1 items-center gap-4 lg:flex">
+            <img src={photoOf(product)} alt="" className="size-12 bg-image-bg object-cover" />
+            <b className="truncate text-base">{displayName(product)}</b>
+          </div>
+          <div className="flex flex-col">
+            {size.width !== null ? (
+              <span className="text-xs text-muted-foreground">
+                <SizeText>{sizeText(size)}</SizeText> سم{size.height ? ` · ارتفاع ${size.height} سم` : ''}
+              </span>
+            ) : null}
+            <Price amount={variant.price} size="row" />
+          </div>
+          <Button size="store" className="flex-1 lg:w-72 lg:flex-none" onClick={add} disabled={!orderable} tabIndex={mainVisible ? -1 : 0}>
+            {added ? 'أُضيفت إلى السلة' : 'أضف إلى السلة'}
+          </Button>
+        </Container>
       </div>
 
       <SizeGuide product={product} open={guide} onOpenChange={setGuide} />

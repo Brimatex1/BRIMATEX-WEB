@@ -11,6 +11,7 @@ import { isTierKey } from '@/lib/tiers';
  *   /offers  /search?q=                discounted ones; search results
  *   /product/:id[?size=180x200&height=24]   a mattress (the Meta catalogue links by id)
  *   /product/:id/reviews               its reviews
+ *   /compare?ids=7990,6139             up to three side by side
  *   /cart  /checkout  /checkout/success?order=
  *   /account  /account/orders/:name  /account/orders/:name/issue
  *   /account/addresses|favorites|warranty|notifications|settings
@@ -28,6 +29,7 @@ export type Route =
   | { name: 'offers' }
   | { name: 'search'; query: string }
   | { name: 'product'; id: number }
+  | { name: 'compare'; ids: number[] }
   | { name: 'reviews'; productId: number }
   | { name: 'cart' }
   | { name: 'checkout' }
@@ -64,6 +66,10 @@ export function parse(pathname: string, search: string): Route {
   if (path === '/search') return { name: 'search', query: q.get('q')?.trim() ?? '' };
   if ((m = path.match(/^\/product\/(\d+)$/))) return { name: 'product', id: Number(m[1]) };
   if ((m = path.match(/^\/product\/(\d+)\/reviews$/))) return { name: 'reviews', productId: Number(m[1]) };
+  if (path === '/compare') {
+    const ids = (q.get('ids') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+    return { name: 'compare', ids: [...new Set(ids)].slice(0, 3) };
+  }
   if (path === '/cart') return { name: 'cart' };
   if (path === '/checkout') return { name: 'checkout' };
   if (path === '/checkout/success') return { name: 'confirmed', order: q.get('order') ?? '' };
@@ -99,6 +105,8 @@ export function href(route: Route): string {
       return `/product/${route.id}`;
     case 'reviews':
       return `/product/${route.productId}/reviews`;
+    case 'compare':
+      return route.ids.length ? `/compare?ids=${route.ids.join(',')}` : '/compare';
     case 'cart':
       return '/cart';
     case 'checkout':

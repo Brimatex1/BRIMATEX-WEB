@@ -83,8 +83,8 @@ export function Header() {
   const user = shop.auth.user;
   const firstName = user?.name.trim().split(/\s+/)[0];
 
-  // Guests: account and favourites open the login drawer instead of a page.
-  const gate = (reason: 'account' | 'favorites') => (e: React.MouseEvent) => {
+  // Guests: the account opens the login drawer instead of a page (favourites work signed out).
+  const gate = (reason: 'account') => (e: React.MouseEvent) => {
     if (user) return;
     e.preventDefault();
     shop.requireLogin(reason);
@@ -114,7 +114,7 @@ export function Header() {
                 <User className="size-[22px]" strokeWidth={1.8} />
                 <span className="hidden lg:inline">{user ? `أهلاً، ${firstName}` : 'أهلاً! سجّل الدخول'}</span>
               </Link>
-              <IconLink to={{ name: 'account', section: 'favorites' }} label="المفضّلة" onClick={gate('favorites')}>
+              <IconLink to={{ name: 'account', section: 'favorites' }} label="المفضّلة">
                 <Heart className="size-[22px]" strokeWidth={1.8} />
               </IconLink>
               <IconLink

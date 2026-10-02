@@ -196,6 +196,15 @@ export default {
           '60%': { transform: 'translateX(-6px)' },
           '80%': { transform: 'translateX(4px)' },
         },
+        // «شاهدتها مؤخراً»: the newest card slides in, the others shift one place.
+        'rv-in': {
+          '0%, 12%': { opacity: '0', transform: 'translateX(28px) scale(.96)' },
+          '100%': { opacity: '1', transform: 'none' },
+        },
+        'rv-shift': {
+          '0%, 12%': { transform: 'translateX(calc(100% + 16px))' },
+          '100%': { transform: 'none' },
+        },
         // The favourite heart: shrinks, grows, settles.
         heart: {
           '0%': { transform: 'scale(1)' },
@@ -213,6 +222,8 @@ export default {
         'badge-pulse': 'badge-pulse 300ms var(--ease-out)',
         shake: 'shake 400ms ease',
         heart: 'heart 300ms var(--ease-out)',
+        'rv-in': 'rv-in 500ms var(--ease-out) 400ms both',
+        'rv-shift': 'rv-shift 500ms var(--ease-out) 400ms both',
       },
     },
   },

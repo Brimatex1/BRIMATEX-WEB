@@ -19,7 +19,18 @@ function clean(entry) {
     iconKeys: Array.isArray(entry.iconKeys) ? entry.iconKeys.filter((k) => typeof k === 'string') : [],
     warrantyYears: Number.isInteger(entry.warrantyYears) && entry.warrantyYears > 0 ? entry.warrantyYears : null,
     layers: Array.isArray(entry.layers) ? entry.layers.filter((l) => typeof l === 'string' && l.trim()) : [],
+    // The 2026 handoff (docs/PRODUCTS.md): the catalogue's feature icons, in order, and what the
+    // comparison shows - its type, top layer, and frame or core density.
+    features: Array.isArray(entry.features) ? entry.features.filter((k) => typeof k === 'string' && /^[a-z0-9-]+$/.test(k)) : [],
+    compare: cleanCompare(entry.compare),
   };
+}
+
+function cleanCompare(c) {
+  if (!c || typeof c !== 'object') return null;
+  const text = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const out = { type: text(c.type), topLayer: text(c.topLayer), frame: text(c.frame) };
+  return out.type || out.topLayer || out.frame ? out : null;
 }
 
 function load() {
@@ -40,7 +51,7 @@ function load() {
 // Read once: the file only changes with a deploy, which restarts the server.
 const DETAILS = load();
 
-const NONE = Object.freeze({ description: null, tagline: null, iconKeys: [], warrantyYears: null, layers: [] });
+const NONE = Object.freeze({ description: null, tagline: null, iconKeys: [], warrantyYears: null, layers: [], features: [], compare: null });
 
 /** The catalogue's details for a product (by its Odoo template id) - empty fields when it has none. */
 function detailsFor(product) {

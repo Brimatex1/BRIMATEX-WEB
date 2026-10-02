@@ -1,6 +1,6 @@
 /** The mattresses this browser opened last, newest first (the empty cart's «شاهدتها مؤخراً»). */
 const KEY = 'brimatex:recent';
-const MAX = 8;
+const MAX = 10;
 
 export function recordViewed(productId: number) {
   try {
@@ -17,5 +17,14 @@ export function readViewed(): number[] {
     return Array.isArray(raw) ? raw.filter((n): n is number => Number.isInteger(n)) : [];
   } catch {
     return [];
+  }
+}
+
+/** «مسح السجل» */
+export function clearViewed() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* nothing to clear */
   }
 }

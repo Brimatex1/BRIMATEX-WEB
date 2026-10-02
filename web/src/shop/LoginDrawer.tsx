@@ -18,7 +18,7 @@ export function isLibyanMobile(phone: string): boolean {
 
 const TITLE = {
   checkout: 'سجّل الدخول لإتمام الطلب',
-  favorites: 'سجّل الدخول لحفظ المفضّلة',
+  favorites: 'سجّل الدخول لتبقى المفضّلة معك',
   account: 'تسجيل الدخول',
 } as const;
 
@@ -131,13 +131,13 @@ export function LoginDrawer() {
         </span>
         <SheetTitle className="font-display text-2xl font-bold sm:text-[28px]">{step === 'name' ? 'مرحباً بك' : TITLE[reason]}</SheetTitle>
         <SheetDescription className="text-[15px] leading-relaxed text-muted-foreground">
-          {step === 'name' ? 'ما اسمك؟ نستخدمه على طلباتك وفاتورتك.' : 'التصفّح والإضافة إلى السلة متاحان دون حساب. نطلب الدخول لإتمام الطلب وحفظ المفضّلة.'}
+          {step === 'name' ? 'ما اسمك؟ نستخدمه على طلباتك وفاتورتك.' : 'التصفّح والإضافة إلى السلة والمفضّلة متاحة دون حساب. نطلب الدخول لإتمام الطلب فقط.'}
         </SheetDescription>
 
         {step === 'phone' ? (
           <form onSubmit={sendCode} className="flex flex-col gap-4">
             <label className="flex flex-col gap-2">
-              <b className="text-[15px]">رقم الهاتف</b>
+              <b className="text-[15px]">رقم واتساب</b>
               <input
                 value={phone}
                 onChange={(e) => {
@@ -154,7 +154,7 @@ export function LoginDrawer() {
                 className={cn(fieldClass(Boolean(error)), 'text-start tabular-nums placeholder:text-text-tertiary')}
               />
             </label>
-            <span className="text-[13px] text-muted-foreground">نرسل لك رمز تحقق على واتساب.</span>
+            <span className="text-[13px] text-muted-foreground">اكتب رقماً عليه واتساب، فالرمز يوصلك هناك. نستعمله للدخول والتواصل بخصوص طلباتك فقط.</span>
             {error ? <ErrorLine text={error} /> : null}
             <Button type="submit" size="store" loading={busy}>
               أرسل الرمز
@@ -165,7 +165,7 @@ export function LoginDrawer() {
         {step === 'code' ? (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <b className="text-[15px]">رقم الهاتف</b>
+              <b className="text-[15px]">رقم واتساب</b>
               <div className="flex items-center justify-between rounded-lg bg-image-bg px-4 py-3">
                 <bdi dir="ltr" className="tabular-nums">
                   {phone.replace(/^(\d{3})(\d{3})(\d+)$/, '$1 $2 $3')}
@@ -176,7 +176,7 @@ export function LoginDrawer() {
               </div>
             </div>
             <b className="text-[15px]">رمز التحقق</b>
-            <span className="-mt-2 text-sm text-muted-foreground">أرسلنا رمزاً من 6 أرقام إلى رقمك.</span>
+            <span className="-mt-2 text-sm text-muted-foreground">أرسلنا رمزاً من 6 أرقام على واتساب إلى رقمك.</span>
             {/* One real input under six boxes: paste, autofill and the keyboard all work. */}
             <div className="relative" dir="ltr" onClick={() => codeInput.current?.focus()}>
               {/* The boxes shake (a new key replays it); the input under them stays, focused. */}

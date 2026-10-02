@@ -121,6 +121,10 @@ export interface Product {
   warrantyYears?: number | null;
   /** What the mattress is made of, top to bottom - the catalogue's cutaway. */
   layers?: string[];
+  /** The catalogue's feature icons, in order (web/src/shop/assets/feature-icons; docs/PRODUCTS.md of the 2026 handoff). */
+  featureIcons?: string[];
+  /** What the comparison shows: its type, top layer, and frame or core density. */
+  compare?: { type: string | null; topLayer: string | null; frame: string | null } | null;
   inStock?: boolean;
   /** Out of stock but orderable - made to order (pre-orders on in the dashboard). */
   preorder?: boolean;

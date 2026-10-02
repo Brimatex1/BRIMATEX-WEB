@@ -74,6 +74,7 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',

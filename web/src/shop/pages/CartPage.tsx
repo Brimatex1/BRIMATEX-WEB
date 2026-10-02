@@ -79,7 +79,7 @@ export function CartPage() {
           {!user ? (
             <div className="mb-4 flex items-start gap-3 bg-image-bg p-4 text-[15px]">
               <UserRound className="mt-0.5 size-5 shrink-0" aria-hidden />
-              <span>أضفت المنتجات كزائر. سنطلب منك تسجيل الدخول برقم هاتفك عند إتمام الطلب، وتبقى السلة كما هي.</span>
+              <span>أضفت المنتجات كزائر. سنطلب منك تسجيل الدخول برقم واتساب عند إتمام الطلب، وتبقى السلة كما هي.</span>
             </div>
           ) : null}
           {lines.map(({ line, product, variant }) => (
@@ -105,12 +105,10 @@ export function CartPage() {
                     <button
                       type="button"
                       className="text-sm font-bold underline underline-offset-4"
-                      onClick={() =>
-                        shop.requireLogin('favorites', () => {
-                          if (!shop.wishlist.has(product.id)) shop.toggleFavorite(product);
-                          shop.cart.remove(line.id);
-                        })
-                      }
+                      onClick={() => {
+                        if (!shop.favorites.has(product.id)) shop.toggleFavorite(product);
+                        shop.cart.remove(line.id);
+                      }}
                     >
                       نقل إلى المفضّلة
                     </button>

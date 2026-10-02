@@ -52,10 +52,12 @@ function priceFrom(product) {
 
 /**
  * The page's title, description, picture and type for an address.
- * `products` is the public catalogue; `banners` the home banners.
+ * `products` is the public catalogue.
  */
-function describe(pathname, { products, banners, origin }, search = '') {
-  const fallbackImage = banners[0] ? new URL(banners[0].imageUrl, origin).href : null;
+function describe(pathname, { products, origin }, search = '') {
+  // The approved share image (design handoff, sharing/app/opengraph-image.png) for any page
+  // without its own picture - a home banner is a campaign, not the shop's face.
+  const fallbackImage = new URL('/og-default.png', origin).href;
 
   // A tier's page (/shop?category=premium) is its own page - its own title and
   // canonical address. With /shop as its canonical, Google would drop it as a
@@ -122,7 +124,7 @@ function describe(pathname, { products, banners, origin }, search = '') {
       title: SHOP_TITLE,
       heading: 'مراتب بريماتكس',
       description: DEFAULT_DESCRIPTION,
-      image: fallbackImage || firstImage(products, origin),
+      image: fallbackImage,
       type: 'website',
       listed: products,
       crumbs: [
@@ -136,7 +138,7 @@ function describe(pathname, { products, banners, origin }, search = '') {
     title: DEFAULT_TITLE,
     heading: 'بريماتكس — مراتب صناعة ليبية',
     description: DEFAULT_DESCRIPTION,
-    image: fallbackImage || firstImage(products, origin),
+    image: fallbackImage,
     type: 'website',
     // The home page lists everything; any other page (the quiz, an unknown
     // address) links to the shop and nothing more.

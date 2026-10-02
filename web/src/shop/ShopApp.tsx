@@ -17,7 +17,9 @@ import { LoginDrawer } from './LoginDrawer';
 import { CartPage } from './pages/CartPage';
 import { CategoryPage } from './pages/CategoryPage';
 import { CheckoutPage } from './pages/CheckoutPage';
+import { ComparePage } from './pages/ComparePage';
 import { ConfirmedPage } from './pages/ConfirmedPage';
+import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
 import { ProductPage } from './pages/ProductPage';
 
@@ -50,12 +52,18 @@ function Pages() {
       return <CategoryPage key={`s:${route.query}`} mode={{ kind: 'search', query: route.query }} />;
     case 'product':
       return <ProductPage key={route.id} id={route.id} />;
+    case 'compare':
+      return <ComparePage ids={route.ids} />;
     case 'cart':
       return <CartPage />;
     case 'checkout':
       return <CheckoutPage />;
     case 'confirmed':
       return <ConfirmedPage order={route.order} />;
+    case 'account':
+      // Favourites work signed out (the rest of the account arrives with phase 3).
+      if (route.section === 'favorites') return <FavoritesPage />;
+      break;
   }
   // The pages arrive phase by phase (design handoff build order).
   return (

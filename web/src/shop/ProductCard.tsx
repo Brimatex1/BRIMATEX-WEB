@@ -42,14 +42,14 @@ export function ProductPhoto({ product, className, eager = false }: { product: P
 /** The 44 px white heart: shrinks, grows and fills when saved; guests are asked to sign in. */
 export function HeartButton({ product, className }: { product: Product; className?: string }) {
   const shop = useShop();
-  const saved = shop.wishlist.has(product.id);
+  const saved = shop.favorites.has(product.id);
   const [bump, setBump] = useState(0);
   return (
     <button
       type="button"
       aria-pressed={saved}
       aria-label={saved ? `إزالة ${displayName(product)} من المفضّلة` : `أضف ${displayName(product)} إلى المفضّلة`}
-      disabled={shop.wishlist.pending === product.id}
+      disabled={shop.favorites.pending === product.id}
       onClick={() => {
         setBump((n) => n + 1);
         shop.toggleFavorite(product);

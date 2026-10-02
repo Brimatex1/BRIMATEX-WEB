@@ -21,9 +21,15 @@ export function shopProducts(products: Product[]): Product[] {
   return products.filter((p) => p.enabled !== false && isShopTier(p.tier?.key));
 }
 
-/** «مرتبة بالانس» is shown as «بالانس». */
+/**
+ * «مرتبة بالانس» is shown as «بالانس», under the catalogue's names: Odoo still
+ * says كومفورت and دايلي, the catalogue (and the 2026 handoff) كمفورت and ديلي.
+ */
+const CATALOGUE_NAMES: Record<string, string> = { كومفورت: 'كمفورت', دايلي: 'ديلي' };
+
 export function displayName(product: Pick<Product, 'name'>): string {
-  return product.name.replace(/^مرتبة\s+/, '').trim();
+  const short = product.name.replace(/^مرتبة\s+/, '').trim();
+  return CATALOGUE_NAMES[short] ?? short;
 }
 
 export function tierOf(product: Product): TierKey | null {

@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
+import { api as http } from '@/lib/api';
 import { trackAddToCart, trackAddToWishlist } from '@/lib/pixel';
 import type { Product, ProductVariant } from '@/types';
 
@@ -18,6 +19,16 @@ import { shopProducts, variantsOf } from './catalog';
 
 const CITY_KEY = 'brimatex:city';
 const METHOD_KEY = 'brimatex:delivery-method';
+const FAVORITES_KEY = 'brimatex:favorites';
+
+function readGuestFavorites(): number[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+    return Array.isArray(raw) ? raw.filter((n): n is number => Number.isInteger(n)) : [];
+  } catch {
+    return [];
+  }
+}
 
 export type DeliveryMethod = 'home' | 'pickup';
 
@@ -44,6 +55,8 @@ interface ShopApi {
   auth: Auth;
   cart: Cart;
   wishlist: Wishlist;
+  /** Saved mattresses: the account's, or this browser's for a guest. */
+  favorites: { ids: number[]; has: (id: number) => boolean; pending: number | null };
 
   /** Adds one of this size and opens the cart drawer on it. */
   addToCart: (product: Product, variant: ProductVariant) => void;
@@ -56,7 +69,7 @@ interface ShopApi {
   loginDrawer: { open: boolean; reason: 'checkout' | 'favorites' | 'account' };
   closeLogin: (signedIn: boolean) => void;
 
-  /** Saves or unsaves (guests get the login drawer first). */
+  /** Saves or unsaves - in the account, or in this browser for a guest. */
   toggleFavorite: (product: Product) => void;
 
   city: string | null;
@@ -136,19 +149,61 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     if (signedIn && next) window.setTimeout(next, 0);
   }, []);
 
+  // Guests keep favourites in this browser (the 2026 handoff: no sign-in for
+  // favourites); signing in moves them to the account, then clears them here.
+  const [guestFavorites, setGuestFavorites] = useState<number[]>(readGuestFavorites);
+  const saveGuestFavorites = useCallback((ids: number[]) => {
+    setGuestFavorites(ids);
+    try {
+      if (ids.length) localStorage.setItem(FAVORITES_KEY, JSON.stringify(ids));
+      else localStorage.removeItem(FAVORITES_KEY);
+    } catch {
+      /* Kept for this visit only */
+    }
+  }, []);
+
+  const merging = useRef(false);
+  useEffect(() => {
+    const token = auth.token;
+    if (!auth.user || !token || !guestFavorites.length || merging.current) return;
+    merging.current = true;
+    const already = new Set(auth.user.wishlist?.map((w) => Number(w.productId)) ?? []);
+    const toAdd = guestFavorites.filter((id) => !already.has(id));
+    Promise.allSettled(toAdd.map((id) => http.addToWishlist(token, id))).then((results) => {
+      const added = toAdd.filter((_, i) => results[i].status === 'fulfilled');
+      const now = new Date().toISOString();
+      auth.patchUser({ wishlist: [...(auth.user?.wishlist ?? []), ...added.map((productId) => ({ productId, addedAt: now }))] });
+      saveGuestFavorites(toAdd.filter((id) => !added.includes(id)));
+      merging.current = false;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.user?.id, auth.token]);
+
+  const favorites = useMemo(
+    () => ({
+      ids: auth.user ? wishlist.ids : guestFavorites,
+      has: (id: number) => (auth.user ? wishlist.has(id) : guestFavorites.includes(id)),
+      pending: auth.user ? wishlist.pending : null,
+    }),
+    [auth.user, wishlist, guestFavorites]
+  );
+
   const toggleFavorite = useCallback(
     (product: Product) => {
-      const run = async () => {
-        try {
-          const saved = await wishlist.toggle(product.id);
+      if (!auth.user) {
+        const saved = guestFavorites.includes(product.id);
+        saveGuestFavorites(saved ? guestFavorites.filter((id) => id !== product.id) : [product.id, ...guestFavorites]);
+        if (!saved) trackAddToWishlist(product);
+        return;
+      }
+      wishlist
+        .toggle(product.id)
+        .then((saved) => {
           if (saved) trackAddToWishlist(product);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المفضّلة');
-        }
-      };
-      requireLogin('favorites', () => void run());
+        })
+        .catch((err) => toast.error(err instanceof Error ? err.message : 'تعذّر تحديث المفضّلة'));
     },
-    [wishlist, requireLogin]
+    [auth.user, wishlist, guestFavorites, saveGuestFavorites]
   );
 
   const setCity = useCallback((next: string) => {
@@ -177,6 +232,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       auth,
       cart,
       wishlist,
+      favorites,
       addToCart,
       cartDrawer,
       setCartDrawerOpen: (open) => setCartDrawer((d) => ({ open, addedId: open ? d.addedId : null })),
@@ -191,7 +247,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       method,
       setMethod,
     }),
-    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod]
+    [products, catalogue.loading, catalogue.error, catalogue.reload, find, auth, cart, wishlist, favorites, addToCart, cartDrawer, requireLogin, loginDrawer, closeLogin, toggleFavorite, city, setCity, cityDialogOpen, method, setMethod]
   );
 
   return <ShopContext.Provider value={api}>{children}</ShopContext.Provider>;

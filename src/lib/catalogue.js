@@ -58,7 +58,7 @@ async function withOverrides(products) {
     // The printed catalogue's details, shipped with the site (src/lib/productDetails.js):
     // what the dashboard sets wins, and an empty dashboard field falls back to them.
     const d = detailsFor(p);
-    const shipped = { warrantyYears: d.warrantyYears, layers: d.layers, tagline: d.tagline };
+    const shipped = { warrantyYears: d.warrantyYears, layers: d.layers, tagline: d.tagline, featureIcons: d.features, compare: d.compare };
     // A dashboard upload first, then the photo shipped with the site (src/lib/productPhotos.js).
     if (!o) {
       return {
