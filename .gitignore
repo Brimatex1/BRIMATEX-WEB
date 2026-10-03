@@ -53,3 +53,4 @@ npm-debug.log*
 # وتظهر هنا فقط إن شُغّل النشر في مكانه.
 deployed.json
 src/data/quiz.local.json
+src/data/push.local.json

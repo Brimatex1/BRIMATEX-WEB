@@ -34,6 +34,7 @@ const settings = require('./lib/settings');
 const appSettings = require('./lib/appSettings');
 const home = require('./lib/home');
 const quizRules = require('./lib/quizRules');
+const pushCampaigns = require('./lib/pushCampaigns');
 const { isOfferable } = require('./lib/sellable');
 const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
@@ -316,7 +317,10 @@ async function handleApi(req, res, url) {
      The app registers its Expo token after an order. Anonymous orders are
      allowed, so a session is optional: the token is tied to the account when
      there is one, and to the order name otherwise — either is enough to reach
-     the right phone when that order's stage changes. See src/lib/push.js. */
+     the right phone when that order's stage changes. See src/lib/push.js.
+     The same call carries the app's preferences - «العروض» on or off, the
+     delivery city, when the cart last grew - each time one changes; the offer
+     notifications (src/lib/pushCampaigns.js) are chosen by them. */
   if (req.method === 'POST' && url.pathname === '/api/devices') {
     const body = await readBody(req);
     let payload;
@@ -339,6 +343,7 @@ async function handleApi(req, res, url) {
       platform: payload.platform === 'android' ? 'android' : 'ios',
       userId: session?.userId,
       orderName: typeof payload.orderName === 'string' ? payload.orderName.trim() : null,
+      prefs: devices.readPrefs(payload),
     });
 
     return sendJson(res, 200, { message: 'تم تسجيل الجهاز' });
@@ -623,6 +628,8 @@ async function start() {
     console.log(`متجر المراتب يعمل على http://localhost:${PORT} — ${mode}`);
     // The app's scripts and styles, compressed before the first visitor asks (src/lib/compress.js).
     setImmediate(() => warm(PUBLIC_DIR));
+    // Scheduled and held offer notifications (الإشعارات): on boot and every minute.
+    pushCampaigns.start();
   });
 }
 

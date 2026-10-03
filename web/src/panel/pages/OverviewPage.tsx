@@ -130,10 +130,21 @@ export function OverviewPage({ me, token }: { me: PanelMe; token: string }) {
                 <span className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-white text-dark-ocean">
                   <Icon name="bell" size={18} />
                 </span>
-                <span className="flex flex-col gap-0.5">
-                  <b className="text-[13.5px]">لم يُرسَل إشعار عرض بعد</b>
-                  <span className="text-[12.5px] text-[#5F6373]">تُرسَل إشعارات العروض من قسم الإشعارات عند اكتماله.</span>
-                </span>
+                {data?.lastPush ? (
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <b className="text-[13.5px]">{data.lastPush.title}</b>
+                    <span className="text-[12.5px] text-[#5F6373]">{data.lastPush.body}</span>
+                    <span className="text-[12px] text-[#5F6373]">
+                      {`أُرسل إلى ${data.lastPush.sent} جهاز`}
+                      {since(data.lastPush.sentAt) ? ` · قبل ${since(data.lastPush.sentAt)}` : ''}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex flex-col gap-0.5">
+                    <b className="text-[13.5px]">{data == null ? '…' : 'لم يُرسَل إشعار عرض بعد'}</b>
+                    {data == null ? null : <span className="text-[12.5px] text-[#5F6373]">تُرسَل إشعارات العروض من قسم «الإشعارات».</span>}
+                  </span>
+                )}
               </div>
             </div>
           </div>

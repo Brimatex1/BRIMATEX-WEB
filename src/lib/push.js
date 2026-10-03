@@ -10,7 +10,8 @@
 const http = require('./http');
 const devices = require('./devices');
 
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+// A test server points this at a fake Expo (tests/panel-push.check.js).
+const EXPO_PUSH_URL = process.env.BRIMATEX_EXPO_PUSH_URL || 'https://exp.host/--/api/v2/push/send';
 const BATCH = 100; // Expo's documented maximum per request
 
 /**
@@ -56,20 +57,32 @@ const MESSAGES = {
   }),
 };
 
+/**
+ * Sends Expo push messages, 100 per request, and returns one ticket per
+ * message in the same order - null where a whole request failed, so a ticket
+ * always lines up with the message (and the token) it answers.
+ */
 async function send(messages) {
   const results = [];
   for (let i = 0; i < messages.length; i += BATCH) {
     const slice = messages.slice(i, i + BATCH);
     try {
       const res = await http.postJson(EXPO_PUSH_URL, slice, { Accept: 'application/json' });
-      results.push(...(res.data || []));
+      const tickets = Array.isArray(res.data) ? res.data : [];
+      results.push(...slice.map((_, j) => tickets[j] || null));
     } catch (err) {
       // A push failure must never take down the request that triggered it —
       // the order status change itself already succeeded.
       console.error('[Push] send failed:', err.message);
+      results.push(...slice.map(() => null));
     }
   }
   return results;
+}
+
+/** Expo's answer for a token that no longer reaches a phone (the app was removed). */
+function isDeadToken(ticket) {
+  return ticket?.status === 'error' && ticket?.details?.error === 'DeviceNotRegistered';
 }
 
 /**
@@ -108,7 +121,7 @@ async function notifyOrderStage(before, after) {
     // us a failed request on every future notification.
     await Promise.all(
       results.map((r, i) =>
-        r?.status === 'error' && r?.details?.error === 'DeviceNotRegistered'
+        isDeadToken(r)
           ? devices.remove(targets[i].token)
           : null
       )
@@ -123,4 +136,4 @@ async function notifyOrderStage(before, after) {
   }
 }
 
-module.exports = { notifyOrderStage, stageOf };
+module.exports = { notifyOrderStage, stageOf, send, isDeadToken };

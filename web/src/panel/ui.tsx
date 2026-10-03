@@ -142,7 +142,7 @@ export const SECTION_META: Record<Section, { label: string; icon: IconName; subt
   overview: { label: 'نظرة عامة', icon: 'home', subtitle: 'كل الأرقام من أودو مباشرة' },
   orders: { label: 'الطلبات', icon: 'box', subtitle: 'طلبات التطبيقين والموقع، من أودو مباشرة' },
   home: { label: 'الواجهة والبانرات', icon: 'image', subtitle: 'ما يظهر في الرئيسية في التطبيقين والموقع' },
-  push: { label: 'الإشعارات', icon: 'bell', subtitle: 'إشعارات العروض للتطبيقين عبر Firebase' },
+  push: { label: 'الإشعارات', icon: 'bell', subtitle: 'إشعارات العروض للتطبيقين عبر خدمة Expo' },
   quiz: { label: 'ساعدني أختار', icon: 'help', subtitle: 'قواعد الاقتراح في التطبيقين والموقع' },
   products: { label: 'المراتب', icon: 'bed', subtitle: 'محتوى المراتب في التطبيق والموقع' },
   reviews: { label: 'التقييمات', icon: 'star', subtitle: 'تقييمات العملاء قبل ظهورها في صفحة المرتبة' },

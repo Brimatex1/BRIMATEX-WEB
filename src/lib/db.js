@@ -151,7 +151,7 @@ do $$ begin
   end if;
 end $$;
 
--- Push-notification devices. One row per Expo token; re-registering replaces
+-- Push-notification devices. One row per Expo token; re-registering updates
 -- it. last_order lets a guest who ordered without an account still be told
 -- when that one order moves.
 create table if not exists devices (
@@ -169,6 +169,33 @@ end $$;
 do $$ begin
   if not exists (select 1 from pg_class where relname = 'devices_last_order_idx' and relkind = 'i') then
     create index devices_last_order_idx on devices(last_order);
+  end if;
+end $$;
+-- What the app reports with its token (the panel's «الإشعارات»): «العروض»
+-- on or off - off until the app says otherwise, so a phone registered before
+-- this column gets no offer until its owner turns offers on - the delivery
+-- city it chose, and when its cart last had something added (null when empty).
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'devices' and column_name = 'offers'
+  ) then
+    alter table devices add column offers boolean not null default false;
+    alter table devices add column city text;
+    alter table devices add column cart_at timestamptz;
+  end if;
+end $$;
+-- One row per offer notification a device received: the weekly limit counts
+-- them, and the key makes a campaign reach a phone once.
+create table if not exists offer_sends (
+  token text not null references devices(token) on delete cascade,
+  campaign_id text not null,
+  sent_at timestamptz not null default now(),
+  primary key (token, campaign_id)
+);
+do $$ begin
+  if not exists (select 1 from pg_class where relname = 'offer_sends_sent_at_idx' and relkind = 'i') then
+    create index offer_sends_sent_at_idx on offer_sends(sent_at);
   end if;
 end $$;
 

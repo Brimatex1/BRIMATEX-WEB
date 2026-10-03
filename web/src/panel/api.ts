@@ -46,7 +46,8 @@ export interface Overview {
   reviewsPending: number | null;
   productsWithoutPhoto: { count: number; total: number } | null;
   banner: { imageUrl: string; link: string; title: string | null; count: number } | null;
-  lastPush: null;
+  /** «آخر إشعار عرض»: the last offer notification sent (tests left out). */
+  lastPush: { id: string; title: string; body: string; audience: PushAudience; sentAt: string; sent: number } | null;
 }
 
 export interface PanelOrder {
@@ -248,6 +249,64 @@ export interface InstagramPost {
   link: string;
 }
 
+/** Who an offer notification goes to - always among the devices with «العروض» on (src/lib/pushCampaigns.js). */
+export type PushAudience = { kind: 'offers' } | { kind: 'city'; city: string } | { kind: 'cart' } | { kind: 'test' };
+export type PushStatus = 'scheduled' | 'held' | 'sending' | 'sent' | 'failed' | 'cancelled';
+
+export interface PushCampaign {
+  id: string;
+  title: string;
+  body: string;
+  /** What a tap opens in the app ('' - the app itself). */
+  link: string;
+  linkLabel: string;
+  audience: PushAudience;
+  /** «إرسال تجريبي لجهازي». */
+  test: boolean;
+  status: PushStatus;
+  /** When it was asked for; `sendAt` is later when the quiet hours held it. */
+  requestedAt: string;
+  sendAt: string;
+  sentAt?: string;
+  createdAt: string;
+  by: { id: string; name: string };
+  counts: { audience: number; sent: number; skipped: number; failed: number } | null;
+  cancelledAt?: string;
+  cancelledBy?: { id: string; name: string };
+}
+
+export interface AudienceSize {
+  devices: number;
+  /** Of those, at the weekly limit - they would be skipped. */
+  atLimit: number;
+}
+
+export interface PushPayload {
+  campaigns: PushCampaign[];
+  perWeek: number;
+  /** HH:MM Libyan time; `now` - inside them at this moment, until `endsAt`. */
+  quietHours: { from: string; to: string; now: boolean; endsAt: string | null };
+  audiences: { offers: AudienceSize; cart: AudienceSize; cities: (AudienceSize & { city: string })[] };
+  devices: { total: number; offersOff: number };
+  /** The signed-in staff member's own devices («إرسال تجريبي لجهازي»). */
+  myDevices: number;
+  storage: 'odoo' | 'local';
+  service: 'expo';
+  limits: { titleMax: number; bodyMax: number; perWeekMax: number };
+  now: string;
+}
+
+export interface PushDraft {
+  title: string;
+  body: string;
+  link: string;
+  linkLabel: string;
+  audience: Exclude<PushAudience, { kind: 'test' }>;
+  when: 'now' | 'schedule';
+  /** YYYY-MM-DDTHH:MM, Libyan time. */
+  at?: string;
+}
+
 export class PanelError extends Error {
   status: number;
   code: string | null;
@@ -334,6 +393,12 @@ export const panelApi = {
   removeShopImage: (token: string, productId: number) => call<ShopOverride>(token, `/api/panel/products/${productId}/shop/image`, { method: 'DELETE' }),
   saveOdooProduct: (token: string, templateId: number, changes: OdooProductChanges) =>
     call<{ product: PanelProduct | null }>(token, `/api/panel/products/odoo/${templateId}`, { method: 'PUT', body: JSON.stringify(changes) }),
+  push: (token: string) => call<PushPayload>(token, '/api/panel/push'),
+  sendPush: (token: string, draft: PushDraft) => call<PushPayload & { campaign: PushCampaign }>(token, '/api/panel/push', { method: 'POST', body: JSON.stringify(draft) }),
+  testPush: (token: string, draft: Pick<PushDraft, 'title' | 'body' | 'link' | 'linkLabel'>) =>
+    call<PushPayload & { campaign: PushCampaign }>(token, '/api/panel/push/test', { method: 'POST', body: JSON.stringify(draft) }),
+  setPushLimit: (token: string, perWeek: number) => call<PushPayload>(token, '/api/panel/push/limit', { method: 'PUT', body: JSON.stringify({ perWeek }) }),
+  cancelPush: (token: string, id: string) => call<PushPayload & { campaign: PushCampaign }>(token, `/api/panel/push/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   team: (token: string, q = '') => call<{ users: TeamMember[] }>(token, `/api/panel/users${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   setRole: (token: string, userId: string, role: TeamMember['role']) =>
     call<{ id: string; role: TeamMember['role'] }>(token, `/api/panel/users/${encodeURIComponent(userId)}/role`, {

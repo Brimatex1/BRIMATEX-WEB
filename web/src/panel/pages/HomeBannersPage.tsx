@@ -73,14 +73,14 @@ function statusOf(b: HomeBanner, today = libyaToday()): { label: string; tone: T
 
 /* ────────────────────────────────────────────────────────────── links */
 
-interface LinkOption {
+export interface LinkOption {
   value: string;
   label: string;
   group: 'product' | 'category' | 'page';
 }
 
 /** The pages a banner or a button can open, from the catalogue: a mattress by its marketing slug when it has one. */
-function linkOptions(products: Product[]): LinkOption[] {
+export function linkOptions(products: Product[]): LinkOption[] {
   const options: LinkOption[] = [];
   const bySlug = new Map<number, string>();
   for (const slug of Object.keys(MARKETING_SLUGS)) {
@@ -116,9 +116,9 @@ function linkText(link: string, options: LinkOption[]): string {
 
 const CUSTOM = '__custom';
 
-const selectClass =
+export const selectClass =
   'h-[42px] w-full appearance-none rounded-[10px] bg-white bg-[length:16px] bg-[left_12px_center] bg-no-repeat ps-3 pe-9 text-[14.5px] text-[#16161F] outline-none shadow-[inset_0_0_0_1px_#E4E6EE] focus-visible:shadow-[inset_0_0_0_1.5px_#282868]';
-const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235F6373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`;
+export const chevron = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235F6373' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`;
 
 /** «يفتح»: a page of the shop from a list, or any other shop path / https address. */
 function LinkPicker({ label, value, onChange, options, error }: { label: string; value: string; onChange: (v: string) => void; options: LinkOption[]; error?: string }) {

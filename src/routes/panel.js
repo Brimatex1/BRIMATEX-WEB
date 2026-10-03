@@ -16,8 +16,10 @@
  * order's action_confirm, when an admin or support user presses it; «حفظ» in
  * الإعدادات sets the system parameter brimatex.app.settings (admin); «حفظ» in
  * الواجهة والبانرات sets brimatex.app.home and in ساعدني أختار brimatex.app.quiz
- * (admin, marketing); and «حفظ» in المراتب writes a catalogue mattress's
- * image_1920, product tags and description_sale (admin, marketing). The banners'
+ * (admin, marketing); «حفظ» in المراتب writes a catalogue mattress's
+ * image_1920, product tags and description_sale (admin, marketing); and the
+ * offer notifications of الإشعارات keep their log and weekly limit in
+ * brimatex.app.push (admin, marketing - src/lib/pushCampaigns.js). The banners'
  * pictures stay files on this server (src/lib/home.js), not Odoo attachments, and
  * so does the shop's own photo of a mattress (src/lib/panelProducts.js).
  */
@@ -34,6 +36,7 @@ const instagram = require('../lib/instagram');
 const panel = require('../lib/panel');
 const appSettings = require('../lib/appSettings');
 const quizRules = require('../lib/quizRules');
+const pushCampaigns = require('../lib/pushCampaigns');
 const panelProducts = require('../lib/panelProducts');
 const { DAYS_TEXT } = require('../lib/delivery');
 const { getProducts, visibleOnly, productLookup } = require('../lib/catalogue');
@@ -148,8 +151,10 @@ function createPanelRoutes() {
         productsWithoutPhoto = { count: visible.filter((p) => !p.image).length, total: visible.length };
       }
 
-      // «ما يراه العملاء الآن»: the first banner the website shows (الواجهة والبانرات).
-      const live = home.publicHome(await home.current(), 'web').banners;
+      // «ما يراه العملاء الآن»: the first banner the website shows (الواجهة والبانرات),
+      // and the last offer notification that went out (الإشعارات) - none when its log cannot be read.
+      const [homeValue, lastPush] = await Promise.all([home.current(), pushCampaigns.lastSent().catch(() => null)]);
+      const live = home.publicHome(homeValue, 'web').banners;
       const first = live[0] || null;
 
       return sendJson(res, 200, {
@@ -157,8 +162,7 @@ function createPanelRoutes() {
         reviewsPending,
         productsWithoutPhoto,
         banner: first ? { imageUrl: first.photo, link: first.link || '', title: first.title, count: live.length } : null,
-        // Offer notifications arrive with the الإشعارات section (phase 5).
-        lastPush: null,
+        lastPush,
       });
     }
 
@@ -353,6 +357,69 @@ function createPanelRoutes() {
       }
       console.log(`[panel] quiz rules reset to the factory's by ${user.id} (${quizRules.storage()})`);
       return sendJson(res, 200, { rules: quizRules.publicRules(value), storage: quizRules.storage() });
+    }
+
+    // ---- الإشعارات: offer notifications to the apps (admin and marketing) ----
+
+    if (url.pathname === '/api/panel/push' || url.pathname.startsWith('/api/panel/push/')) {
+      const user = await staffFor(req, res, 'push');
+      if (!user) return;
+      const reply = async (status, work) => {
+        try {
+          return sendJson(res, status, await work());
+        } catch (err) {
+          if (!(err instanceof pushCampaigns.PushError)) throw err;
+          return sendJson(res, err.status, { error: err.message, field: err.field, code: err.code });
+        }
+      };
+
+      // The log, the weekly limit, the quiet hours and each audience's size.
+      if (req.method === 'GET' && url.pathname === '/api/panel/push') {
+        return reply(200, () => pushCampaigns.overview(user));
+      }
+
+      // «إرسال» now, or «جدولة الإشعار» - held until the quiet hours end when it falls inside them.
+      if (req.method === 'POST' && url.pathname === '/api/panel/push') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        return reply(201, async () => {
+          const campaign = await pushCampaigns.create(body, user);
+          console.log(`[panel] push ${campaign.id} (${campaign.status}) by ${user.id}`);
+          return { campaign, ...(await pushCampaigns.overview(user)) };
+        });
+      }
+
+      // «إرسال تجريبي لجهازي»: the signed-in staff member's own devices only.
+      if (req.method === 'POST' && url.pathname === '/api/panel/push/test') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        return reply(200, async () => {
+          const campaign = await pushCampaigns.sendTest(body, user);
+          return { campaign, ...(await pushCampaigns.overview(user)) };
+        });
+      }
+
+      // The weekly limit per device.
+      if ((req.method === 'PUT' || req.method === 'PATCH') && url.pathname === '/api/panel/push/limit') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        return reply(200, async () => {
+          await pushCampaigns.setLimit(body.perWeek);
+          return pushCampaigns.overview(user);
+        });
+      }
+
+      // Cancels a scheduled (or held) campaign; one that went out stays in the log.
+      const oneMatch = url.pathname.match(/^\/api\/panel\/push\/([a-f0-9]{12})$/);
+      if (req.method === 'DELETE' && oneMatch) {
+        return reply(200, async () => {
+          const campaign = await pushCampaigns.cancel(oneMatch[1], user);
+          console.log(`[panel] push ${campaign.id} cancelled by ${user.id}`);
+          return { campaign, ...(await pushCampaigns.overview(user)) };
+        });
+      }
+
+      return sendJson(res, 404, { error: 'غير موجود' });
     }
 
     // ---- المراتب: what the shop shows and Odoo's product fields (admin and marketing) ----

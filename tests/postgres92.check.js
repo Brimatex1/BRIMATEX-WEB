@@ -48,6 +48,7 @@ const SQL_FILES = [
   'src/lib/store/pg-auth.js',
   'src/lib/store/pg-orders.js',
   'src/lib/store/pg-product-overrides.js',
+  'src/lib/store/pg-devices.js',
 ].filter((rel) => fs.existsSync(path.join(root, rel)));
 
 /** [name, pattern, minimum version that supports it] */
