@@ -136,7 +136,10 @@ function money(lyd) {
 function rowsFor(product, { origin }) {
   const image = imageOf(product, origin);
   if (!image) return [];
-  const link = `${origin}/product/${product.id}`;
+  // Each size links to its own page (?variant=), which states that size's price -
+  // one link for every size made the ad's price and the page's differ, and Meta
+  // blocks such items.
+  const linkOf = (v) => (product.variants ? `${origin}/product/${product.id}?variant=${v.id}` : `${origin}/product/${product.id}`);
   const tier = product.tier ? `مراتب > ${product.tier.name}` : 'مراتب';
   const story = storyOf(product);
   const sizes = product.variants ?? [{ id: product.id, label: '', price: product.price, inStock: product.inStock }];
@@ -151,7 +154,7 @@ function rowsFor(product, { origin }) {
     availability: v.inStock !== false ? 'in stock' : v.preorder || (!product.variants && product.preorder) ? 'available for order' : 'out of stock',
     condition: 'new',
     price: money(v.price),
-    link,
+    link: linkOf(v),
     image_link: image,
     // The cutaway of what is inside (src/lib/productPhotos.js) - a second picture for catalogue ads.
     additional_image_link: product.layersImage ? `${origin}${product.layersImage}` : '',

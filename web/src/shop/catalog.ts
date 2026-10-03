@@ -98,6 +98,12 @@ export function heightsOf(product: Product): number[] {
 /** The size in the address (?size=180x200&height=24), when this product has it. */
 export function variantFromQuery(product: Product, search: string): ProductVariant | null {
   const q = new URLSearchParams(search);
+  // ?variant=<id> - the Meta catalogue's links name the size by its id.
+  const byId = Number(q.get('variant'));
+  if (byId) {
+    const v = variantsOf(product).find((x) => x.id === byId);
+    if (v) return v;
+  }
   const m = q.get('size')?.match(/^(\d{2,3})x(\d{2,3})$/);
   if (!m) return null;
   const width = Number(m[1]);

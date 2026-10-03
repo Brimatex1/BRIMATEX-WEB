@@ -26,7 +26,7 @@ const SHOP_FACTS = {
   sameAs: ['https://www.facebook.com/profile.php?id=100083078093248'],
 };
 
-const productTitle = (p) => `${p.name} — ${p.tier ? `مرتبة ${p.tier.name}` : 'مرتبة'} | ${SITE_NAME}`;
+const productTitle = (p, size) => `${p.name}${size ? ` ${size.label}` : ''} — ${p.tier ? `مرتبة ${p.tier.name}` : 'مرتبة'} | ${SITE_NAME}`;
 const tierTitle = (name) => `مراتب ${name} — ${SITE_NAME}`;
 
 function escapeHtml(value) {
@@ -90,21 +90,30 @@ function describe(pathname, { products, origin }, search = '') {
     if (product) {
       const from = priceFrom(product);
       const kind = product.tier ? `مرتبة ${product.tier.name}` : 'مرتبة';
+      // One size of it: ?variant=<id> (the Meta catalogue's links) or a size's own id
+      // in the address. The page then states that size's price, so what an ad shows
+      // and what the page says match - Meta blocks items whose page price differs.
+      const wanted = Number(new URLSearchParams(search).get('variant')) || (id !== product.id ? id : null);
+      const size = wanted ? (product.variants ?? []).find((v) => v.id === wanted) || null : null;
       const tierPath = product.tier ? `/shop?category=${encodeURIComponent(product.tier.key)}` : '/shop';
       return {
-        title: productTitle(product),
-        // A size's id opens the same page; the product's own id is its one address.
+        title: productTitle(product, size),
+        // Search engines: the product's own id is its one address. A size's page
+        // still names its own address in og:url and the offer (sizePath).
         canonicalPath: `/product/${product.id}`,
+        sizePath: size ? `/product/${product.id}?variant=${size.id}` : null,
         heading: product.name,
-        description:
-          product.description ||
-          `${product.name} — ${kind} من بريماتكس، صناعة ليبية. ${product.variants ? 'يبدأ من ' : ''}${formatPrice(from)} د.ل — الدفع عند الاستلام وتوصيل مجاني.`,
+        description: size
+          ? `${product.name} — ${size.label}: ${formatPrice(size.price)} د.ل — ${kind} من بريماتكس، صناعة ليبية. الدفع عند الاستلام وتوصيل مجاني.`
+          : product.description ||
+            `${product.name} — ${kind} من بريماتكس، صناعة ليبية. ${product.variants ? 'يبدأ من ' : ''}${formatPrice(from)} د.ل — الدفع عند الاستلام وتوصيل مجاني.`,
         image: imageOf(product, origin) || fallbackImage,
         type: 'product',
-        price: from,
-        inStock: product.inStock !== false,
-        preorder: product.preorder === true,
+        price: size ? Number(size.price) : from,
+        inStock: size ? size.inStock !== false : product.inStock !== false,
+        preorder: size ? size.preorder === true : product.preorder === true,
         product,
+        size,
         // Other mattresses, the same tier first - links a crawler can follow.
         listed: [
           ...products.filter((p) => p.id !== product.id && p.tier?.key === product.tier?.key),
@@ -269,8 +278,18 @@ function structuredData(page, context, url) {
   const p = page.product;
   const sizes = p.variants ?? [{ id: p.id, price: p.price, inStock: p.inStock, preorder: p.preorder }];
   const prices = sizes.map((v) => Number(v.price)).filter((n) => n > 0);
-  const offers =
-    sizes.length > 1
+  const chosen = page.size;
+  const offers = chosen
+    ? {
+        '@type': 'Offer',
+        priceCurrency: 'LYD',
+        price: Number(chosen.price),
+        ...(chosen.sku ? { sku: chosen.sku } : {}),
+        availability: availabilityOf(chosen.inStock !== false, chosen.preorder),
+        itemCondition: 'https://schema.org/NewCondition',
+        url,
+      }
+    : sizes.length > 1
       ? {
           '@type': 'AggregateOffer',
           priceCurrency: 'LYD',
@@ -329,9 +348,11 @@ function render(shell, pathname, search, context) {
   const page = describe(pathname, context, search);
   // The page's one address - also og:url and the offer's url, so an ad's
   // ?fbclid=... or a size's id does not make Facebook count a second page.
-  const url = context.origin + (page.canonicalPath || pathname);
+  const canonical = context.origin + (page.canonicalPath || pathname);
+  // A size's page (the Meta catalogue's links) names itself, so Meta reads that size.
+  const url = page.sizePath ? context.origin + page.sizePath : canonical;
   const tags = [
-    `<link rel="canonical" href="${escapeHtml(url)}" />`,
+    `<link rel="canonical" href="${escapeHtml(canonical)}" />`,
     `<meta property="og:site_name" content="${SITE_NAME}" />`,
     `<meta property="og:locale" content="ar_LY" />`,
     `<meta property="og:type" content="${page.type}" />`,

@@ -111,7 +111,7 @@ function unitPart() {
     average: 4.5,
     reviews: [{ id: 'r1', rating: 5, comment: 'ممتازة</script><script>alert(1)</script>', name: 'سالم', createdAt: '2026-09-20T10:00:00.000Z' }],
   };
-  const page = share.render('<html><head><title>x</title></head></html>', '/product/203', '', { products: [product], banners: [], origin, reviews });
+  const page = share.render('<html><head><title>x</title></head></html>', '/product/202', '', { products: [product], banners: [], origin, reviews });
   const blocks = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   const ld = blocks.find((b) => b['@type'] === 'Product');
   ok('schema: منتج بعروض بالدينار', ld?.offers?.['@type'] === 'AggregateOffer' && ld.offers.priceCurrency === 'LYD' && ld.offers.lowPrice === 640 && ld.offers.highPrice === 720, JSON.stringify(ld?.offers));
@@ -127,7 +127,20 @@ function unitPart() {
     .find((b) => b['@type'] === 'BreadcrumbList');
   ok('schema: مسار الصفحة', crumbs?.itemListElement?.map((c) => c.name).join(' › ') === 'بريماتكس › مراتب كومفورت › Daily Mattress', JSON.stringify(crumbs));
   ok('رابط مقاس: الرابط الأساسي للمرتبة', withCrumbs.includes('<link rel="canonical" href="https://brimatex.ly/product/202" />'));
-  ok('العنوان بالعربي مع نوع المرتبة', withCrumbs.includes('<title>Daily Mattress — مرتبة كومفورت | بريماتكس</title>'));
+  ok('العنوان بالعربي مع نوع المرتبة', page.includes('<title>Daily Mattress — مرتبة كومفورت | بريماتكس</title>'));
+  ok('رابط مقاس: عنوانه يسمّي المقاس', withCrumbs.includes('<title>Daily Mattress H24, 90*190 — مرتبة كومفورت | بريماتكس</title>'));
+
+  // A size's page (the Meta catalogue's links): that size's price, not «from»,
+  // so the ad's price and the page's match.
+  const sizeOffer = (html) =>
+    [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@type'] === 'Product')?.offers;
+  const bySize = share.render(shellHtml, '/product/202', '?variant=203', { products: [product], banners: [], origin });
+  ok('?variant=: سعر المقاس في وسم السعر', meta(bySize, 'product:price:amount') === '720', meta(bySize, 'product:price:amount'));
+  ok('?variant=: عرض واحد بسعر المقاس وتوفّره', sizeOffer(bySize)?.['@type'] === 'Offer' && sizeOffer(bySize).price === 720 && /OutOfStock/.test(sizeOffer(bySize).availability), JSON.stringify(sizeOffer(bySize)));
+  ok('?variant=: og:url رابط المقاس، والرابط الأساسي للمرتبة', meta(bySize, 'og:url') === 'https://brimatex.ly/product/202?variant=203' && bySize.includes('<link rel="canonical" href="https://brimatex.ly/product/202" />'));
+  ok('رابط بمعرّف المقاس نفسه: سعر المقاس كذلك', meta(withCrumbs, 'product:price:amount') === '720');
+  const unknownSize = share.render(shellHtml, '/product/202', '?variant=999', { products: [product], banners: [], origin });
+  ok('مقاس غير موجود: صفحة المرتبة بسعر «يبدأ من»', meta(unknownSize, 'product:price:amount') === '640' && sizeOffer(unknownSize)?.['@type'] === 'AggregateOffer');
   ok('محتوى الصفحة: العنوان والمقاسات بأسعارها', withCrumbs.includes('<h1>Daily Mattress</h1>') && withCrumbs.includes('H18, 90*190: 640 د.ل') && withCrumbs.includes('(غير متوفر حالياً)'));
   ok('schema: الرئيسية تسمّي المتجر فقط', share.structuredData({ type: 'website' }, { origin }, origin).every((b) => ['Organization', 'WebSite'].includes(b['@type'])));
 
@@ -139,7 +152,9 @@ function unitPart() {
   ok('المعرّف والمجموعة كما يرسلها البكسل', lines[1].startsWith('"202","group-202"') && lines[2].startsWith('"203","group-202"'), lines[1]);
   ok('السعر بالدينار كما يبيعه الموقع، حتى مع سعر صرف البكسل', lines[1].includes('"640.00 LYD"') && lines[2].includes('"720.00 LYD"') && !csv.includes('USD'), lines[1]);
   ok('المخزون', lines[1].includes('"in stock"') && lines[2].includes('"out of stock"'));
-  ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/uploads/products/202-1.png"') && lines[1].includes('"https://brimatex.ly/product/202"'));
+  ok('الصورة والرابط', lines[1].includes('"https://brimatex.ly/uploads/products/202-1.png"') && lines[1].includes('"https://brimatex.ly/product/202?variant=202"'));
+  ok('كل مقاس برابطه: رابطان مختلفان لمقاسين', lines[2].includes('"https://brimatex.ly/product/202?variant=203"'), lines[2]);
+  ok('منتج بلا مقاسات: رابط صفحته', metaFeed.rowsFor({ id: 401, name: 'X', price: 10, image: '/x.png' }, { origin })[0].link === 'https://brimatex.ly/product/401');
   ok('بلا سعر صرف: بالدينار كذلك', metaFeed.buildCsv([product], { origin, lydPerUsd: 0 }).csv.includes('"640.00 LYD"'));
 
   // The whole story per mattress reaches Meta, not just a line
