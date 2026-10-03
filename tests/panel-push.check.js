@@ -96,8 +96,8 @@ const tmp = (name) => path.join(os.tmpdir(), `brimatex-${name}-${process.pid}-${
 const libyaHour = (offsetHours = 0) => String((new Date(Date.now() + 2 * HOUR).getUTCHours() + offsetHours + 24) % 24).padStart(2, '0');
 /** Quiet hours that do not include now (they start 3 hours from now). */
 const quietLater = () => ({ from: `${libyaHour(3)}:00`, to: `${libyaHour(5)}:00` });
-/** Quiet hours around now. */
-const quietNow = () => ({ from: `${libyaHour(-1)}:00`, to: `${libyaHour(1)}:00` });
+/** Quiet hours around now - to 2 hours on, so a send scheduled 10 minutes ahead is inside them at any minute of the hour. */
+const quietNow = () => ({ from: `${libyaHour(-1)}:00`, to: `${libyaHour(2)}:00` });
 /** Libyan local time `ms` from now, with seconds - what the panel sends, finer. */
 const libyaLocal = (ms) => new Date(Date.now() + ms + 2 * HOUR).toISOString().slice(0, 19);
 
@@ -308,13 +308,14 @@ async function localServer(expo) {
     ok('بلا رابط: data.link فارغ', expo.state.messages.find((m) => m.data?.campaignId === cart.json?.campaign?.id)?.data?.link === '');
 
     console.log('\n\x1b[1m8. ساعات الهدوء، والإلغاء\x1b[0m');
-    ok('ساعات الهدوء حول الآن', await setQuiet(quietNow()));
+    const quietAround = quietNow();
+    ok('ساعات الهدوء حول الآن', await setQuiet(quietAround));
     const sentBefore = expo.state.messages.length;
     const held = await r('POST', '/api/panel/push', { ...base, title: 'وصلت مراتب كراون' }, bearer(marketing.token));
     const c3 = held.json?.campaign;
     const endsAt = held.json?.quietHours?.endsAt;
     ok('«إرسال» الآن ← مؤجَّل (held)', held.status === 201 && c3?.status === 'held' && held.json?.quietHours?.now === true, `${held.status} ${JSON.stringify(c3)}`);
-    ok('حتى نهاية ساعات الهدوء', Boolean(endsAt) && c3?.sendAt === endsAt && new Date(Date.parse(endsAt) + 2 * HOUR).toISOString().slice(11, 16) === quietNow().to, `${c3?.sendAt} ${endsAt}`);
+    ok('حتى نهاية ساعات الهدوء', Boolean(endsAt) && c3?.sendAt === endsAt && new Date(Date.parse(endsAt) + 2 * HOUR).toISOString().slice(11, 16) === quietAround.to, `${c3?.sendAt} ${endsAt}`);
     const sched = await r('POST', '/api/panel/push', { ...base, title: 'مجدول داخل الهدوء', when: 'schedule', at: libyaLocal(10 * 60_000) }, bearer(marketing.token));
     ok('مجدول داخل ساعات الهدوء ← مؤجَّل أيضاً', sched.json?.campaign?.status === 'held' && sched.json?.campaign?.sendAt === endsAt);
     await sleep(1200);
