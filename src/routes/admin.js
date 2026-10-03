@@ -562,7 +562,7 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       const result = await metaCapi.sendTestEvent(pixelId, String(payload.testEventCode || '').trim(), {
         sourceUrl: `https://${req.headers.host || 'brimatex.ly'}/`,
         userAgent: req.headers['user-agent'],
-        ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress,
+        ip: metaCapi.clientIp(req),
       });
       return sendJson(res, 200, result);
     }

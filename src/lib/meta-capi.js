@@ -117,16 +117,30 @@ function cookie(req, name) {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
+/** A proxy's or the host's own address - never the customer's, and shared by everyone. */
+function isPrivateIp(ip) {
+  if (net.isIPv4(ip)) return /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
+  return /^(::1$|f[cd]|fe[89ab])/i.test(ip);
+}
+
 /**
- * The customer's real IP: the first hop of X-Forwarded-For behind the proxy,
- * else the socket's. Meta wants a valid IPv4 or IPv6 address with no spaces;
- * an IPv4 seen through an IPv6 socket (::ffff:41.208.1.1) goes as the IPv4.
+ * The customer's real IP: CF-Connecting-IP, else the first public address in
+ * X-Forwarded-For, else X-Real-IP, else the socket's. Private addresses (the
+ * proxy, the host itself) are skipped: sent to Meta, one such IP would stand
+ * for every visitor ("IP addresses associated with multiple users"). Meta
+ * wants a valid IPv4 or IPv6 address with no spaces; an IPv4 seen through an
+ * IPv6 socket (::ffff:41.208.1.1) goes as the IPv4.
  */
 function clientIp(req) {
-  const candidates = [(req.headers['x-forwarded-for'] || '').split(',')[0], req.socket?.remoteAddress];
+  const candidates = [
+    req.headers['cf-connecting-ip'],
+    ...String(req.headers['x-forwarded-for'] || '').split(','),
+    req.headers['x-real-ip'],
+    req.socket?.remoteAddress,
+  ];
   for (const raw of candidates) {
     const ip = String(raw || '').trim().replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
-    if (net.isIP(ip)) return ip;
+    if (net.isIP(ip) && !isPrivateIp(ip)) return ip;
   }
   return undefined;
 }
@@ -511,4 +525,5 @@ module.exports = {
   send,
   sendTestEvent,
   hashedPhone,
+  clientIp,
 };
