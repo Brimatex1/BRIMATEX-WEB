@@ -40,6 +40,28 @@ function toLatinDigits(value) {
 /** Same as its counterpart in routes/auth.js - see the explanation there. */
 const NOT_HANDLED = Symbol('order-route-not-handled');
 
+/** The last clock stamp a demo order's number was cut from. */
+let lastDemoStamp = 0;
+
+/**
+ * A demo order's number: the clock's last six digits, never the same twice.
+ * Two orders can land in one millisecond (CI placed two app orders in the same
+ * one, and the panel then showed one under the other's name), and the six
+ * digits come round every ~17 minutes while the store outlives a restart - so
+ * the stamp moves past the last one handed out and past any stored name. Each
+ * try is reserved before the store is asked, so concurrent orders never pick
+ * the same one.
+ */
+async function nextDemoNumber() {
+  let stamp = Math.max(Date.now(), lastDemoStamp + 1);
+  lastDemoStamp = stamp;
+  while (await orders.getOrderByName(`DEMO-${String(stamp).slice(-6)}`)) {
+    stamp = Math.max(stamp, lastDemoStamp) + 1;
+    lastDemoStamp = stamp;
+  }
+  return String(stamp).slice(-6);
+}
+
 /**
  * Where an order was placed. Both clients now say so; for app builds shipped
  * before the field existed, the requestId only the app sends gives it away.
@@ -289,8 +311,9 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       }
 
       // Demo mode: log the order locally with invoice simulation
-      const orderName = `DEMO-${Date.now().toString().slice(-6)}`;
-      const invoiceName = `INV-${Date.now().toString().slice(-6)}`;
+      const demoNumber = await nextDemoNumber();
+      const orderName = `DEMO-${demoNumber}`;
+      const invoiceName = `INV-${demoNumber}`;
       const total = Math.round((subtotal - (discount?.amount || 0)) * 100) / 100;
 
       try {

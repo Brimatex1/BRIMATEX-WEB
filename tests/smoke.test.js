@@ -215,13 +215,16 @@ async function testOrders() {
 
   // Rate limiting: the test server runs with RATE_LIMIT_ORDERS_PER_MIN=50.
   // Burn through the remaining quota, then confirm the next order is throttled.
+  // The quota is per clock minute, so a burst that crosses into the next minute
+  // starts counting again: 120 attempts leave room to fill a second bucket (the
+  // burst takes well under a minute, so it never crosses two).
   // Each attempt here is a real order too — same live-Odoo hazard as above,
-  // except worse (up to 60 of them), so it gets the same guard.
+  // except worse (up to 120 of them), so it gets the same guard.
   if (odooConfigured) {
-    console.log('  \x1b[33m⚠\x1b[0m  Odoo متصل — تخطّي اختبار حد الطلبات (يُنشئ حتى 60 طلباً حقيقياً)');
+    console.log('  \x1b[33m⚠\x1b[0m  Odoo متصل — تخطّي اختبار حد الطلبات (يُنشئ حتى 120 طلباً حقيقياً)');
   } else {
     let throttled = { status: 0 };
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 120; i++) {
       throttled = await request('POST', '/api/orders', valid);
       if (throttled.status === 429) break;
     }
