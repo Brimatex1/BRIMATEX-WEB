@@ -21,7 +21,7 @@ const banners = require('./lib/banners');
 const instagram = require('./lib/instagram');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
-const { visitorCookie, fbpCookie } = require('./lib/visitor');
+const { visitorCookie, metaCookies } = require('./lib/visitor');
 const metaFeed = require('./lib/metaFeed');
 const seo = require('./lib/seo');
 const whatsapp = require('./lib/whatsapp');
@@ -571,8 +571,8 @@ async function serveShell(req, res, url) {
     'Content-Security-Policy': SHELL_CSP,
     'Cache-Control': 'no-cache',
     // The visitor's stable first-party ID, renewed for a year, and Meta's _fbp
-    // even where the Pixel's script is blocked (src/lib/visitor.js).
-    'Set-Cookie': [visitorCookie(req), fbpCookie(req)],
+    // and _fbc for 90 days even where the Pixel's script is blocked (src/lib/visitor.js).
+    'Set-Cookie': [visitorCookie(req), ...metaCookies(req, url)],
   }, html);
 }
 

@@ -42,29 +42,54 @@ function visitorCookie(req) {
   return `${COOKIE}=${id}; Max-Age=${YEAR_SECONDS}; Path=/; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`;
 }
 
-// Meta's browser ID, as the Pixel writes it: fb.<subdomain index>.<creation ms>.<random>.
-// Index 1: the site answers on brimatex.ly itself (www moves there).
-const FBP = /^fb\.\d\.\d{10,13}\.\d+$/;
-const FBP_SECONDS = 90 * 24 * 60 * 60;
-
-/** The request's _fbp, or null when it has none (or a malformed one). */
-function fbpOf(req) {
-  const match = String(req?.headers?.cookie || '').match(/(?:^|;\s*)_fbp=([^;]+)/);
-  const value = match ? decodeURIComponent(match[1]).trim() : '';
-  return FBP.test(value) ? value : null;
-}
+// Meta's cookies (_fbp, _fbc) are kept by Meta's Parameter Builder
+// (capi-param-builder-nodejs) - see metaCookies.
+const { ParamBuilder } = require('capi-param-builder-nodejs');
+const META_SECONDS = 90 * 24 * 60 * 60;
 
 /**
- * The Set-Cookie header for Meta's _fbp. The Pixel only writes one when its
- * script runs - an ad blocker, or Safari cutting script cookies to 7 days,
- * leaves the Conversions API with no browser ID. So the page carries one:
- * the visitor's own, renewed for Meta's 90 days, or a new one in the Pixel's
- * format (what Meta's Parameter Builder does). The Pixel reuses an _fbp it
- * finds, so the browser and the server send the same value.
+ * The Set-Cookie headers for Meta's _fbp and _fbc, as Meta asks
+ * (developers.facebook.com/documentation/ads-commerce/conversions-api/parameters/fbp-and-fbc):
+ * set by the server for 90 days, so Safari - which cuts cookies written by
+ * script to 7 days - and an ad blocker still leave the Conversions API the
+ * browser's ID and the ad's click ID.
+ *
+ * Meta's Parameter Builder decides the values: the visitor's own _fbp (a new
+ * one when missing or malformed), and _fbc from the ad's fbclid in the
+ * address - a new click replaces an older one, the fbclid kept exactly as it
+ * came. Both carry the library's appendix, and both are renewed each visit.
+ * On brimatex.ly the domain is the Pixel's own (brimatex.ly), so there is one
+ * cookie of each, not the Pixel's and ours side by side.
  */
-function fbpCookie(req) {
-  const value = fbpOf(req) || `fb.1.${Date.now()}.${crypto.randomInt(1e9, 2147483647)}`;
-  return `_fbp=${value}; Max-Age=${FBP_SECONDS}; Path=/; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`;
+function metaCookies(req, url) {
+  const host = String(req?.headers?.host || '').replace(/:\d+$/, '');
+  const cookies = {};
+  for (const part of String(req?.headers?.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i < 1) continue;
+    try {
+      cookies[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    } catch {
+      /* a malformed cookie is skipped */
+    }
+  }
+  const query = {};
+  for (const [k, v] of url?.searchParams ?? []) query[k] = v;
+  const builder = new ParamBuilder(['brimatex.ly']);
+  try {
+    builder.processRequest(host || 'brimatex.ly', query, cookies, req?.headers?.referer || null, null, null);
+  } catch {
+    return [];
+  }
+  const domain = /(^|\.)brimatex\.ly$/.test(host) ? '; Domain=brimatex.ly' : '';
+  const set = (name, value) => `${name}=${value}; Max-Age=${META_SECONDS}; Path=/${domain}; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`;
+  const out = [];
+  // This server used to write _fbp without a domain: that copy goes, or the
+  // browser would carry two _fbp - ours and the Pixel's.
+  if (domain) out.push(`_fbp=; Max-Age=0; Path=/; SameSite=Lax${isSecure(req) ? '; Secure' : ''}`);
+  if (builder.getFbp()) out.push(set('_fbp', builder.getFbp()));
+  if (builder.getFbc()) out.push(set('_fbc', builder.getFbc()));
+  return out;
 }
 
-module.exports = { visitorIdOf, visitorCookie, fbpOf, fbpCookie, COOKIE };
+module.exports = { visitorIdOf, visitorCookie, metaCookies, COOKIE };

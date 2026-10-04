@@ -314,10 +314,10 @@ async function main() {
     ok('فلتر التطبيق فيه طلب التطبيق والقديم', [app.json.orderName, oldApp.json.orderName].every((n) => appList.some((o) => o.orderName === n)) && appList.every((o) => o.channel === 'app'));
 
     section('4أ. معرّف الزائر من الخادم');
-    const page = (cookie) =>
+    const page = (cookie, pagePath = '/') =>
       new Promise((resolve, reject) => {
         http
-          .get({ hostname: '127.0.0.1', port: PORT, path: '/', headers: cookie ? { Cookie: cookie } : {} }, (res) => {
+          .get({ hostname: '127.0.0.1', port: PORT, path: pagePath, headers: cookie ? { Cookie: cookie } : {} }, (res) => {
             res.resume();
             resolve(res.headers['set-cookie'] || []);
           })
@@ -327,13 +327,25 @@ async function main() {
     const vid = first?.match(/^brx_vid=([^;]+)/)?.[1];
     ok('الصفحة تعطي الزائر معرّفاً لسنة', /^[0-9a-f-]{36}$/.test(vid || '') && /Max-Age=31536000/.test(first) && /SameSite=Lax/.test(first), first);
     ok('وتجدّد نفس المعرّف في الزيارة التالية', (await page(`brx_vid=${vid}`)).some((c) => c.startsWith(`brx_vid=${vid};`)));
-    // Meta's _fbp even where the Pixel's script never runs: the Pixel's format, 90 days.
+    // Meta's _fbp and _fbc even where the Pixel's script never runs - Meta's
+    // Parameter Builder, 90 days (src/lib/visitor.js, metaCookies).
+    const APPENDIX = '[A-Za-z0-9_-]{8}';
     const fbp = (await page()).find((c) => c.startsWith('_fbp='));
     const fbpValue = fbp?.match(/^_fbp=([^;]+)/)?.[1];
-    ok('الصفحة تعطي _fbp بصيغة ميتا لـ90 يوماً', /^fb\.1\.\d{13}\.\d{10}$/.test(fbpValue || '') && /Max-Age=7776000/.test(fbp) && !/HttpOnly/i.test(fbp), fbp);
+    ok('الصفحة تعطي _fbp بصيغة ميتا لـ90 يوماً', new RegExp(String.raw`^fb\.\d\.\d{13}\.\d+\.${APPENDIX}$`).test(fbpValue || '') && /Max-Age=7776000/.test(fbp) && !/HttpOnly/i.test(fbp), fbp);
     const PIXEL_FBP = 'fb.1.1758000000000.1234567890';
-    ok('و_fbp الذي كتبه البكسل يبقى كما هو ويتجدّد', (await page(`_fbp=${PIXEL_FBP}`)).some((c) => c.startsWith(`_fbp=${PIXEL_FBP};`)));
-    ok('و_fbp المشوّه يُستبدل بواحد صحيح', (await page('_fbp=fb.1.bad')).some((c) => /^_fbp=fb\.1\.\d{13}\.\d{10};/.test(c)));
+    ok('و_fbp الذي كتبه البكسل يبقى ويتجدّد (مع رمز مكتبة ميتا)', (await page(`_fbp=${PIXEL_FBP}`)).some((c) => c.startsWith(`_fbp=${PIXEL_FBP}.`)));
+    ok('و_fbp برمز المكتبة يبقى كما هو بالضبط', (await page(`_fbp=${PIXEL_FBP}.AQYCAQMC`)).some((c) => c.startsWith(`_fbp=${PIXEL_FBP}.AQYCAQMC;`)));
+    ok('و_fbp المشوّه يُستبدل بواحد صحيح', (await page('_fbp=fb.1.bad')).some((c) => new RegExp(String.raw`^_fbp=fb\.\d\.\d{13}\.\d+\.${APPENDIX};`).test(c)));
+    const fbc = (await page('', '/?fbclid=IwAR_Test-Click')).find((c) => c.startsWith('_fbc='));
+    ok('رابط إعلان: _fbc من fbclid بحروفه، لـ90 يوماً', new RegExp(String.raw`^_fbc=fb\.\d\.\d{13}\.IwAR_Test-Click\.${APPENDIX};`).test(fbc || '') && /Max-Age=7776000/.test(fbc), fbc);
+    const OLD_FBC = 'fb.1.1758000000000.IwAR_Old';
+    ok('ضغطة جديدة تستبدل _fbc القديم', (await page(`_fbc=${OLD_FBC}`, '/?fbclid=IwAR_New')).some((c) => /^_fbc=fb\.\d\.\d{13}\.IwAR_New\./.test(c)));
+    ok('بلا ضغطة: _fbc الموجود يبقى ويتجدّد', (await page(`_fbc=${OLD_FBC}`)).some((c) => c.startsWith(`_fbc=${OLD_FBC}.`)));
+    ok('بلا ضغطة ولا _fbc: لا _fbc', !(await page()).some((c) => c.startsWith('_fbc=')));
+    const { metaCookies } = require('../src/lib/visitor');
+    const live = metaCookies({ headers: { host: 'brimatex.ly', cookie: `_fbp=${PIXEL_FBP}` } }, new URL('https://brimatex.ly/'));
+    ok('على brimatex.ly: نطاق البكسل نفسه، ونسخة الخادم القديمة بلا نطاق تُحذف', live.some((c) => c.startsWith(`_fbp=${PIXEL_FBP}.`) && /Domain=brimatex\.ly/.test(c) && /Secure/.test(c)) && live.some((c) => /^_fbp=; Max-Age=0; Path=\/; SameSite=Lax/.test(c) && !/Domain/.test(c)), JSON.stringify(live));
 
     section('4ب. أحداث البكسل عبر الخادم (تغطية الأحداث)');
     received.length = 0;
