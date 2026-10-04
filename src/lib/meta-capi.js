@@ -34,11 +34,11 @@
 'use strict';
 
 const crypto = require('crypto');
-const net = require('net');
 const { postRaw } = require('./http');
 const { toInternational } = require('./whatsapp-cloud');
 const { metaCity } = require('./metaCity');
 const { visitorIdOf } = require('./visitor');
+const { clientIp, sharedGuard, health: ipHealth } = require('./clientIp');
 
 /** Latest Graph API version as of July 2026. */
 const GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v26.0';
@@ -65,6 +65,7 @@ function status() {
     tokenSource: t.source,
     tokenLast4: t.last4,
     lastResult,
+    ipHealth: ipHealth(),
   };
 }
 
@@ -115,34 +116,6 @@ function hashedPhone(value) {
 function cookie(req, name) {
   const match = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : undefined;
-}
-
-/** A proxy's or the host's own address - never the customer's, and shared by everyone. */
-function isPrivateIp(ip) {
-  if (net.isIPv4(ip)) return /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
-  return /^(::1$|f[cd]|fe[89ab])/i.test(ip);
-}
-
-/**
- * The customer's real IP: CF-Connecting-IP, else the first public address in
- * X-Forwarded-For, else X-Real-IP, else the socket's. Private addresses (the
- * proxy, the host itself) are skipped: sent to Meta, one such IP would stand
- * for every visitor ("IP addresses associated with multiple users"). Meta
- * wants a valid IPv4 or IPv6 address with no spaces; an IPv4 seen through an
- * IPv6 socket (::ffff:41.208.1.1) goes as the IPv4.
- */
-function clientIp(req) {
-  const candidates = [
-    req.headers['cf-connecting-ip'],
-    ...String(req.headers['x-forwarded-for'] || '').split(','),
-    req.headers['x-real-ip'],
-    req.socket?.remoteAddress,
-  ];
-  for (const raw of candidates) {
-    const ip = String(raw || '').trim().replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/i, '');
-    if (net.isIP(ip) && !isPrivateIp(ip)) return ip;
-  }
-  return undefined;
 }
 
 // Where website events come from; event_source_url must be on the verified domain.
@@ -252,7 +225,8 @@ function buildPurchase({ req, orderName, customer, items, total, userId, trackin
     // One stable ID per person across channels: the account when signed in,
     // otherwise the phone - both hashed.
     external_id: externalIds({ userId, visitorId: visitorIdOf(req), phoneHash }),
-    client_ip_address: clientIp(req),
+    // The visitor's address - never a proxy's, the server's, or one shared by many (lib/clientIp.js).
+    client_ip_address: sharedGuard(req, visitorIdOf(req) || validFbp(cookie(req, '_fbp')) || validFbp(tracking?.fbp)),
     client_user_agent: req.headers['user-agent'],
     fbp: validFbp(cookie(req, '_fbp')) || validFbp(tracking?.fbp),
     fbc: validFbc(cookie(req, '_fbc')) || validFbc(tracking?.fbc),
@@ -374,7 +348,7 @@ function buildBrowserEvent({ req, eventName, eventId, sourceUrl, referrerUrl, fb
         phoneHash: phoneHash || b.ph?.[0],
         more: b.external_id,
       }),
-      client_ip_address: clientIp(req),
+      client_ip_address: sharedGuard(req, visitorIdOf(req) || validFbp(cookie(req, '_fbp')) || validFbp(fbp)),
       client_user_agent: req.headers['user-agent'],
       fbp: validFbp(cookie(req, '_fbp')) || validFbp(fbp),
       fbc: validFbc(cookie(req, '_fbc')) || validFbc(fbc),

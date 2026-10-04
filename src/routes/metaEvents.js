@@ -11,6 +11,7 @@
 // and the signed-in customer's hashed details. It answers at once (204) and
 // forwards in batches; a visitor never waits on Meta.
 
+const { rateKey } = require('../lib/clientIp');
 const auth = require('../lib/auth');
 const metaCapi = require('../lib/meta-capi');
 const settings = require('../lib/settings');
@@ -88,7 +89,7 @@ async function handleMetaEventRoutes(req, res, url) {
     return sendJson(res, 400, { error: 'حدث غير معروف' });
   }
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+  const ip = rateKey(req);
   const ua = String(req.headers['user-agent'] || '');
   const { pixelId, lydPerUsd } = settings.readPublicFacebookPixel();
   // Accepted and dropped: nothing for Meta, but nothing for the browser to retry either.

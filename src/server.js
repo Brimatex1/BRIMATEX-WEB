@@ -10,6 +10,7 @@
 //                     files — see docs/POSTGRES_SETUP.md).
 // Configure WhatsApp: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
 
+const { rateKey } = require('./lib/clientIp');
 require('./lib/no-undici');
 require('./lib/load-env');
 const http = require('http');
@@ -381,7 +382,7 @@ async function handleApi(req, res, url) {
    * message is never silently dropped.
    */
   if (req.method === 'POST' && url.pathname === '/api/support/tickets') {
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+    const clientIp = rateKey(req);
     if (checkSupportRateLimit(clientIp)) {
       return sendJson(res, 429, { error: 'أرسلت رسائل كثيرة. انتظر دقيقة ثم حاول مجدداً.' });
     }

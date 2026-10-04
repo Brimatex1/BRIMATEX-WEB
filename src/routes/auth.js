@@ -11,6 +11,7 @@
  */
 'use strict';
 
+const { rateKey } = require('../lib/clientIp');
 const crypto = require('crypto');
 
 const auth = require('../lib/auth');
@@ -144,7 +145,7 @@ function createAuthRoutes({ isValidPhone }) {
        a few a minute; the per-number minute is the otp library's. */
 
     if (req.method === 'POST' && url.pathname === '/api/auth/phone/request') {
-      const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+      const ip = rateKey(req);
       if (tooManyCodeRequests(ip)) {
         return sendJson(res, 429, { error: 'طلبت رموزاً كثيرة. انتظر دقيقة ثم حاول مجدداً.' });
       }

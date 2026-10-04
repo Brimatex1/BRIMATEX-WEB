@@ -487,6 +487,8 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       return sendJson(res, 200, {
         facebookPixel: settings.readPublicFacebookPixel(),
         conversionsApi: metaCapi.status(),
+        // The staff member's own visit as the server sees it - which header holds the address.
+        yourIp: require('../lib/clientIp').explain(req),
       });
     }
 

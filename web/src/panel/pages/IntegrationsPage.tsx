@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { leadText } from '@/lib/preorder';
 import { cn } from '@/lib/utils';
-import type { ConversionsApiStatus, FacebookPixelSettings, OdooSettings, PreorderSettings, WhatsappSupportSettings } from '@/types';
+import type { ConversionsApiStatus, FacebookPixelSettings, IpHealth, OdooSettings, PreorderSettings, WhatsappSupportSettings, YourIp } from '@/types';
 
 import type { PanelMe } from '../api';
 import { PageBody, PageHeader } from '../Shell';
@@ -419,6 +419,67 @@ function WhatsAppCard({ token }: { token: string }) {
 
 /* ---------------------------------------------------------------- ميتا */
 
+const IP_SOURCES: Record<string, string> = {
+  'cf-connecting-ip': 'CF-Connecting-IP',
+  'x-forwarded-for': 'X-Forwarded-For',
+  'x-real-ip': 'X-Real-IP',
+  socket: 'الاتصال المباشر',
+};
+
+/**
+ * «عنوان IP للزبون»: what Meta got as each visitor's address since the server
+ * started - Meta flags addresses shared by many people, and these numbers show
+ * whether that can still happen. And the staff member's own visit, to see which
+ * header carries the address on this host.
+ */
+function IpCheck({ health, you }: { health: IpHealth; you?: YourIp }) {
+  const pct = (n: number) => (health.events ? Math.round((n / health.events) * 100) : 0);
+  const sources = Object.entries(health.sources).sort((a, b) => b[1] - a[1]);
+  // Header names are Latin: isolated, so the Arabic line around them keeps its order.
+  const name = (k: string) => <bdi dir={IP_SOURCES[k] && k !== 'socket' ? 'ltr' : 'rtl'}>{IP_SOURCES[k] ?? k}</bdi>;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl bg-[#F5F6FA] p-3.5 text-[12.5px] leading-relaxed text-[#5F6373]">
+      <span className="text-[13px] font-semibold text-[#1B1F3B]">عنوان IP للزبون</span>
+      {health.events ? (
+        <>
+          <span>
+            منذ {new Date(health.since).toLocaleString('ar-LY')}: {health.events.toLocaleString('ar-LY')} حدثاً — بعنوان الزبون {pct(health.sent)}٪، وحُجب عنوان مشترك في {pct(health.shared)}٪، وبلا عنوان {pct(health.none)}٪.
+          </span>
+          <span>
+            {health.addresses.toLocaleString('ar-LY')} عنواناً مختلفاً خلال آخر 24 ساعة، منها {health.sharedAddresses.toLocaleString('ar-LY')} مشتركة ({health.sharedVisitors} زوار أو أكثر)
+            {health.mostVisitorsOnOne ? `، وأكثر عنوان عليه ${health.mostVisitorsOnOne.toLocaleString('ar-LY')} زائراً` : ''}.
+          </span>
+          {sources.length ? (
+            <span>
+              مصدر العنوان:{' '}
+              {sources.map(([k, n], i) => (
+                <span key={k}>
+                  {i ? '، ' : ''}
+                  {name(k)} — {n.toLocaleString('ar-LY')} حدثاً
+                </span>
+              ))}
+              .
+            </span>
+          ) : null}
+        </>
+      ) : (
+        <span>لم يُرسل حدث منذ بدء تشغيل الخادم.</span>
+      )}
+      {you ? (
+        <span>
+          زيارتك الآن: {you.ip ? <bdi dir="ltr">{you.ip}</bdi> : 'لا عنوان صالح'}
+          {you.source ? <>، من {name(you.source)}</> : null}
+          {you.headers['x-forwarded-for'] && you.headers['x-forwarded-for'] !== you.ip ? (
+            <>
+              . السلسلة كاملة: <bdi dir="ltr">{you.headers['x-forwarded-for']}</bdi>
+            </>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function MetaCard({ token }: { token: string }) {
   const read = useCallback(() => api.adminFacebookPixelSettings(token), [token]);
   const { data, error, reload } = useSettings(read);
@@ -618,6 +679,8 @@ function MetaCard({ token }: { token: string }) {
             آخر إرسال ({new Date(capi.lastResult.at).toLocaleString('ar-LY')}): {capi.lastResult.ok ? 'وصل إلى ميتا' : `رُفض — ${capi.lastResult.error}`}
           </p>
         ) : null}
+
+        {capi.ipHealth ? <IpCheck health={capi.ipHealth} you={data?.yourIp} /> : null}
 
         {capi.configured ? (
           <div className="flex flex-col gap-1.5 rounded-xl bg-[#F5F6FA] p-3.5">

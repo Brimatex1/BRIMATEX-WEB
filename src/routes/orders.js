@@ -13,6 +13,7 @@
  */
 'use strict';
 
+const { rateKey } = require('../lib/clientIp');
 const odoo = require('../lib/odoo');
 const auth = require('../lib/auth');
 const orders = require('../lib/orders');
@@ -116,7 +117,7 @@ function reportPurchase(req, order, { channel, orderName, total, userId, product
 function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
   return async function handleOrderRoutes(req, res, url) {
     if (req.method === 'POST' && url.pathname === '/api/orders') {
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+      const clientIp = rateKey(req);
       if (checkRateLimit(clientIp)) {
         return sendJson(res, 429, { error: 'تم تجاوز حد الطلبات المسموحة، حاول لاحقاً' });
       }

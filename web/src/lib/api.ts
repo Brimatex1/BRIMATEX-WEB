@@ -10,6 +10,7 @@ import type {
   AdminProducts,
   CartLine,
   ConversionsApiStatus,
+  YourIp,
   CouponCheck,
   CouponsResponse,
   Customer,
@@ -397,7 +398,7 @@ export const api = {
     }),
 
   adminFacebookPixelSettings: (token: string) =>
-    request<{ facebookPixel: FacebookPixelSettings; conversionsApi: ConversionsApiStatus }>(
+    request<{ facebookPixel: FacebookPixelSettings; conversionsApi: ConversionsApiStatus; yourIp?: YourIp }>(
       '/api/admin/settings/facebook-pixel',
       authHeaders(token)
     ),

@@ -451,6 +451,33 @@ export interface ConversionsApiStatus {
     received?: number;
     error?: string;
   } | null;
+  /** The visitors' addresses sent with events since the server started (src/lib/clientIp.js). */
+  ipHealth?: IpHealth;
+}
+
+/** What the server sent Meta as the visitor's address, and what it held back. */
+export interface IpHealth {
+  since: string;
+  events: number;
+  /** Sent with the visitor's own address. */
+  sent: number;
+  /** Held back: an address seen with `sharedVisitors` or more visitors in a day. */
+  shared: number;
+  /** No usable address in the request at all. */
+  none: number;
+  /** Which header gave the address, by count. */
+  sources: Record<string, number>;
+  addresses: number;
+  sharedAddresses: number;
+  mostVisitorsOnOne: number;
+  sharedVisitors: number;
+}
+
+/** The staff member's own request as the server sees it. */
+export interface YourIp {
+  ip: string | null;
+  source: string | null;
+  headers: Record<string, string | null>;
 }
 
 /**
