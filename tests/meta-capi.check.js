@@ -30,6 +30,8 @@ const sha = (v) => crypto.createHash('sha256').update(v, 'utf8').digest('hex');
 let pass = 0;
 let fail = 0;
 const failures = [];
+// Meta's Parameter Builder sends `<ip>.<appendix>` (src/lib/clientIp.js): the address part.
+const ipOf = (v) => (v ? String(v).slice(0, String(v).lastIndexOf('.')) : v);
 function ok(name, cond, detail = '') {
   if (cond) {
     pass++;
@@ -128,7 +130,7 @@ async function main() {
   ok('المدينة بالحروف اللاتينية ثم مشفّرة: طرابلس → tripoli، ومعها كما كُتبت', ud.ct[0] === sha('tripoli') && ud.ct[1] === sha('طرابلس'), JSON.stringify(ud.ct));
   ok('البريد: صغير ومقصوص ثم مشفّر', ud.em[0] === sha('a@b.ly'));
   ok('external_id = الهاتف المشفّر للزائر', ud.external_id[0] === sha('218912345678'));
-  ok('IP الحقيقي من أول قفزة', ud.client_ip_address === '41.208.1.1', ud.client_ip_address);
+  ok('IP الحقيقي من أول قفزة', ipOf(ud.client_ip_address) === '41.208.1.1' && /\.[A-Za-z0-9_-]{8}$/.test(ud.client_ip_address), ud.client_ip_address);
   ok('fbp من الكوكي', ud.fbp === 'fb.1.1700000000000.111');
   ok('fbc من المتصفح عند غياب الكوكي', ud.fbc === 'fb.1.1700000000000.CLICK');
   ok('القيمة بالدولار: 106 ÷ 8', ev.custom_data.value === 13.25 && ev.custom_data.currency === 'USD');
@@ -187,7 +189,7 @@ async function main() {
     ok('عرض فئة: اسم الفئة والمنتجات', cat.custom_data?.content_category === 'كومفورت' && cat.custom_data.content_ids.length === 2);
     ok('الأحداث الجديدة مقبولة', ['AddPaymentInfo', 'CompleteRegistration', 'ViewCategory', 'Search', 'AddToWishlist'].every((n) => capi.BROWSER_EVENTS.has(n)));
     }
-    ok('IP غير صالح لا يُرسل', !('client_ip_address' in bare.user_data) || bare.user_data.client_ip_address === '1.1.1.1');
+    ok('IP غير صالح لا يُرسل', !('client_ip_address' in bare.user_data) || ipOf(bare.user_data.client_ip_address) === '1.1.1.1');
   }
   {
     const ev2 = capi.buildPurchase({
@@ -197,7 +199,7 @@ async function main() {
       items: [{ productId: 1, quantity: 1 }],
       total: 10,
     });
-    ok('IPv4 خلف مقبس IPv6 يُرسل IPv4، والمزيّف يُتجاهل', ev2.user_data.client_ip_address === '41.208.9.9', ev2.user_data.client_ip_address);
+    ok('IPv4 خلف مقبس IPv6 يُرسل IPv4، والمزيّف يُتجاهل', ipOf(ev2.user_data.client_ip_address) === '41.208.9.9', ev2.user_data.client_ip_address);
     ok('الاسم المركّب: عبدالله', ev2.user_data.fn === sha('عبدالله'));
     ok('صفر بعد 218 يُحذف', ev2.user_data.ph[0] === sha('218915551234'));
     // The visitor's IP, never the proxy's or the host's.
@@ -364,7 +366,7 @@ async function main() {
     const [pvE, vcE, waE] = received[0]?.body?.data || [];
     ok('طلب واتساب: Contact بالمقاس والقيمة وقناة whatsapp_order', waE?.event_name === 'Contact' && waE.custom_data?.contact_channel === 'whatsapp_order' && waE.custom_data.content_ids?.[0] === '7747' && waE.custom_data.value === Math.round((470 / 8) * 100) / 100, JSON.stringify(waE?.custom_data));
     ok('نفس اسم الحدث ورقمه من المتصفح (لإزالة التكرار)', pvE?.event_name === 'PageView' && pvE.event_id === 'PageView.1700000000000.abc123');
-    ok('IP ونوع المتصفح وfbp من الخادم', pvE?.user_data?.client_user_agent === 'Mozilla/5.0 (iPhone) Safari' && pvE.user_data.fbp === 'fb.1.1700000000000.555' && pvE.user_data.client_ip_address === '41.208.7.7');
+    ok('IP ونوع المتصفح وfbp من الخادم', pvE?.user_data?.client_user_agent === 'Mozilla/5.0 (iPhone) Safari' && pvE.user_data.fbp === 'fb.1.1700000000000.555' && ipOf(pvE.user_data.client_ip_address) === '41.208.7.7');
     ok('الرابط والمصدر', pvE?.event_source_url === 'https://brimatex.ly/shop' && pvE.referrer_url === 'https://l.facebook.com/');
     ok('الزبون المسجّل: هاتفه ومعرّفه مشفّران', vcE?.user_data?.ph?.[0] === sha('218' + ADMIN_PHONE.slice(1)) && Boolean(vcE.user_data.external_id?.[0]), JSON.stringify(vcE?.user_data));
     ok('القيمة بالدولار مثل البكسل، وبلا num_items أو حقول غريبة', vcE?.custom_data?.value === 100 && vcE.custom_data.currency === 'USD' && !('num_items' in vcE.custom_data) && !('junk' in vcE.custom_data), JSON.stringify(vcE?.custom_data));

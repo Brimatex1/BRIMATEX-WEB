@@ -2,6 +2,7 @@ import type { CartLine, OrderResult, Product } from '@/types';
 import { CURRENCY_ISO } from './utils';
 import { matchData, type PixelPerson } from '@/lib/pixelMatch';
 import { visitorId } from '@/lib/visitor';
+import clientParamBuilder from 'meta-capi-param-builder-clientjs';
 
 // Meta (Facebook) Pixel — admin-configurable from the dashboard, applies to
 // every page and product automatically because every call here reads real
@@ -21,6 +22,52 @@ let initialized = false;
 let starting = false;
 /** The visitor's hashed details being computed (setPixelPerson). */
 let personReady: Promise<void> | null = null;
+/** Meta's Parameter Builder collecting _fbc, _fbp and the visitor's own IP (collectParams). */
+let paramsReady: Promise<void> | null = null;
+
+/**
+ * Where the browser learns its own address. This host has no IPv6, so the
+ * server only ever sees the visitor's IPv4 - shared by many phones on Libyan
+ * carriers, which Meta flags ("client IP addresses associated with multiple
+ * users"). This dual-stack service answers with the phone's IPv6 when it has
+ * one (its IPv4 otherwise) - the lookup Meta's own example uses. Once the
+ * site itself answers over IPv6, the server sees the IPv6 directly and this
+ * can go.
+ */
+const IP_LOOKUP = 'https://api64.ipify.org';
+
+async function lookupIp(): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1200);
+  try {
+    const res = await fetch(IP_LOOKUP, { signal: controller.signal, cache: 'no-store', credentials: 'omit' });
+    return res.ok ? (await res.text()).trim() : '';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Meta's Parameter Builder (developers.facebook.com/documentation/ads-commerce/
+ * conversions-api/parameter-builder-library): keeps _fbc from the ad click
+ * (and from Facebook's in-app browser when the address lost it), _fbp, and
+ * the visitor's own IP in the _fbi cookie for a day - which every request to
+ * this site carries, so the server sends Meta that address
+ * (src/lib/clientIp.js). The lookup runs once a day per browser, not per page.
+ */
+function collectParams(): Promise<void> {
+  if (!paramsReady) {
+    paramsReady = (async () => {
+      try {
+        const known = clientParamBuilder.getClientIpAddress();
+        await clientParamBuilder.processAndCollectAllParams(window.location.href, known ? undefined : lookupIp);
+      } catch {
+        /* cookies blocked or the lookup failed - the server uses the request's address */
+      }
+    })();
+  }
+  return paramsReady;
+}
 /**
  * The Pixel ID arrives from the server a moment after the page loads, and a
  * visitor landing on a product from an ad fires ViewContent before that. Such
@@ -57,8 +104,9 @@ export function initPixel(pixelId: string, rate?: number | null) {
   // leave before them, so only part of the events carried them. Wait for
   // them (never more than 1.5 s), then start and send what queued meanwhile.
   starting = true;
-  const ready = personReady ?? Promise.resolve();
-  void Promise.race([ready.catch(() => undefined), new Promise((r) => setTimeout(r, 1500))]).then(() => start(pixelId, rate));
+  // Meta's Parameter Builder too: the first events then carry the visitor's own address.
+  const ready = Promise.all([(personReady ?? Promise.resolve()).catch(() => undefined), collectParams()]);
+  void Promise.race([ready, new Promise((r) => setTimeout(r, 1500))]).then(() => start(pixelId, rate));
 }
 
 function start(pixelId: string, rate?: number | null) {

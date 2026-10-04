@@ -451,7 +451,8 @@ async function handleApi(req, res, url) {
 // on Google Cloud. The owner chose to let them through: these exact two
 // hosts, not all of AWS or Google Cloud. If Meta moves them, the console
 // will say so (a blocked connect-src) and they are updated here. The Pixel
-// also frames facebook.com for some of its checks.
+// also frames facebook.com for some of its checks. api64.ipify.org: the
+// browser's own IPv6 for Meta (web/src/lib/pixel.ts, lookupIp).
 const META_OPENBRIDGE = [
   'https://dv-c3e594c6d429469e90b54478358619c3.ecs.us-east-1.on.aws',
   'https://bded8a3c6ae-1-1053047382554.us-central1.run.app',
@@ -459,7 +460,7 @@ const META_OPENBRIDGE = [
 
 const SHELL_CSP =
   "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; " +
-  `connect-src 'self' https://www.facebook.com ${META_OPENBRIDGE.join(' ')}; frame-src https://www.facebook.com`;
+  `connect-src 'self' https://www.facebook.com https://api64.ipify.org ${META_OPENBRIDGE.join(' ')}; frame-src https://www.facebook.com`;
 
 async function serveStatic(req, res, urlPath) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');

@@ -424,6 +424,7 @@ const IP_SOURCES: Record<string, string> = {
   'x-forwarded-for': 'X-Forwarded-For',
   'x-real-ip': 'X-Real-IP',
   socket: 'الاتصال المباشر',
+  'fbi-cookie': 'المتصفح نفسه (_fbi)',
 };
 
 /**
@@ -436,7 +437,7 @@ function IpCheck({ health, you }: { health: IpHealth; you?: YourIp }) {
   const pct = (n: number) => (health.events ? Math.round((n / health.events) * 100) : 0);
   const sources = Object.entries(health.sources).sort((a, b) => b[1] - a[1]);
   // Header names are Latin: isolated, so the Arabic line around them keeps its order.
-  const name = (k: string) => <bdi dir={IP_SOURCES[k] && k !== 'socket' ? 'ltr' : 'rtl'}>{IP_SOURCES[k] ?? k}</bdi>;
+  const name = (k: string) => <bdi dir={IP_SOURCES[k] && k !== 'socket' && k !== 'fbi-cookie' ? 'ltr' : 'rtl'}>{IP_SOURCES[k] ?? k}</bdi>;
   return (
     <div className="flex flex-col gap-1.5 rounded-xl bg-[#F5F6FA] p-3.5 text-[12.5px] leading-relaxed text-[#5F6373]">
       <span className="text-[13px] font-semibold text-[#1B1F3B]">عنوان IP للزبون</span>
@@ -444,6 +445,7 @@ function IpCheck({ health, you }: { health: IpHealth; you?: YourIp }) {
         <>
           <span>
             منذ {new Date(health.since).toLocaleString('ar-LY')}: {health.events.toLocaleString('ar-LY')} حدثاً — بعنوان الزبون {pct(health.sent)}٪، وحُجب عنوان مشترك في {pct(health.shared)}٪، وبلا عنوان {pct(health.none)}٪.
+            {health.sent ? ` منها IPv6 (عنوان الجهاز نفسه) ${Math.round(((health.ipv6 ?? 0) / health.sent) * 100)}٪.` : ''}
           </span>
           <span>
             {health.addresses.toLocaleString('ar-LY')} عنواناً مختلفاً خلال آخر 24 ساعة، منها {health.sharedAddresses.toLocaleString('ar-LY')} مشتركة ({health.sharedVisitors} زوار أو أكثر)

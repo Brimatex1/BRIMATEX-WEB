@@ -461,6 +461,8 @@ export interface IpHealth {
   events: number;
   /** Sent with the visitor's own address. */
   sent: number;
+  /** Of those, IPv6 - the browser's own, through Meta's Parameter Builder. */
+  ipv6: number;
   /** Held back: an address seen with `sharedVisitors` or more visitors in a day. */
   shared: number;
   /** No usable address in the request at all. */
@@ -478,6 +480,8 @@ export interface YourIp {
   ip: string | null;
   source: string | null;
   headers: Record<string, string | null>;
+  /** What Meta would get for this visit: `<ip>.<appendix>` from Meta's Parameter Builder. */
+  forMeta?: string | null;
 }
 
 /**

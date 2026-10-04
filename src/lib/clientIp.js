@@ -9,6 +9,14 @@
  * loopback Passenger talks over, or the host's public address would each be
  * the same for every visitor.
  *
+ * For Meta (forMeta), Meta's own Parameter Builder (capi-param-builder-nodejs,
+ * developers.facebook.com/documentation/ads-commerce/conversions-api/parameter-builder-library)
+ * picks between that address and the one the browser found for itself - the
+ * _fbi cookie its client library writes (web/src/lib/pixel.ts) - IPv6 first:
+ * this host has no IPv6, so every request reaches it over IPv4, which Libyan
+ * carriers share between many phones; a phone's IPv6 is its own. The value
+ * carries the library's appendix (`<ip>.<token>`), as Meta expects from it.
+ *
  * The guard (sharedGuard): an address seen with SHARED_VISITORS different
  * visitors within a day - an office, a proxy we did not foresee, a mobile
  * carrier's shared (CGNAT) address - is no longer sent to Meta. Meta flags
@@ -22,6 +30,7 @@
 const crypto = require('crypto');
 const net = require('net');
 const os = require('os');
+const { ParamBuilder } = require('capi-param-builder-nodejs');
 
 /** Private, loopback, link-local, carrier-internal and unspecified addresses. */
 function isPrivateIp(ip) {
@@ -91,8 +100,45 @@ function explain(req) {
       'x-forwarded-for': h['x-forwarded-for'] || null,
       'x-real-ip': h['x-real-ip'] || null,
       socket: req?.socket?.remoteAddress || null,
+      _fbi: cookiesOf(req)._fbi || null,
     },
+    forMeta: forMeta(req).value || null,
   };
+}
+
+/** The request's cookies by name (the last of a repeated name wins). */
+function cookiesOf(req) {
+  const out = {};
+  for (const part of String(req?.headers?.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i < 1) continue;
+    try {
+      out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+    } catch {
+      /* a malformed cookie is skipped */
+    }
+  }
+  return out;
+}
+
+/**
+ * The address for Meta, through Meta's Parameter Builder: the browser's own
+ * (_fbi) when it is IPv6, else the request's, else the browser's IPv4.
+ * { value: '<ip>.<appendix>', ip, source } - value undefined when none is usable.
+ */
+function forMeta(req) {
+  const fromRequest = resolve(req);
+  const builder = new ParamBuilder(['brimatex.ly']);
+  try {
+    builder.processRequest(req?.headers?.host || 'brimatex.ly', {}, cookiesOf(req), null, fromRequest.ip || null, null);
+  } catch {
+    return { value: fromRequest.ip, ip: fromRequest.ip, source: fromRequest.source };
+  }
+  const value = builder.getClientIpAddress() || undefined;
+  const ip = value ? value.slice(0, value.lastIndexOf('.')) : undefined;
+  // The cookie is the browser's word: the same checks as a header's.
+  if (!ip || !usable(ip)) return { value: fromRequest.ip, ip: fromRequest.ip, source: fromRequest.source };
+  return { value, ip, source: ip === fromRequest.ip ? fromRequest.source : 'fbi-cookie' };
 }
 
 /* ───────────── The shared-address guard ───────────── */
@@ -103,7 +149,7 @@ const MAX_IPS = 20_000;
 
 /** ip → Map(visitor key → last seen) within the window. */
 const seen = new Map();
-const totals = { events: 0, sent: 0, shared: 0, none: 0, sources: {} };
+const totals = { events: 0, sent: 0, ipv6: 0, shared: 0, none: 0, sources: {} };
 let since = Date.now();
 let lastPrune = 0;
 
@@ -129,7 +175,7 @@ const shortHash = (v) => crypto.createHash('sha256').update(String(v)).digest('h
  * _fbp); without one the user agent stands in.
  */
 function sharedGuard(req, visitor, now = Date.now()) {
-  const { ip, source } = resolve(req);
+  const { value, ip, source } = forMeta(req);
   totals.events++;
   if (!ip) {
     totals.none++;
@@ -146,7 +192,8 @@ function sharedGuard(req, visitor, now = Date.now()) {
     return undefined;
   }
   totals.sent++;
-  return ip;
+  if (net.isIPv6(ip)) totals.ipv6++;
+  return value;
 }
 
 /** For the admin panel: what was sent since this server process started. */
@@ -162,6 +209,7 @@ function health(now = Date.now()) {
     since: new Date(since).toISOString(),
     events: totals.events,
     sent: totals.sent,
+    ipv6: totals.ipv6,
     shared: totals.shared,
     none: totals.none,
     sources: { ...totals.sources },
@@ -175,9 +223,9 @@ function health(now = Date.now()) {
 /** Tests only. */
 function _reset() {
   seen.clear();
-  Object.assign(totals, { events: 0, sent: 0, shared: 0, none: 0, sources: {} });
+  Object.assign(totals, { events: 0, sent: 0, ipv6: 0, shared: 0, none: 0, sources: {} });
   since = Date.now();
   lastPrune = 0;
 }
 
-module.exports = { clientIp, rateKey, explain, sharedGuard, health, isPrivateIp, SHARED_VISITORS, _reset };
+module.exports = { clientIp, rateKey, explain, forMeta, sharedGuard, health, isPrivateIp, SHARED_VISITORS, _reset };

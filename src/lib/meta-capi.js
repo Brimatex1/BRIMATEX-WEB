@@ -139,9 +139,12 @@ function validFbc(value) {
   return /^fb\.\d\.\d{10,13}\..+$/.test(String(value || '')) ? value : undefined;
 }
 
-/** Meta's browser ID format, fb.<subdomain index>.<creation ms>.<random>. */
+/**
+ * Meta's browser ID format, fb.<subdomain index>.<creation ms>.<random>, with
+ * the appendix Meta's Parameter Builder adds (web/src/lib/pixel.ts).
+ */
 function validFbp(value) {
-  return /^fb\.\d\.\d{10,13}\.\d+$/.test(String(value || '')) ? value : undefined;
+  return /^fb\.\d\.\d{10,13}\.\d+(\.[A-Za-z0-9_-]{2,12})?$/.test(String(value || '')) ? value : undefined;
 }
 
 /**
