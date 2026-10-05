@@ -72,7 +72,7 @@ function OrderCard({ order, onCancel }: { order: OrderSummary; onCancel: (o: Ord
 
   return (
     <div className="flex flex-col gap-4 border-b border-border py-5 sm:flex-row sm:items-center">
-      {first ? <img src={photoOf(first)} alt="" className="size-20 shrink-0 bg-image-bg object-cover" /> : <span className="size-20 shrink-0 bg-image-bg" />}
+      {first ? <img src={photoOf(first, 80)} alt="" className="size-20 shrink-0 bg-image-bg object-cover" /> : <span className="size-20 shrink-0 bg-image-bg" />}
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <StatusDot tone={status.tone}>{status.label}</StatusDot>
         <b className="text-base">
@@ -327,7 +327,7 @@ export function OrderPage({ orderName }: { orderName: string }) {
               const parts = lineParts(variant);
               return (
                 <div key={it.productId} className="flex items-center gap-3">
-                  {product ? <img src={photoOf(product)} alt="" className="size-16 shrink-0 bg-image-bg object-cover" /> : null}
+                  {product ? <img src={photoOf(product, 64)} alt="" className="size-16 shrink-0 bg-image-bg object-cover" /> : null}
                   <span className="flex min-w-0 flex-1 flex-col">
                     <b className="text-[15px]">{product ? displayName(product) : `#${it.productId}`}</b>
                     <span className="text-[13px] text-muted-foreground">

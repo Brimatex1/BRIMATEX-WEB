@@ -2,6 +2,7 @@ import { Fragment, type CSSProperties, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 import type { WebBanner } from '@/types';
+import { responsivePhoto } from '@/shop/photoSizes';
 
 /**
  * One banner of the home page as real HTML - the tag line, the title, a line
@@ -133,7 +134,7 @@ export function BannerSlide({
     children: (
       <>
         <img
-          src={banner.photo}
+          {...responsivePhoto(banner.photo, desktop ? '60vw' : '100vw')}
           alt={banner.photoAlt ?? ''}
           loading={eager ? 'eager' : 'lazy'}
           draggable={false}

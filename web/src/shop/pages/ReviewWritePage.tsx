@@ -140,7 +140,7 @@ function WriteForm({ product, orderName, onBack }: { product: Product; orderName
         <h1 className={cn('font-display text-[28px] font-bold lg:text-[36px]', AFTER_MARK)}>شكراً لتقييمك</h1>
         <p className={cn('text-[15px] text-muted-foreground', AFTER_MARK)}>نراجع التقييمات قبل نشرها، وسيظهر تقييمك على صفحة المرتبة بعد الموافقة عليه.</p>
         <div className={cn('flex w-full items-center gap-4 rounded-lg border border-border p-4', AFTER_MARK)}>
-          <img src={photoOf(product)} alt="" className="size-16 bg-image-bg object-cover" />
+          <img src={photoOf(product, 64)} alt="" className="size-16 bg-image-bg object-cover" />
           <span className="flex flex-1 flex-col gap-1">
             <b className="text-[15px]">{name}</b>
             <RatingStars average={rating} count={0} className="[&>span:last-child]:hidden" />
@@ -202,7 +202,7 @@ function WriteForm({ product, orderName, onBack }: { product: Product; orderName
       <h1 className="font-display text-[28px] font-bold lg:text-[40px]">اكتب تقييماً</h1>
 
       <div className="flex items-center gap-4 bg-image-bg p-4">
-        <img src={photoOf(product)} alt="" className="size-[72px] object-cover" />
+        <img src={photoOf(product, 72)} alt="" className="size-[72px] object-cover" />
         <span className="flex flex-col gap-1">
           <b className="text-base">{name}</b>
           <span className="text-[13px] text-muted-foreground">

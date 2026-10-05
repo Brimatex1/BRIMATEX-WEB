@@ -182,7 +182,7 @@ export function IssuePage({ orderName }: { orderName: string }) {
             return (
               <label key={it.productId} className={cn('flex cursor-pointer items-center gap-3 rounded-lg border p-3', on ? 'border-2 border-foreground p-[11px]' : 'border-border')}>
                 <input type="checkbox" className="size-5 accent-foreground" checked={on} onChange={() => setPicked((p) => (on ? p.filter((x) => x !== it.productId) : [...p, it.productId]))} />
-                {product ? <img src={photoOf(product)} alt="" className="size-12 bg-image-bg object-cover" /> : null}
+                {product ? <img src={photoOf(product, 48)} alt="" className="size-12 bg-image-bg object-cover" /> : null}
                 <span className="text-[15px] font-bold">
                   {product ? displayName(product) : `#${it.productId}`} {lineParts(variant).size ? <SizeText>{lineParts(variant).size}</SizeText> : null}
                 </span>

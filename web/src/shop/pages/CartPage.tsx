@@ -86,7 +86,7 @@ export function CartPage() {
             <div key={line.id} className="flex gap-4 border-b border-border py-5" style={{ viewTransitionName: `cart-line-${line.id}` }}>
               {product ? (
                 <Link to={{ name: 'product', id: product.id }} className="shrink-0">
-                  <img src={photoOf(product)} alt="" className="size-24 bg-image-bg object-cover lg:size-32" />
+                  <img src={photoOf(product, 128)} alt="" className="size-24 bg-image-bg object-cover lg:size-32" />
                 </Link>
               ) : null}
               <div className="flex min-w-0 flex-1 flex-col gap-1.5">

@@ -108,7 +108,7 @@ export function ReviewsPage({ productId }: { productId: number }) {
     <Container className="pb-16">
       <Breadcrumb items={[...(tier ? [{ label: TIER_TITLE[tier], to: { name: 'category' as const, tier } }] : []), { label: name, to: { name: 'product', id: product.id } }, { label: 'التقييمات' }]} />
       <div className="mb-8 flex items-center gap-5">
-        <img src={photoOf(product)} alt="" className="size-[72px] bg-image-bg object-cover lg:size-[88px]" />
+        <img src={photoOf(product, 88)} alt="" className="size-[72px] bg-image-bg object-cover lg:size-[88px]" />
         <div className="flex flex-col gap-1">
           <h1 className="font-display text-[28px] font-bold lg:text-[36px]">تقييمات {name}</h1>
           <Link to={{ name: 'product', id: product.id }} className="self-start text-[15px] font-bold underline underline-offset-4">

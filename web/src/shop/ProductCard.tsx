@@ -10,6 +10,7 @@ import deluxe from './assets/photos/deluxe-navy.jpg';
 import hotel from './assets/photos/hotel-night.jpg';
 import sport from './assets/photos/sport-grey.jpg';
 import { describe, displayName, featuredVariant, parseSize, sizeText, tierOf } from './catalog';
+import { responsivePhoto, sizedPhoto } from './photoSizes';
 import { Link } from './router';
 import { useShop } from './state';
 import { Price, RatingStars, SizeText, TierTag } from './ui';
@@ -17,18 +18,30 @@ import { Price, RatingStars, SizeText, TierTag } from './ui';
 /** The handoff's photos (assets/photos), for a mattress with no photo uploaded from the dashboard. */
 const PLACEHOLDER: Record<string, string> = { بالانس: balance, ديلوكس: deluxe, هوتيل: hotel, سبورت: sport };
 
-export function photoOf(product: Product): string {
-  if (product.image) return product.image;
+/** The product's photo; with `cssWidth`, its smallest copy that is sharp at that width (photoSizes.ts). */
+export function photoOf(product: Product, cssWidth?: number): string {
+  if (product.image) return cssWidth ? sizedPhoto(product.image, cssWidth) : product.image;
   return PLACEHOLDER[displayName(product)] ?? comfort;
 }
 
 /** The photo on #F5F5F5, no frame; zooms a little on hover (devices that hover). */
-export function ProductPhoto({ product, className, eager = false }: { product: Product; className?: string; eager?: boolean }) {
+export function ProductPhoto({
+  product,
+  className,
+  eager = false,
+  sizes = '(min-width: 1024px) 300px, 50vw',
+}: {
+  product: Product;
+  className?: string;
+  eager?: boolean;
+  /** How wide the photo shows (HTML `sizes`) - the browser picks the copy. */
+  sizes?: string;
+}) {
   const [loaded, setLoaded] = useState(false);
   return (
     <div className={cn('overflow-hidden bg-image-bg', className)}>
       <img
-        src={photoOf(product)}
+        {...responsivePhoto(photoOf(product), sizes)}
         alt=""
         loading={eager ? 'eager' : 'lazy'}
         decoding="async"

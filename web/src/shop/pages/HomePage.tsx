@@ -14,6 +14,7 @@ import { clearViewed, readViewed } from '../recent';
 import { Link } from '../router';
 import { useShop } from '../state';
 import { Container, Price, Skeleton } from '../ui';
+import { responsivePhoto } from '@/shop/photoSizes';
 
 /**
  * The hero when the panel's banners cannot be read (an older server, no
@@ -148,7 +149,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="relative order-1 aspect-[4/3] min-w-0 overflow-hidden bg-image-bg lg:order-2 lg:aspect-auto">
-            {campaign ? <img src={photoOf(campaign)} alt={`مرتبة ${displayName(campaign)}`} className="absolute inset-0 size-full object-cover" /> : <Skeleton className="absolute inset-0" />}
+            {campaign ? <img {...responsivePhoto(photoOf(campaign), '(min-width: 1024px) 60vw, 100vw')} alt={`مرتبة ${displayName(campaign)}`} className="absolute inset-0 size-full object-cover" /> : <Skeleton className="absolute inset-0" />}
           </div>
         </div>
       </Container>
@@ -223,7 +224,7 @@ export function HomePage() {
               className={cn('flex w-[150px] shrink-0 flex-col gap-1.5 lg:w-[200px]', i === 0 ? 'animate-rv-in' : 'animate-rv-shift', 'motion-reduce:animate-none')}
             >
               <span className="relative h-[120px] overflow-hidden bg-image-bg lg:h-40">
-                <img src={photoOf(p)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+                <img {...responsivePhoto(photoOf(p), '(min-width: 1024px) 25vw, 50vw')} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
               </span>
               <b className="text-[15px]">{displayName(p)}</b>
               <Price amount={featuredVariant(p).price} size="row" className="text-lg" />

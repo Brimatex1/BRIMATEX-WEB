@@ -11,6 +11,7 @@ import { DEFAULT_RULES, chipFor, questionsOf, recommend, type QuizAnswers, type 
 import { Link, useRouter } from '../router';
 import { useShop } from '../state';
 import { Container, EmptyState, Price, Skeleton, SizeText, TierTag } from '../ui';
+import { responsivePhoto } from '@/shop/photoSizes';
 
 /** The last answers stay on this device, so «أعد الأسئلة» starts from them (docs/QUIZ.md). */
 const SAVED = 'brimatex:quiz-answers';
@@ -244,7 +245,7 @@ function Result({
 
       <div className="grid animate-result-in border-2 border-foreground lg:grid-cols-[1fr_1.4fr]">
         <div className="relative aspect-[4/3] min-w-0 overflow-hidden bg-image-bg lg:order-last lg:aspect-auto lg:h-full lg:min-h-[460px]">
-          <img src={photoOf(best.product)} alt={`مرتبة ${name}`} className="absolute inset-0 size-full object-cover" />
+          <img {...responsivePhoto(photoOf(best.product), '(min-width: 1024px) 40vw, 100vw')} alt={`مرتبة ${name}`} className="absolute inset-0 size-full object-cover" />
         </div>
         <div className="flex flex-col justify-center gap-3.5 p-5 sm:p-8 lg:p-10">
           <span className="text-sm font-bold text-success">الأنسب لك</span>
@@ -291,7 +292,7 @@ function AlternativeRow({ pick }: { pick: QuizPick }) {
       className="flex max-w-[640px] items-center gap-4 border border-border p-3 transition-colors duration-fast hover:border-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:gap-5 sm:p-4"
     >
       <span className="h-[72px] w-24 shrink-0 overflow-hidden bg-image-bg sm:h-[90px] sm:w-[120px]">
-        <img src={photoOf(pick.product)} alt="" loading="lazy" className="size-full object-cover" />
+        <img {...responsivePhoto(photoOf(pick.product), '(min-width: 1024px) 25vw, 50vw')} alt="" loading="lazy" className="size-full object-cover" />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <b className="text-[15px] sm:text-base">

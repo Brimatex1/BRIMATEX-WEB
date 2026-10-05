@@ -160,7 +160,7 @@ export function SearchBox({ className }: { className?: string }) {
                 const v = featuredVariant(p);
                 return (
                   <button key={p.id} id={`${listId}-p-${p.id}`} role="option" aria-selected={options[active]?.id === `p-${p.id}`} type="button" className={optClass(`p-${p.id}`)} onClick={() => openTo(href({ name: 'product', id: p.id }))}>
-                    <img src={photoOf(p)} alt="" className="size-14 shrink-0 bg-image-bg object-cover" />
+                    <img src={photoOf(p, 56)} alt="" className="size-14 shrink-0 bg-image-bg object-cover" />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <b className="text-[15px]">{displayName(p)}</b>
                       <span className="truncate text-[13px] text-muted-foreground">{describe(p, v)}</span>

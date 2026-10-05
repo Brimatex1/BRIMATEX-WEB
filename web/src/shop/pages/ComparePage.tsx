@@ -12,6 +12,7 @@ import { Link, useRouter } from '../router';
 import { useShop } from '../state';
 import { Container, EmptyState, Price, TierTag } from '../ui';
 import { Breadcrumb } from './CategoryPage';
+import { responsivePhoto } from '@/shop/photoSizes';
 
 const MAX = 3;
 
@@ -113,7 +114,7 @@ export function ComparePage({ ids }: { ids: number[] }) {
             return (
               <div key={p.id} className="flex flex-col gap-1.5 px-3 pb-4">
                 <Link to={{ name: 'product', id: p.id }}>
-                  <img src={photoOf(p)} alt={displayName(p)} className="aspect-[4/3] w-full bg-image-bg object-cover" />
+                  <img {...responsivePhoto(photoOf(p), '(min-width: 1024px) 280px, 45vw')} alt={displayName(p)} className="aspect-[4/3] w-full bg-image-bg object-cover" />
                 </Link>
                 {tier ? <TierTag tier={tier} className="mt-2 self-start" /> : null}
                 <b className="text-base">{displayName(p)}</b>

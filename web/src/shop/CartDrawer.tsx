@@ -43,7 +43,7 @@ export function CartDrawer() {
 
         {added?.product && addedLine ? (
           <div className="flex items-center gap-4 border-y border-border py-4">
-            <img src={photoOf(added.product)} alt="" className="size-20 shrink-0 bg-image-bg object-cover" />
+            <img src={photoOf(added.product, 80)} alt="" className="size-20 shrink-0 bg-image-bg object-cover" />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <b className="text-[15px]">{displayName(added.product)}</b>
               <LinePartsText variant={added.variant} />
@@ -91,7 +91,7 @@ export function CartDrawer() {
             <div className="grid grid-cols-2 gap-4">
               {suggestions.map((p) => (
                 <Link key={p.id} to={{ name: 'product', id: p.id }} onClick={close} className="flex flex-col gap-2">
-                  <img src={photoOf(p)} alt="" className="aspect-square w-full bg-image-bg object-cover" />
+                  <img src={photoOf(p, 140)} alt="" className="aspect-square w-full bg-image-bg object-cover" />
                   <b className="text-[15px]">{displayName(p)}</b>
                   <Price amount={featuredVariant(p).price} size="row" />
                 </Link>

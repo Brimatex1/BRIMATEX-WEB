@@ -14,6 +14,7 @@ import { Link, useRouter } from '../router';
 import { lineItem, useShop } from '../state';
 import { EmptyState, Skeleton, SizeText, StatusDot, TierTag } from '../ui';
 import { AccountLayout, useMyOrders } from './AccountLayout';
+import { responsivePhoto } from '@/shop/photoSizes';
 
 interface Covered {
   key: string;
@@ -174,7 +175,7 @@ export function WarrantyPage() {
               const running = c.until.getTime() > now;
               return (
                 <article key={c.key} className="overflow-hidden rounded-lg border border-border">
-                  <img src={photoOf(c.product)} alt="" className="aspect-[2.1] w-full bg-image-bg object-cover" />
+                  <img {...responsivePhoto(photoOf(c.product), '(min-width: 1024px) 400px, 100vw')} alt="" className="aspect-[2.1] w-full bg-image-bg object-cover" />
                   <div className="flex flex-col gap-2 p-5">
                     {tier ? <TierTag tier={tier} className="self-start" /> : null}
                     <b className="text-lg">

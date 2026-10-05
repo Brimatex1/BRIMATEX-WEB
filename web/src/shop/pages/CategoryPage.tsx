@@ -280,7 +280,7 @@ export function CategoryPage({ mode }: { mode: Mode }) {
         <div className="-mx-4 mb-6 flex gap-3 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
           {base.map((p) => (
             <Link key={p.id} to={{ name: 'product', id: p.id }} className="flex shrink-0 items-center gap-2 rounded-full border border-border py-1 pe-4 ps-1 text-[15px] font-bold hover:border-foreground">
-              <img src={photoOf(p)} alt="" className="size-9 rounded-full object-cover" />
+              <img src={photoOf(p, 36)} alt="" className="size-9 rounded-full object-cover" />
               {displayName(p)}
             </Link>
           ))}

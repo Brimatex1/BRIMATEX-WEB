@@ -19,6 +19,7 @@ import { useShop } from '../state';
 import { Container, EmptyState, Price, RatingStars, Skeleton, SizeText, StatusDot, TierTag } from '../ui';
 import { Breadcrumb } from './CategoryPage';
 import { Bar } from './ReviewsPage';
+import { responsivePhoto, sizedPhoto } from '@/shop/photoSizes';
 
 /** The cutaway's layer colours, top to bottom (handoff WebProduct «ماذا بداخلها؟»). */
 const LAYER_COLOURS = ['bg-paper border border-border', 'bg-nebula', 'bg-porcelain', 'bg-blue-violet', 'bg-dark-ocean', 'bg-image-bg border border-border'];
@@ -73,7 +74,7 @@ function Gallery({ product }: { product: Product }) {
         >
           {photos.map((src, i) => (
             <div key={src} className={cn('aspect-square w-full shrink-0 snap-center bg-image-bg lg:aspect-[4/3.4]', i !== index && 'lg:hidden', i === 1 && 'bg-white')}>
-              <img src={src} alt={i === 0 ? `مرتبة ${displayName(product)}` : `طبقات مرتبة ${displayName(product)}`} className={cn('size-full animate-fade-only', i === 1 ? 'object-contain' : 'object-cover')} />
+              <img {...responsivePhoto(src, '(min-width: 1024px) 50vw, 100vw')} alt={i === 0 ? `مرتبة ${displayName(product)}` : `طبقات مرتبة ${displayName(product)}`} className={cn('size-full animate-fade-only', i === 1 ? 'object-contain' : 'object-cover')} />
             </div>
           ))}
         </div>
@@ -90,7 +91,7 @@ function Gallery({ product }: { product: Product }) {
         <div className="hidden grid-cols-4 gap-3 lg:grid">
           {photos.map((src, i) => (
             <button key={src} type="button" onClick={() => setIndex(i)} aria-label={i === 0 ? 'الصورة الرئيسية' : 'صورة الطبقات'} aria-pressed={i === index} className={cn('aspect-square overflow-hidden bg-image-bg', i === index ? 'ring-2 ring-foreground' : 'hover:opacity-80')}>
-              <img src={src} alt="" className={cn('size-full', i === 1 ? 'bg-white object-contain' : 'object-cover')} />
+              <img src={sizedPhoto(src, 140)} alt="" className={cn('size-full', i === 1 ? 'bg-white object-contain' : 'object-cover')} />
             </button>
           ))}
         </div>
@@ -426,7 +427,7 @@ export function ProductPage({ id }: { id: number }) {
       <div className={cn('fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background pb-[max(12px,env(safe-area-inset-bottom))] pt-3 transition-transform duration-base ease-out-strong', mainVisible ? 'translate-y-full' : 'translate-y-0')} aria-hidden={mainVisible}>
         <Container className="flex items-center gap-3 lg:gap-6">
           <div className="hidden min-w-0 flex-1 items-center gap-4 lg:flex">
-            <img src={photoOf(product)} alt="" className="size-12 bg-image-bg object-cover" />
+            <img src={photoOf(product, 48)} alt="" className="size-12 bg-image-bg object-cover" />
             <b className="truncate text-base">{displayName(product)}</b>
           </div>
           <div className="flex flex-col">

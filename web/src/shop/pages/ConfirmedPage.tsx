@@ -117,7 +117,7 @@ export function ConfirmedPage({ order }: { order: string }) {
             const parts = lineParts(variant);
             return (
               <div key={l.productId} className="flex items-center gap-3">
-                {product ? <img src={photoOf(product)} alt="" className="size-14 shrink-0 bg-image-bg object-cover" /> : null}
+                {product ? <img src={photoOf(product, 56)} alt="" className="size-14 shrink-0 bg-image-bg object-cover" /> : null}
                 <span className="flex min-w-0 flex-1 flex-col">
                   <b className="text-sm">{product ? displayName(product) : `#${l.productId}`}</b>
                   <span className="text-xs text-muted-foreground">
