@@ -22,6 +22,8 @@ const uniq = () => '09' + Math.floor(10000000 + Math.random() * 89999999);
 const ADMIN_PHONE = uniq();
 // A city no other test orders to, so the file store's older orders stay out of the counts.
 const CITY = 'مدينة-' + Math.random().toString(36).slice(2, 8);
+// This run's own customer phone - the order store outlives a run, and a customer's page counts every order on the number.
+const PHONE = '092' + String(Date.now()).slice(-7);
 
 let pass = 0;
 let fail = 0;
@@ -204,7 +206,7 @@ async function run() {
     const products = await req('GET', '/api/products');
     const product = (products.json?.products || []).find((p) => p.enabled !== false);
     const base = (name) => ({
-      customer: { name, phone: '0912345678', city: CITY, address: 'شارع الاختبار' },
+      customer: { name, phone: PHONE, city: CITY, address: 'شارع الاختبار' },
       items: [{ productId: product.id, quantity: 1 }],
     });
     const web = await req('POST', '/api/orders', { ...base('زبون الموقع'), channel: 'web' });
@@ -253,6 +255,38 @@ async function run() {
     // Cancelled from the classic dashboard: not confirmable.
     await req('PATCH', `/api/admin/orders/${encodeURIComponent(web.json?.orderName)}`, { invoiceStatus: 'cancelled' }, bearer(admin.token));
     ok('طلب ملغى ← 409', (await req('POST', `/api/panel/orders/${encodeURIComponent(web.json?.orderName)}/confirm`, null, bearer(admin.token))).status === 409);
+
+    console.log('\n\x1b[1m4ب. صفحة الطلب وصفحة العميل\x1b[0m');
+    const orderPage = (name, tok = support.token) => req('GET', `/api/panel/orders/${encodeURIComponent(name)}`, null, bearer(tok));
+    ok('صفحة الطلب: بلا رمز ← 401', (await req('GET', `/api/panel/orders/${target}`)).status === 401);
+    ok('صفحة الطلب: التسويق ← 403', (await orderPage(app.json?.orderName, marketing.token)).status === 403);
+    ok('صفحة الطلب: غير موجود ← 404', (await orderPage('NOPE-1')).status === 404);
+    const op = await orderPage(app.json?.orderName);
+    const od = op.json?.order;
+    ok('صفحة الطلب ← 200 بالمنتجات والعنوان', op.status === 200 && od?.items?.length === 1 && od.items[0].quantity === 1 && od.address === 'شارع الاختبار' && od.city === CITY, JSON.stringify(od)?.slice(0, 300));
+    ok('المراحل: استلمنا الطلب مُنجز، والتأكيد هو الحالي', od?.timeline?.[0]?.key === 'new' && od.timeline[0].state === 'done' && od.timeline[0].at && od.timeline.find((x) => x.key === 'confirmed')?.state === 'current', JSON.stringify(od?.timeline));
+    ok('ثم خرج للتوصيل وتم التسليم لم يأتيا بعد', ['out', 'delivered'].every((k) => od?.timeline?.find((x) => x.key === k)?.state === 'todo'));
+    ok('الموعد والدفع خارج الملاحظات', od?.delivery?.includes('مساءً') && !od.notes.some((l) => /موعد التوصيل|الدفع عند الاستلام/.test(l)));
+    ok('رابط العميل بالهاتف (طلب بلا حساب)', od?.customerKey === 'p:' + PHONE, od?.customerKey);
+    const cancelledPage = (await orderPage(web.json?.orderName)).json?.order;
+    ok('طلب ملغى: استلمنا ثم ملغى', cancelledPage?.timeline?.map((x) => x.key).join() === 'new,cancelled' && cancelledPage.timeline[1].state === 'current');
+    const listed = (await list('')).json?.orders.find((o) => o.orderName === app.json?.orderName);
+    ok('صف القائمة يحمل رابط العميل', listed?.customerKey === 'p:' + PHONE);
+
+    const customerPage = (key, tok = support.token) => req('GET', `/api/panel/customers/${key}`, null, bearer(tok));
+    ok('صفحة العميل: التسويق ← 403', (await customerPage('p:' + PHONE, marketing.token)).status === 403);
+    ok('صفحة العميل: رابط غير صالح ← 400', (await customerPage('x:1')).status === 400);
+    ok('صفحة العميل: رقم بلا طلبات ولا حساب ← 404', (await customerPage('p:0919999999')).status === 404);
+    const cp = await customerPage('p:' + PHONE);
+    const cu = cp.json?.customer;
+    ok('صفحة العميل ← 200 بطلباته الثلاثة', cp.status === 200 && cu?.orders?.length === 3 && cu.stats.orders === 3, JSON.stringify(cu?.stats));
+    ok('الملغى خارج المشتريات', cu?.stats?.cancelled === 1 && cu.stats.spent === cu.orders.filter((o) => o.status !== 'cancelled').reduce((s, o) => s + o.total, 0));
+    ok('العنوان والأسماء التي استخدمها', cu?.places?.some((p) => p.city === CITY && p.address === 'شارع الاختبار') && [cu.name, ...cu.otherNames].includes('زبون الموقع'));
+    ok('جهاز أندرويد من طلبه', cu?.devices?.android === 1, JSON.stringify(cu?.devices));
+    ok('بلا أودو: بلا نقاط، والصفحة تعمل', cu?.loyalty === null);
+    const own = await customerPage(`u:${customer.id}`, admin.token);
+    ok('حساب بلا طلبات: صفحته بالحساب', own.status === 200 && own.json?.customer?.account?.id === customer.id && own.json.customer.orders.length === 0, 'status ' + own.status);
+    ok('حساب غير موجود ← 404', (await customerPage('u:00000000-0000-0000-0000-000000000000')).status === 404);
 
     console.log('\n\x1b[1m5. نظرة عامة\x1b[0m');
     const ov = await req('GET', '/api/panel/overview', null, bearer(admin.token));

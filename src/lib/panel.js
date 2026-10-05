@@ -130,6 +130,7 @@ function toRow(order, { index, lookup, odooUrl } = {}) {
     status: statusOf(order),
     delivery: deliveryFromNote(order.note),
     odooLink: odooUrl && order.odooOrderId ? `${odooUrl}/odoo/sales/${order.odooOrderId}` : null,
+    customerKey: customerKeyOf(order),
   };
 }
 
@@ -235,6 +236,155 @@ function overview(all, { index, now = new Date() } = {}) {
   };
 }
 
+/* ───────────── An order's page, and a customer's ───────────── */
+
+/** «يوم» · «يومين» · «3 أيام» · «11 يوماً». */
+function leadText(days) {
+  const n = Number(days) || 1;
+  if (n === 1) return 'يوم';
+  if (n === 2) return 'يومين';
+  return n <= 10 ? `${n} أيام` : `${n} يوماً`;
+}
+
+/** The last nine digits of a phone - 0912345678, +218912345678 and 218912345678 are one number. */
+function phoneKey(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  return digits.length >= 9 ? digits.slice(-9) : '';
+}
+
+/**
+ * Who placed an order, as the customer page's address: `u:<account id>` when
+ * signed in, else `p:<phone>` - a guest is known by the phone they gave.
+ */
+function customerKeyOf(order) {
+  if (order.userId) return `u:${order.userId}`;
+  const key = phoneKey(order.customer?.phone);
+  return key ? `p:0${key}` : null;
+}
+
+/**
+ * The stages an order goes through, for its page: each done, current or still
+ * to come, with its time when the order records one. A preorder has its own
+ * «قيد التجهيز»; a cancelled order ends at «ملغى».
+ */
+function timelineOf(order) {
+  const status = statusOf(order);
+  const preorder = leadDaysFromNote(order.note) != null;
+  const placed = { key: 'new', label: 'استلمنا الطلب', at: order.placedAt || null };
+  if (status === 'cancelled') {
+    return [
+      { ...placed, state: 'done' },
+      { key: 'cancelled', label: 'ملغى', at: order.cancelledAt || null, state: 'current' },
+    ];
+  }
+  const steps = [
+    placed,
+    { key: 'confirmed', label: 'تم التأكيد', at: order.confirmedAt || null },
+    ...(preorder ? [{ key: 'preparing', label: `قيد التجهيز (يُصنع خلال ${leadText(leadDaysFromNote(order.note))})`, at: null }] : []),
+    { key: 'out', label: 'خرج للتوصيل', at: order.shippedAt || null },
+    { key: 'delivered', label: 'تم التسليم', at: order.paidAt || null },
+  ];
+  // A confirmed preorder is «قيد التجهيز»; a plain confirmed one stops at «تم التأكيد».
+  const current = status === 'delivered' ? steps.length - 1 : steps.findIndex((s) => s.key === status);
+  return steps.map((s, i) => ({ ...s, state: status === 'delivered' || i < current ? 'done' : i === current ? 'current' : 'todo' }));
+}
+
+/** The note's lines, without the ones the page shows elsewhere (delivery, payment). */
+function noteLines(note) {
+  return String(note || '')
+    .replace(/<\/?p>/g, '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l && !/^(الاستلام|موعد التوصيل|الدفع عند الاستلام):/.test(l));
+}
+
+/** GET /api/panel/orders/:name - everything about one order. */
+function orderDetail(order, { index, lookup, odooUrl } = {}) {
+  const items = (Array.isArray(order.items) ? order.items : []).map((i) => {
+    const p = lookup?.get(Number(i.productId));
+    const quantity = Number(i.quantity) || 1;
+    const unitPrice = Number(i.price) > 0 ? Number(i.price) : Number(p?.price) > 0 ? Number(p.price) : null;
+    const size = p ? p.label || p.size?.label || '' : '';
+    return {
+      productId: Number(i.productId),
+      name: p ? String(p.name || '').trim() : `#${i.productId}`,
+      size: size && !String(p?.name || '').includes(String(size).replace(/\s*سم$/, '')) ? size : '',
+      quantity,
+      unitPrice,
+      lineTotal: unitPrice != null ? unitPrice * quantity : null,
+      image: p?.image || null,
+    };
+  });
+  const text = String(order.note || '');
+  return {
+    ...toRow(order, { index, lookup, odooUrl }),
+    invoiceName: order.invoiceName || null,
+    timeline: timelineOf(order),
+    items,
+    pickup: /الاستلام: استلام من الصالة/.test(text),
+    notes: noteLines(text),
+    address: String(order.customer?.address || '').trim(),
+    customerKey: customerKeyOf(order),
+  };
+}
+
+/**
+ * GET /api/panel/customers/:key - one customer: the account (if any), every
+ * order they placed - by the account or by the phone a guest gave - with the
+ * totals, the addresses and names they used, and their devices.
+ */
+function customerProfile({ key, user, orders: all, addresses = [], platforms = [], reviews = [], index, lookup, odooUrl }) {
+  const phone = user?.phone || (key.startsWith('p:') ? key.slice(2) : '');
+  const pk = phoneKey(phone);
+  const mine = all.filter((o) => (user && o.userId === user.id) || (pk && phoneKey(o.customer?.phone) === pk));
+  const sorted = [...mine].sort((a, b) => String(b.placedAt).localeCompare(String(a.placedAt)));
+  const counted = sorted.filter((o) => statusOf(o) !== 'cancelled');
+  const spent = counted.reduce((s, o) => s + (Number(o.total) || 0), 0);
+
+  const seen = new Set();
+  const places = [];
+  for (const a of [
+    ...addresses.map((x) => ({ city: x.city, address: x.address })),
+    ...sorted.map((o) => ({ city: o.customer?.city, address: o.customer?.address })),
+  ]) {
+    const city = String(a.city || '').trim();
+    const address = String(a.address || '').trim();
+    const k = `${city}|${address}`;
+    if ((city || address) && !seen.has(k)) {
+      seen.add(k);
+      places.push({ city, address });
+    }
+  }
+  const names = [...new Set([user?.name, ...sorted.map((o) => o.customer?.name)].map((n) => String(n || '').trim()).filter(Boolean))];
+  const orderNames = new Set(sorted.map((o) => o.orderName));
+  const devices = platforms
+    .filter((d) => (user && d.userId === user.id) || (d.lastOrder && orderNames.has(d.lastOrder)))
+    .map((d) => d.platform)
+    .filter((p) => p === 'ios' || p === 'android');
+  const myReviews = reviews.filter((r) => pk && phoneKey(r.phone) === pk);
+
+  return {
+    key,
+    account: user ? { id: user.id, name: user.name || '', phone: user.phone || '', createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null } : null,
+    name: names[0] || '',
+    otherNames: names.slice(1),
+    phone,
+    stats: {
+      orders: sorted.length,
+      delivered: sorted.filter((o) => statusOf(o) === 'delivered').length,
+      cancelled: sorted.length - counted.length,
+      spent,
+      average: counted.length ? Math.round(spent / counted.length) : 0,
+      firstAt: sorted.length ? sorted[sorted.length - 1].placedAt : null,
+      lastAt: sorted.length ? sorted[0].placedAt : null,
+    },
+    places,
+    devices: { ios: devices.filter((p) => p === 'ios').length, android: devices.filter((p) => p === 'android').length },
+    reviews: myReviews.map((r) => ({ id: r.id, rating: r.rating, comment: r.comment || r.title || '', createdAt: r.createdAt, productId: r.productId })),
+    orders: sorted.map((o) => toRow(o, { index, lookup, odooUrl })),
+  };
+}
+
 module.exports = {
   STATUSES,
   CHANNELS,
@@ -252,4 +402,9 @@ module.exports = {
   readQuery,
   listOrders,
   overview,
+  phoneKey,
+  customerKeyOf,
+  timelineOf,
+  orderDetail,
+  customerProfile,
 };

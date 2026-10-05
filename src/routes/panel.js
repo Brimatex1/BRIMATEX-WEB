@@ -38,6 +38,7 @@ const appSettings = require('../lib/appSettings');
 const quizRules = require('../lib/quizRules');
 const pushCampaigns = require('../lib/pushCampaigns');
 const panelProducts = require('../lib/panelProducts');
+const loyalty = require('../lib/loyalty');
 const { DAYS_TEXT } = require('../lib/delivery');
 const { getProducts, visibleOnly, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
@@ -82,6 +83,14 @@ async function jsonBody(req, res) {
     sendJson(res, 400, { error: 'JSON غير صالح' });
     return null;
   }
+}
+
+/** `promise`, or a rejection after `ms` - a slow Odoo must not hold a page. */
+function withTimeout(promise, ms) {
+  let timer;
+  return Promise.race([promise, new Promise((_, reject) => (timer = setTimeout(() => reject(new Error('timeout')), ms)))]).finally(() =>
+    clearTimeout(timer)
+  );
 }
 
 /** Every order, its times as strings. */
@@ -174,6 +183,71 @@ function createPanelRoutes() {
       return sendJson(res, 200, {
         ...panel.listOrders(list, query, { index, lookup: productLookup(products), odooUrl: odoo.webUrl() }),
         query,
+      });
+    }
+
+    // One order's page: its stages (with Odoo's confirmation time, read live),
+    // lines, delivery and customer.
+    const orderMatch = url.pathname.match(/^\/api\/panel\/orders\/([^/]+)$/);
+    if (req.method === 'GET' && orderMatch) {
+      const user = await staffFor(req, res, 'orders');
+      if (!user) return;
+      const found = await orders.getOrderByName(decodeURIComponent(orderMatch[1]));
+      if (!found) return sendJson(res, 404, { error: 'الطلب غير موجود' });
+      const order = panel.normalize(found);
+      // Odoo's word on the confirmation and the delivery slip, fresher than the
+      // last sync - and never a reason for the page to fail.
+      if (order.odooOrderId && odoo.isConfigured()) {
+        const live = await withTimeout(odoo.readOrdersProgress([Number(order.odooOrderId)]), 6000).catch(() => null);
+        const p = live?.get(Number(order.odooOrderId));
+        if (p?.confirmedAt) order.confirmedAt = p.confirmedAt;
+        if (!order.shippedAt && p?.shipment?.doneAt) order.shippedAt = p.shipment.doneAt;
+      }
+      const [index, products] = await Promise.all([platforms(), catalogue()]);
+      return sendJson(res, 200, {
+        order: panel.orderDetail(order, { index, lookup: productLookup(products), odooUrl: odoo.webUrl() }),
+        canConfirm: CONFIRMERS.includes(auth.roleOf(user)),
+      });
+    }
+
+    // A customer's page: `u:<account id>` or `p:<phone>` (a guest).
+    const customerMatch = url.pathname.match(/^\/api\/panel\/customers\/([^/]+)$/);
+    if (req.method === 'GET' && customerMatch) {
+      const user = await staffFor(req, res, 'orders');
+      if (!user) return;
+      const key = decodeURIComponent(customerMatch[1]);
+      let account = null;
+      if (key.startsWith('u:')) account = await auth.getUser(key.slice(2)).catch(() => null);
+      else if (/^p:\d{9,15}$/.test(key)) account = await auth.findByPhone(key.slice(2)).catch(() => null);
+      else return sendJson(res, 400, { error: 'رابط العميل غير صالح' });
+      if (key.startsWith('u:') && !account) return sendJson(res, 404, { error: 'الحساب غير موجود' });
+
+      const [list, rawPlatforms, products, reviews, addresses] = await Promise.all([
+        allOrders(),
+        devices.listPlatforms().catch(() => []),
+        catalogue(),
+        perks.adminReviews().catch(() => []),
+        account ? Promise.resolve(auth.listAddresses(account.id)).catch(() => []) : [],
+      ]);
+      const profile = panel.customerProfile({
+        key,
+        user: account,
+        orders: list,
+        addresses,
+        platforms: rawPlatforms,
+        reviews,
+        index: panel.platformIndex(rawPlatforms),
+        lookup: productLookup(products),
+        odooUrl: odoo.webUrl(),
+      });
+      if (!profile.account && !profile.orders.length) return sendJson(res, 404, { error: 'لا يوجد عميل بهذا الرقم' });
+      // Loyalty points from Odoo (src/lib/loyalty.js) - the page shows without them.
+      let points = null;
+      if (odoo.isConfigured()) {
+        points = await withTimeout(loyalty.summary(account || { phone: profile.phone }), 6000).catch(() => null);
+      }
+      return sendJson(res, 200, {
+        customer: { ...profile, loyalty: points?.enabled ? { points: points.points, value: points.value } : null },
       });
     }
 

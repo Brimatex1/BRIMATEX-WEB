@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 
 import { panelApi, PanelError, type Channel, type OrderStatus, type OrdersPage as OrdersData, type OrdersQuery, type PanelMe, type PanelOrder, type Period } from '../api';
-import { useQueryUpdater } from '../router';
+import { customerHref, Link, orderHref, useQueryUpdater } from '../router';
 import { PageBody, PageHeader } from '../Shell';
 import { Button, CHANNEL_META, ErrorCard, Icon, Pill, Skeleton, STATUS_META, formatPhone, money, ordersCount } from '../ui';
 
@@ -240,12 +240,20 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
                           </td>
                         ) : null}
                         <td className="whitespace-nowrap border-t border-[#E4E6EE] p-3">
-                          <b>#{o.orderName}</b>
+                          <Link href={orderHref(o.orderName)} className="font-bold text-[#16161F] no-underline hover:text-dark-ocean hover:underline">
+                            #{o.orderName}
+                          </Link>
                           {o.placedAt ? <span className="block text-[12px] text-[#5F6373]">{placedText(o.placedAt)}</span> : null}
                         </td>
                         <td className="border-t border-[#E4E6EE] p-3">
                           <span className="flex flex-col">
-                            <span className="whitespace-nowrap">{o.customer.name || '—'}</span>
+                            {o.customerKey ? (
+                              <Link href={customerHref(o.customerKey)} className="whitespace-nowrap text-[#16161F] no-underline hover:text-dark-ocean hover:underline">
+                                {o.customer.name || '—'}
+                              </Link>
+                            ) : (
+                              <span className="whitespace-nowrap">{o.customer.name || '—'}</span>
+                            )}
                             <bdi dir="ltr" className="whitespace-nowrap text-right text-[12.5px] text-[#5F6373]">
                               {formatPhone(o.customer.phone)}
                             </bdi>
@@ -299,14 +307,22 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
                           onChange={() => toggle(o.orderName)}
                         />
                       ) : null}
-                      <b>#{o.orderName}</b>
+                      <Link href={orderHref(o.orderName)} className="font-bold text-[#16161F] no-underline">
+                        #{o.orderName}
+                      </Link>
                       {o.placedAt ? <span className="text-[12px] text-[#5F6373]">{placedText(o.placedAt)}</span> : null}
                     </span>
                     <Pill tone={STATUS_META[o.status].tone}>{STATUS_META[o.status].label}</Pill>
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex flex-col">
-                      <span>{o.customer.name || '—'}</span>
+                      {o.customerKey ? (
+                        <Link href={customerHref(o.customerKey)} className="text-[#16161F] no-underline">
+                          {o.customer.name || '—'}
+                        </Link>
+                      ) : (
+                        <span>{o.customer.name || '—'}</span>
+                      )}
                       <bdi dir="ltr" className="whitespace-nowrap text-right text-[12.5px] text-[#5F6373]">
                         {formatPhone(o.customer.phone)}
                       </bdi>

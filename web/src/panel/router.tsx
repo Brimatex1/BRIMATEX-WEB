@@ -30,8 +30,22 @@ export function sectionHref(section: Section, query?: Record<string, string>): s
   return qs ? `${PATHS[section]}?${qs}` : PATHS[section];
 }
 
+/** An order's page (/admin/orders/S00492) or a customer's (/admin/customers/p:0912345678), under الطلبات. */
+export type PanelDetail = { kind: 'order'; name: string } | { kind: 'customer'; key: string };
+
+export function parseDetail(pathname: string): PanelDetail | null {
+  const m = pathname.replace(/\/+$/, '').match(/^\/admin\/(orders|customers)\/([^/]+)$/);
+  if (!m) return null;
+  const value = decodeURIComponent(m[2]);
+  return m[1] === 'orders' ? { kind: 'order', name: value } : { kind: 'customer', key: value };
+}
+
+export const orderHref = (name: string) => `/admin/orders/${encodeURIComponent(name)}`;
+export const customerHref = (key: string) => `/admin/customers/${encodeURIComponent(key)}`;
+
 /** The section an address opens, or null for one the panel does not have. */
 export function parseSection(pathname: string): Section | null {
+  if (parseDetail(pathname)) return 'orders';
   const path = pathname.replace(/\/+$/, '') || '/';
   const hit = (Object.entries(PATHS) as [Section, string][]).find(([, p]) => p === path);
   return hit ? hit[0] : null;

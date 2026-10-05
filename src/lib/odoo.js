@@ -623,7 +623,7 @@ async function readOrdersProgress(orderIds) {
   // `search` first: `read` fails outright on an id that no longer exists.
   const ids = await call('sale.order', 'search', [[['id', 'in', orderIds]]]);
   if (!ids.length) return result;
-  const orders = await readInBatches('sale.order', ids, { fields: ['state', 'picking_ids', 'invoice_ids'] });
+  const orders = await readInBatches('sale.order', ids, { fields: ['state', 'date_order', 'picking_ids', 'invoice_ids'] });
   const invoiceIds = [...new Set(orders.flatMap((o) => o.invoice_ids || []))];
   const invoices = invoiceIds.length
     ? await readInBatches('account.move', invoiceIds, { fields: ['name', 'state', 'payment_state', 'move_type'] })
@@ -649,6 +649,9 @@ async function readOrdersProgress(orderIds) {
       .sort((a, b) => b.id - a.id)[0];
     result.set(o.id, {
       state: o.state || '',
+      // Odoo moves date_order to the moment the order is confirmed: on a
+      // confirmed order it is the confirmation time (the panel's order page).
+      confirmedAt: ['sale', 'done'].includes(o.state) && o.date_order ? new Date(odooTime(o.date_order)).toISOString() : null,
       shipment: shipped
         ? { name: shipped.name, doneAt: shipped.date_done ? new Date(odooTime(shipped.date_done)).toISOString() : null }
         : null,

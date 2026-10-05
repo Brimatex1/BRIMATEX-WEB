@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 
 import { panelApi, PanelError, type PanelMe, type Section } from './api';
 import { Loading, NoAccess, PanelLogin } from './Gate';
+import { CustomerPage } from './pages/CustomerPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { HomeBannersPage } from './pages/HomeBannersPage';
 import { IntegrationsPage } from './pages/IntegrationsPage';
@@ -14,7 +16,7 @@ import { PushPage } from './pages/PushPage';
 import { QuizRulesPage } from './pages/QuizRulesPage';
 import { ReviewsPage } from './pages/ReviewsPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { navigate, parseSection, sectionHref, useLocation } from './router';
+import { navigate, parseDetail, parseSection, sectionHref, useLocation } from './router';
 import { Shell } from './Shell';
 
 const TITLE: Record<Section, string> = {
@@ -62,6 +64,8 @@ export default function PanelApp() {
   useEffect(loadMe, [loadMe]);
 
   const section = parseSection(pathname);
+  // An order's page or a customer's, under الطلبات.
+  const detail = parseDetail(pathname);
   // An address outside the role (or one the panel lacks) opens the role's first section.
   const allowed = me && section && me.sections.includes(section) ? section : null;
   useEffect(() => {
@@ -103,7 +107,9 @@ export default function PanelApp() {
     body = (
       <Shell me={me} current={allowed} onSignOut={auth.signOut}>
         {allowed === 'overview' ? <OverviewPage me={me} token={token} /> : null}
-        {allowed === 'orders' ? <OrdersPage me={me} token={token} search={search} onBadgeChange={adjustOrders} /> : null}
+        {allowed === 'orders' && detail?.kind === 'order' ? <OrderDetailPage key={detail.name} me={me} token={token} name={detail.name} onBadgeChange={adjustOrders} /> : null}
+        {allowed === 'orders' && detail?.kind === 'customer' ? <CustomerPage key={detail.key} token={token} customerKey={detail.key} /> : null}
+        {allowed === 'orders' && !detail ? <OrdersPage me={me} token={token} search={search} onBadgeChange={adjustOrders} /> : null}
         {allowed === 'reviews' ? <ReviewsPage me={me} token={token} search={search} onBadgeChange={adjustReviews} /> : null}
         {allowed === 'integrations' ? <IntegrationsPage me={me} token={token} /> : null}
         {allowed === 'settings' ? <SettingsPage me={me} token={token} /> : null}

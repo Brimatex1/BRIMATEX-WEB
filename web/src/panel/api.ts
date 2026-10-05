@@ -64,6 +64,40 @@ export interface PanelOrder {
   /** «السبت 3 أكتوبر · مساءً» or «استلام من الصالة», when known. */
   delivery: string | null;
   odooLink: string | null;
+  /** `u:<account id>` or `p:<phone>` - the customer's page. */
+  customerKey?: string | null;
+}
+
+export type TimelineState = 'done' | 'current' | 'todo';
+
+/** GET /api/panel/orders/:name - one order's page. */
+export interface PanelOrderDetail extends PanelOrder {
+  invoiceName: string | null;
+  /** The stages, each done, current or to come - with its time when recorded. */
+  timeline: { key: string; label: string; at: string | null; state: TimelineState }[];
+  items: { productId: number; name: string; size: string; quantity: number; unitPrice: number | null; lineTotal: number | null; image: string | null }[];
+  pickup: boolean;
+  /** The order's note lines (preorder, voucher, points...), delivery and payment left out. */
+  notes: string[];
+  address: string;
+  /** `u:<account id>` or `p:<phone>` - the customer's page. */
+  customerKey: string | null;
+}
+
+/** GET /api/panel/customers/:key - one customer. */
+export interface PanelCustomer {
+  key: string;
+  account: { id: string; name: string; phone: string; createdAt: string | null } | null;
+  name: string;
+  otherNames: string[];
+  phone: string;
+  stats: { orders: number; delivered: number; cancelled: number; spent: number; average: number; firstAt: string | null; lastAt: string | null };
+  places: { city: string; address: string }[];
+  devices: { ios: number; android: number };
+  reviews: { id: string; rating: number; comment: string; createdAt: string; productId: number }[];
+  orders: PanelOrder[];
+  /** Odoo loyalty points, when the add-on is on. */
+  loyalty: { points: number; value: number | null } | null;
 }
 
 export interface OrdersQuery {
@@ -214,6 +248,8 @@ export interface PanelProduct {
   /** Null: not read from Odoo (not connected, or not there). */
   odoo: OdooSide | null;
   odooLink: string | null;
+  /** `u:<account id>` or `p:<phone>` - the customer's page. */
+  customerKey?: string | null;
 }
 
 export interface ProductsPayload {
@@ -366,6 +402,9 @@ export const panelApi = {
   me: (token: string) => call<PanelMe>(token, '/api/panel/me'),
   overview: (token: string) => call<Overview>(token, '/api/panel/overview'),
   orders: (token: string, q: Partial<OrdersQuery>) => call<OrdersPage & { query: OrdersQuery }>(token, `/api/panel/orders?${ordersSearch(q)}`),
+  order: (token: string, orderName: string) =>
+    call<{ order: PanelOrderDetail; canConfirm: boolean }>(token, `/api/panel/orders/${encodeURIComponent(orderName)}`),
+  customer: (token: string, key: string) => call<{ customer: PanelCustomer }>(token, `/api/panel/customers/${encodeURIComponent(key)}`),
   confirm: (token: string, orderName: string) =>
     call<{ order: PanelOrder }>(token, `/api/panel/orders/${encodeURIComponent(orderName)}/confirm`, { method: 'POST' }),
   settings: (token: string) => call<SettingsPayload>(token, '/api/panel/settings'),
