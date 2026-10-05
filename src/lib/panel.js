@@ -152,7 +152,9 @@ function readQuery(params) {
   const get = (k) => String(params.get(k) || '').trim();
   const status = STATUSES.includes(get('status')) ? get('status') : 'all';
   const channel = CHANNELS.includes(get('channel')) ? get('channel') : 'all';
-  const period = PERIODS.includes(get('period')) ? get('period') : 'today';
+  // «الكل» by default: on a day with no orders yet, «اليوم» showed an empty list
+  // while the sidebar counted the new ones still waiting from earlier days.
+  const period = PERIODS.includes(get('period')) ? get('period') : 'all';
   const page = Math.max(1, Math.floor(Number(get('page')) || 1));
   const perPage = Math.min(20, Math.max(8, Math.floor(Number(get('perPage')) || 10)));
   return { status, channel, city: get('city').slice(0, 60), period, q: get('q').slice(0, 80), page, perPage };

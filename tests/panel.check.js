@@ -111,7 +111,7 @@ function unit() {
   ok('الكل بلا حد', panel.periodStart('all', now) === '');
 
   const q = panel.readQuery(new URLSearchParams('status=bogus&channel=x&period=y&perPage=500&page=-3'));
-  ok('قيم مجهولة ← الافتراضي', q.status === 'all' && q.channel === 'all' && q.period === 'today' && q.page === 1);
+  ok('قيم مجهولة ← الافتراضي', q.status === 'all' && q.channel === 'all' && q.period === 'all' && q.page === 1);
   ok('الصفحة 8 إلى 20 طلباً', q.perPage === 20 && panel.readQuery(new URLSearchParams('perPage=2')).perPage === 8);
 
   ok('موعد التوصيل من الملاحظة', panel.deliveryFromNote('الاستلام: توصيل إلى المنزل\nموعد التوصيل: السبت 3 أكتوبر · صباحاً') === 'السبت 3 أكتوبر · صباحاً');

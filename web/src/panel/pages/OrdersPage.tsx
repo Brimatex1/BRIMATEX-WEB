@@ -26,6 +26,20 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 ];
 const PER_PAGE = [8, 12, 20];
 
+/**
+ * When the order was placed, on Libya's clock whatever the device's - the
+ * time Odoo shows as the order's date («5 أكتوبر · 11:33 ص»). The table used
+ * to show only the delivery date the customer chose, which read as the
+ * order's own time and never matched Odoo's.
+ */
+function placedText(iso: string | null): string {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const day = d.toLocaleDateString('ar-LY', { timeZone: 'Africa/Tripoli', day: 'numeric', month: 'long' });
+  const time = d.toLocaleTimeString('ar-LY', { timeZone: 'Africa/Tripoli', hour: 'numeric', minute: '2-digit' });
+  return `${day} · ${time}`;
+}
+
 /** The list's state lives in the address, so a filtered view can be shared or reloaded. */
 function readQuery(search: string): OrdersQuery {
   const p = new URLSearchParams(search);
@@ -34,7 +48,8 @@ function readQuery(search: string): OrdersQuery {
     status: pick(p.get('status'), STATUS_CHIPS, 'all'),
     channel: pick(p.get('channel'), CHANNEL_OPTIONS.map((o) => o.value), 'all'),
     city: p.get('city') ?? '',
-    period: pick(p.get('period'), PERIOD_OPTIONS.map((o) => o.value), 'today'),
+    // «الكل» by default, newest first: «اليوم» hid the new orders still waiting from earlier days.
+    period: pick(p.get('period'), PERIOD_OPTIONS.map((o) => o.value), 'all'),
     q: p.get('q') ?? '',
     page: Math.max(1, Number(p.get('page')) || 1),
     perPage: PER_PAGE.includes(Number(p.get('perPage'))) ? Number(p.get('perPage')) : 8,
@@ -115,7 +130,7 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
       <PageHeader
         section="orders"
         me={me}
-        search={{ value: query.q, onSubmit: (q) => setQuery({ q, page: null, period: q ? 'all' : null }) }}
+        search={{ value: query.q, onSubmit: (q) => setQuery({ q, page: null, period: null }) }}
         action={
           me.canConfirm ? (
             <Button size="sm" disabled={selected.size === 0 || busy} onClick={() => setConfirming([...selected])}>
@@ -162,7 +177,7 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
               onChange={(v) => setQuery({ city: v === 'all' ? null : v, page: null })}
               options={[{ value: 'all', label: 'الكل' }, ...(data?.cities ?? (query.city ? [query.city] : [])).map((c) => ({ value: c, label: c }))]}
             />
-            <Filter label="الفترة" value={query.period} onChange={(v) => setQuery({ period: v === 'today' ? null : v, page: null })} options={PERIOD_OPTIONS} />
+            <Filter label="الفترة" value={query.period} onChange={(v) => setQuery({ period: v === 'all' ? null : v, page: null })} options={PERIOD_OPTIONS} />
           </div>
         </div>
 
@@ -186,7 +201,7 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
                       />
                     </th>
                   ) : null}
-                  {['رقم الطلب', 'العميل', 'القناة', 'المدينة', 'المنتجات', 'الإجمالي', 'الدفع', 'الحالة', 'موعد التوصيل', ''].map((h, i) => (
+                  {['رقم الطلب ووقته', 'العميل', 'القناة', 'المدينة', 'المنتجات', 'الإجمالي', 'الدفع', 'الحالة', 'موعد التوصيل', ''].map((h, i) => (
                     <th key={i} className="whitespace-nowrap px-3 pb-3 text-[12.5px] font-semibold text-[#5F6373]">
                       {h}
                     </th>
@@ -226,6 +241,7 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
                         ) : null}
                         <td className="whitespace-nowrap border-t border-[#E4E6EE] p-3">
                           <b>#{o.orderName}</b>
+                          {o.placedAt ? <span className="block text-[12px] text-[#5F6373]">{placedText(o.placedAt)}</span> : null}
                         </td>
                         <td className="border-t border-[#E4E6EE] p-3">
                           <span className="flex flex-col">
@@ -284,6 +300,7 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
                         />
                       ) : null}
                       <b>#{o.orderName}</b>
+                      {o.placedAt ? <span className="text-[12px] text-[#5F6373]">{placedText(o.placedAt)}</span> : null}
                     </span>
                     <Pill tone={STATUS_META[o.status].tone}>{STATUS_META[o.status].label}</Pill>
                   </div>
@@ -301,7 +318,7 @@ export function OrdersPage({ me, token, search, onBadgeChange }: { me: PanelMe; 
                   </div>
                   <p className="text-[13.5px]">{o.products}</p>
                   <div className="flex items-center justify-between gap-2 text-[13px] text-[#5F6373]">
-                    <span>{o.delivery || '—'}</span>
+                    <span>التوصيل: {o.delivery || '—'}</span>
                     <b className="text-[14px] text-[#16161F]">{money(o.total)}</b>
                   </div>
                   <RowActions order={o} canConfirm={me.canConfirm} busy={busy} onConfirm={() => setConfirming([o.orderName])} />
