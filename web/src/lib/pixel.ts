@@ -268,26 +268,48 @@ function storePerson(data: Record<string, string> | null) {
  * device, else just the visitor ID.
  */
 export function setPixelPerson(person: PixelPerson | null): Promise<void> {
+  lastPerson = person;
   const work = computePerson(person);
   personReady = work;
   return work;
 }
+
+/** The delivery city the visitor chose («إلى أين نوصل طلبك؟») - their city for Meta until they give one. */
+let chosenCity: string | null = null;
+/** The last person passed to setPixelPerson, so a new city can be added to the same person. */
+let lastPerson: PixelPerson | null = null;
 
 async function computePerson(person: PixelPerson | null) {
   if (typeof window === 'undefined' || !crypto?.subtle) return;
   const vid = visitorId();
   try {
     if (person) {
-      personData = await matchData({ ...person, visitorId: vid });
+      personData = await matchData({ ...person, city: person.city || chosenCity, visitorId: vid });
       // A guest's own details are kept for their next visit; an account's come from the account.
       if (!person.id && person.phone) storePerson(personData);
     } else {
-      personData = storedPerson() ?? (await matchData({ visitorId: vid }));
+      // Not signed in: a guest known from an earlier checkout, else the visitor ID -
+      // with the delivery city they chose, one more detail Meta matches on (ct).
+      const stored = storedPerson();
+      const city = chosenCity ? (await matchData({ city: chosenCity })).ct : undefined;
+      personData = stored ? { ...(city && !stored.ct ? { ct: city } : {}), ...stored } : await matchData({ visitorId: vid, city: chosenCity });
     }
   } catch {
     return;
   }
   if (initialized && activePixelId) window.fbq?.('init', activePixelId, personData ?? {});
+}
+
+/**
+ * The delivery city the visitor chose (CityDialog): sent hashed as their city
+ * (ct) with the Pixel's events and their server copies, until an account or a
+ * checkout gives one. Meta's best practice: more events with customer
+ * information parameters, more of them matched.
+ */
+export function setPixelCity(city: string | null): Promise<void> {
+  if ((city || null) === chosenCity) return personReady ?? Promise.resolve();
+  chosenCity = city || null;
+  return setPixelPerson(lastPerson);
 }
 
 /** Signing out: this device forgets the person - only the visitor ID is left. */

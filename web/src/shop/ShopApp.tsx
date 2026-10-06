@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 import { Toaster } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
-import { captureClickId, disablePixel, forgetPixelPerson, initPixel, setPixelPerson, trackPageView } from '@/lib/pixel';
+import { captureClickId, disablePixel, forgetPixelPerson, initPixel, setPixelCity, setPixelPerson, trackPageView } from '@/lib/pixel';
 
 import { CityDialog } from './CityDialog';
 import { Footer } from './Footer';
@@ -204,6 +204,13 @@ function Tracking() {
       .then(({ pixelId, lydPerUsd }) => (pixelId ? initPixel(pixelId, lydPerUsd) : disablePixel()))
       .catch(() => disablePixel());
   }, []);
+
+  // The delivery city they chose, as their city for Meta until an account gives one.
+  // Set before the person below, so the first events already carry it.
+  const city = shop.city;
+  useEffect(() => {
+    void setPixelCity(city ?? null);
+  }, [city]);
 
   const wasSignedIn = useRef(false);
   const user = shop.auth.user;
