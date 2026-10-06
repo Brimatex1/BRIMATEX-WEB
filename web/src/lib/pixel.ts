@@ -35,15 +35,39 @@ let paramsReady: Promise<void> | null = null;
  */
 const IP_LOOKUP = 'https://api64.ipify.org';
 
+/** Set when the lookup failed (an ad blocker, say): not tried again this visit. */
+const LOOKUP_FAILED_KEY = 'brimatex:ip-lookup-failed';
+const IPV4 = /^(\d{1,3}\.){3}\d{1,3}$/;
+const IPV6 = /^[0-9a-f:]{2,39}$/i;
+
+/**
+ * The visitor's address, or '' - it never throws. Meta's library writes an
+ * error to the console for a lookup that fails or answers something that is
+ * not an address, so it only ever gets one that is.
+ */
 async function lookupIp(): Promise<string> {
+  try {
+    if (sessionStorage.getItem(LOOKUP_FAILED_KEY)) return '';
+  } catch {
+    /* storage blocked - try anyway */
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 1200);
   try {
     const res = await fetch(IP_LOOKUP, { signal: controller.signal, cache: 'no-store', credentials: 'omit' });
-    return res.ok ? (await res.text()).trim() : '';
+    const ip = res.ok ? (await res.text()).trim() : '';
+    if (IPV4.test(ip) || (ip.includes(':') && IPV6.test(ip))) return ip;
+  } catch {
+    /* blocked, offline or too slow */
   } finally {
     clearTimeout(timer);
   }
+  try {
+    sessionStorage.setItem(LOOKUP_FAILED_KEY, '1');
+  } catch {
+    /* storage blocked */
+  }
+  return '';
 }
 
 /**
@@ -60,8 +84,9 @@ function collectParams(): Promise<void> {
       try {
         // Its own small file, fetched here: only the Pixel needs it, after the page is up.
         const { default: clientParamBuilder } = await import('meta-capi-param-builder-clientjs');
-        const known = clientParamBuilder.getClientIpAddress();
-        await clientParamBuilder.processAndCollectAllParams(window.location.href, known ? undefined : lookupIp);
+        // The address is looked up first: the library is handed one only when there is one.
+        const ip = clientParamBuilder.getClientIpAddress() ? '' : await lookupIp();
+        await clientParamBuilder.processAndCollectAllParams(window.location.href, ip ? () => ip : undefined);
       } catch {
         /* cookies blocked or the lookup failed - the server uses the request's address */
       }
