@@ -1,3 +1,4 @@
+import { windowForDays, windowText } from '@/lib/delivery';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, CreditCard, ShieldCheck, ShoppingBasket, Store, Truck } from 'lucide-react';
 
@@ -320,7 +321,10 @@ export function ProductPage({ id }: { id: number }) {
                   <Price key={variant.price} amount={variant.price} size="page" className="animate-price-in" />
                 )}
               </span>
-              <StatusDot tone={availabilityTone(availability)}>{availabilityText(availability, product.leadDays)}</StatusDot>
+              <StatusDot tone={availabilityTone(availability)}>
+                {availabilityText(availability, product.leadDays)}
+                {variant.deliveryText ? ` · ${variant.deliveryText}` : ''}
+              </StatusDot>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -346,6 +350,7 @@ export function ProductPage({ id }: { id: number }) {
                 sub={
                   <>
                     <span className="text-success">● مجاني</span> · {shop.city ?? 'إلى كل المدن'}
+                    {variant.deliveryDays ? <span className="block">يصلك {windowText(windowForDays(variant.deliveryDays))}</span> : null}
                   </>
                 }
               />

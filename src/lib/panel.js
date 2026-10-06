@@ -21,6 +21,7 @@
 
 const { stageOf } = require('./push');
 const { leadDaysFromNote } = require('./preorder');
+const { notInStockFromNote } = require('./availability');
 const { libyaToday } = require('./delivery');
 
 const STATUSES = ['new', 'confirmed', 'preparing', 'out', 'delivered', 'cancelled'];
@@ -42,7 +43,8 @@ function normalize(order) {
 function statusOf(order) {
   const stage = stageOf(order);
   if (stage === 'review') return 'new';
-  if (stage === 'confirmed') return leadDaysFromNote(order.note) != null ? 'preparing' : 'confirmed';
+  // Confirmed with something not in stock: «قيد التجهيز» until it leaves.
+  if (stage === 'confirmed') return notInStockFromNote(order.note) ? 'preparing' : 'confirmed';
   if (stage === 'shipping') return 'out';
   if (stage === 'done') return 'delivered';
   return 'cancelled';
@@ -269,7 +271,8 @@ function customerKeyOf(order) {
  */
 function timelineOf(order) {
   const status = statusOf(order);
-  const preorder = leadDaysFromNote(order.note) != null;
+  const preorder = notInStockFromNote(order.note);
+  const oldLead = leadDaysFromNote(order.note);
   const placed = { key: 'new', label: 'استلمنا الطلب', at: order.placedAt || null };
   if (status === 'cancelled') {
     return [
@@ -280,7 +283,8 @@ function timelineOf(order) {
   const steps = [
     placed,
     { key: 'confirmed', label: 'تم التأكيد', at: order.confirmedAt || null },
-    ...(preorder ? [{ key: 'preparing', label: `قيد التجهيز (يُصنع خلال ${leadText(leadDaysFromNote(order.note))})`, at: null }] : []),
+    // Something not in stock: prepared before it leaves (an older pre-order says how long it took to make).
+    ...(preorder ? [{ key: 'preparing', label: oldLead != null ? `قيد التجهيز (يُصنع خلال ${leadText(oldLead)})` : 'قيد التجهيز (غير متوفر في المخزن)', at: null }] : []),
     { key: 'out', label: 'خرج للتوصيل', at: order.shippedAt || null },
     { key: 'delivered', label: 'تم التسليم', at: order.paidAt || null },
   ];

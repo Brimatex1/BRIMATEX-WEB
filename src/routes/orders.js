@@ -24,7 +24,7 @@ const perks = require('../lib/perks');
 const loyalty = require('../lib/loyalty');
 const settings = require('../lib/settings');
 const { getProducts, productLookup } = require('../lib/catalogue');
-const { preorderNote } = require('../lib/preorder');
+const { stockNote } = require('../lib/availability');
 const { sendJson, readBody } = require('../lib/respond');
 const { readDelivery } = require('../lib/delivery');
 const appSettings = require('../lib/appSettings');
@@ -221,8 +221,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           .join('\n');
       }
       if (delivery.noteLines) note = [note.trim(), ...delivery.noteLines].filter(Boolean).join('\n');
-      // Sizes out of stock ordered as pre-orders: the note tells the team what has to be made.
-      const madeToOrder = preorderNote(order.items, result.products, settings.readPreorder());
+      // Sizes not in stock: the note tells the warehouse (the customer saw only the later delivery days).
+      const madeToOrder = stockNote(order.items, result.products, settings.readDeliveryTimes());
       if (madeToOrder) note = [note.trim(), madeToOrder].filter(Boolean).join('\n');
 
       /** Gives the voucher back when the order could not be created. */

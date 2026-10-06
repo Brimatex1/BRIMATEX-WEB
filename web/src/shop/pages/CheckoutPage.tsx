@@ -7,7 +7,7 @@ import { forgetCheckout, setPixelPerson, trackAddPaymentInfo, trackCheckoutOnce,
 import { cn, formatPrice, toLatinDigits } from '@/lib/utils';
 import type { LoyaltyChoice } from '@/types';
 
-import { availabilityOf, displayName, lineParts } from '../catalog';
+import { displayName, lineParts } from '../catalog';
 import { useTitle } from '../hooks';
 import { isLibyanMobile } from '../LoginDrawer';
 import { CouponCodeForm, CouponIcon, formatPoints, Minus, PointsIcon } from '../loyalty';
@@ -34,12 +34,20 @@ function isoDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Delivery days: from the earliest possible (tomorrow, or after a pre-order is made), Fridays skipped - as the app. */
-function deliveryDays(leadDays: number, count = 5): Date[] {
+/**
+ * Delivery days to choose from: from the earliest the order can arrive - `from`
+ * working days after today (1 in stock, 3 not: the catalogue's deliveryDays) -
+ * Fridays skipped, as the app.
+ */
+function deliveryDays(from: number, count = 5): Date[] {
   const days: Date[] = [];
   const d = new Date();
   d.setHours(12, 0, 0, 0);
-  d.setDate(d.getDate() + 1 + leadDays);
+  let left = Math.max(1, from);
+  while (left > 0) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 5) left--;
+  }
   while (days.length < count) {
     if (d.getDay() !== 5) days.push(new Date(d));
     d.setDate(d.getDate() + 1);
@@ -174,9 +182,16 @@ export function CheckoutPage() {
 
   const lines = shop.cart.lines.map((l) => ({ line: l, ...lineItem(shop.find, l.id) }));
   const total = shop.cart.total;
-  // The longest making time among pre-ordered lines decides the first day.
-  const leadDays = Math.max(0, ...lines.map((l) => (l.variant && availabilityOf(l.variant) === 'preorder' ? l.product?.leadDays ?? 10 : 0)));
-  const days = useMemo(() => deliveryDays(leadDays), [leadDays]);
+  // The slowest line decides the first day: a size not in stock arrives later (src/lib/availability.js).
+  const slowest = lines.reduce<{ from: number; text: string | null }>(
+    (acc, l) => {
+      const v = l.variant;
+      const from = v?.deliveryDays?.[0] ?? 1;
+      return from > acc.from ? { from, text: v?.deliveryText ?? null } : acc.text === null && v?.deliveryText ? { from: acc.from, text: v.deliveryText } : acc;
+    },
+    { from: 1, text: null }
+  );
+  const days = useMemo(() => deliveryDays(slowest.from), [slowest.from]);
   useEffect(() => {
     if (!date || !days.some((d) => isoDay(d) === date)) setDate(isoDay(days[0]));
   }, [days, date]);
@@ -543,6 +558,7 @@ export function CheckoutPage() {
             ) : (
               <>
                 <b className="text-[15px]">يوم التوصيل</b>
+                {slowest.text ? <span className="-mt-1 text-[13px] text-muted-foreground">{slowest.text}</span> : null}
                 <div role="radiogroup" aria-label="يوم التوصيل" className="grid grid-cols-5 gap-2">
                   {days.map((d) => {
                     const iso = isoDay(d);

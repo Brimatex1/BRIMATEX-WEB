@@ -1,5 +1,6 @@
 import type {
   PreorderSettings,
+  DeliveryTimes,
   Address,
   AdminReview,
   AppConfig,
@@ -417,6 +418,11 @@ export const api = {
       '/api/admin/settings/facebook-pixel/test',
       jsonBody({ testEventCode }, token)
     ),
+
+  adminDeliveryTimes: (token: string) => request<{ deliveryTimes: DeliveryTimes }>('/api/admin/settings/delivery-times', authHeaders(token)),
+
+  adminSaveDeliveryTimes: (token: string, times: DeliveryTimes) =>
+    request<{ deliveryTimes: DeliveryTimes }>('/api/admin/settings/delivery-times', { ...jsonBody(times, token), method: 'PUT' }),
 
   adminPreorderSettings: (token: string) =>
     request<{ preorder: PreorderSettings }>('/api/admin/settings/preorder', authHeaders(token)),

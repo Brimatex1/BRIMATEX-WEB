@@ -163,6 +163,38 @@ function readPreorder() {
   return { enabled: stored.enabled === true, days };
 }
 
+/**
+ * Delivery times (src/lib/availability.js), in days [from, to]: `stock` for a
+ * size in stock in Odoo (working days), `made` for one that is not. The
+ * panel's «مدة التوصيل»; the owner's 1-3 and 3-5 until changed there.
+ */
+const DEFAULT_DELIVERY_TIMES = { stock: [1, 3], made: [3, 5] };
+
+function validRange(r) {
+  return Array.isArray(r) && r.length === 2 && r.every((n) => Number.isInteger(n) && n >= 1 && n <= 60) && r[0] <= r[1];
+}
+
+function readDeliveryTimes() {
+  const stored = readFile().deliveryTimes || {};
+  return {
+    stock: validRange(stored.stock) ? stored.stock : DEFAULT_DELIVERY_TIMES.stock,
+    made: validRange(stored.made) ? stored.made : DEFAULT_DELIVERY_TIMES.made,
+  };
+}
+
+/** Saves both ranges; an invalid one throws with the reason in Arabic. */
+function saveDeliveryTimes({ stock, made }) {
+  const toRange = (r) => (Array.isArray(r) ? r.map((n) => Number(n)) : r);
+  const s = toRange(stock);
+  const m = toRange(made);
+  if (!validRange(s)) throw new Error('مدة التوصيل من المخزن: من 1 إلى 60 يوماً، والأولى لا تزيد عن الثانية');
+  if (!validRange(m)) throw new Error('مدة التوصيل لغير المتوفر: من 1 إلى 60 يوماً، والأولى لا تزيد عن الثانية');
+  const data = readFile();
+  data.deliveryTimes = { stock: s, made: m, updatedAt: new Date().toISOString() };
+  writeFile(data);
+  return readDeliveryTimes();
+}
+
 function savePreorder({ enabled, days }) {
   const data = readFile();
   data.preorder = { enabled: Boolean(enabled), days: days || null, updatedAt: new Date().toISOString() };
@@ -321,6 +353,9 @@ module.exports = {
   saveFacebookPixel,
   readPreorder,
   savePreorder,
+  readDeliveryTimes,
+  saveDeliveryTimes,
+  DEFAULT_DELIVERY_TIMES,
   getCapiToken,
   readPublicCapiToken,
   saveCapiToken,

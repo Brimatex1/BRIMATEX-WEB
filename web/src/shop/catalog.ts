@@ -82,6 +82,8 @@ export function variantsOf(product: Product): ProductVariant[] {
       price: product.price,
       wasPrice: product.wasPrice,
       offerEndsAt: product.offerEndsAt,
+      deliveryDays: product.deliveryDays,
+      deliveryText: product.deliveryText,
       stock: product.stock,
       inStock: product.inStock,
       preorder: product.preorder,

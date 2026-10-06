@@ -42,7 +42,7 @@ const db = require('./lib/db');
 const odooStatus = require('./lib/odooStatus');
 const { getProducts, visibleOnly, productLookup } = require('./lib/catalogue');
 const { PHOTO_PREFIX } = require('./lib/productPhotos');
-const { withPreorder } = require('./lib/preorder');
+const { withAvailability } = require('./lib/availability');
 const { sendBody, sendFile, warm } = require('./lib/compress');
 const { sendJson, readBody } = require('./lib/respond');
 const { createAuthRoutes, NOT_HANDLED: AUTH_NOT_HANDLED } = require('./routes/auth');
@@ -243,9 +243,9 @@ const handlePanelRoutes = createPanelRoutes();
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {
     const result = await getProducts();
-    // With pre-orders on, out-of-stock mattresses are marked orderable (src/lib/preorder.js);
+    // Every size orderable, with its delivery days; the stock itself stays here (src/lib/availability.js);
     // each carries its rating when it has reviews (src/lib/perks.js).
-    const products = withPreorder(visibleOnly(result.products), settings.readPreorder());
+    const products = withAvailability(visibleOnly(result.products), settings.readDeliveryTimes());
     return sendJson(res, 200, { ...result, products: await perksLib.withRatings(products) });
   }
 
@@ -521,8 +521,8 @@ function originOf(req) {
 /** The public catalogue, or none - a share preview or a feed never takes the page down. */
 async function publicProducts() {
   try {
-    // With pre-orders on, out-of-stock mattresses are marked orderable (src/lib/preorder.js).
-    return withPreorder(visibleOnly((await getProducts()).products), settings.readPreorder());
+    // Every size orderable, with its delivery days; the stock itself stays here (src/lib/availability.js).
+    return withAvailability(visibleOnly((await getProducts()).products), settings.readDeliveryTimes());
   } catch {
     return [];
   }

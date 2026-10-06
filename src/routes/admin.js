@@ -577,6 +577,27 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
 
     // ---- Pre-orders (src/lib/preorder.js) ----
 
+    // «مدة التوصيل» (src/lib/availability.js): the days a size takes to arrive, in stock or not.
+    if (req.method === 'GET' && url.pathname === '/api/admin/settings/delivery-times') {
+      if (!(await requireAdmin(req, res))) return;
+      return sendJson(res, 200, { deliveryTimes: settings.readDeliveryTimes() });
+    }
+
+    if (req.method === 'PUT' && url.pathname === '/api/admin/settings/delivery-times') {
+      if (!(await requireAdmin(req, res))) return;
+      let payload;
+      try {
+        payload = JSON.parse(await readBody(req));
+      } catch {
+        return sendJson(res, 400, { error: 'JSON غير صالح' });
+      }
+      try {
+        return sendJson(res, 200, { deliveryTimes: settings.saveDeliveryTimes(payload || {}) });
+      } catch (err) {
+        return sendJson(res, 400, { error: err.message });
+      }
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/admin/settings/preorder') {
       if (!(await requireAdmin(req, res))) return;
       return sendJson(res, 200, { preorder: settings.readPreorder() });

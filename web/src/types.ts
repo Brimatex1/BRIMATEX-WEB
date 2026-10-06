@@ -29,6 +29,10 @@ export interface ProductVariant {
   wasPrice?: number;
   /** When the offer ends, if it has an end date. */
   offerEndsAt?: string | null;
+  /** Days it takes to arrive, [from, to] (src/lib/availability.js): 1-3 in stock, 3-5 not. */
+  deliveryDays?: [number, number];
+  /** «التوصيل خلال 1–3 أيام عمل» - the server's words. */
+  deliveryText?: string;
   stock?: number | null;
   inStock?: boolean;
   /** Out of stock but orderable - made to order (pre-orders on in the dashboard). */
@@ -114,6 +118,9 @@ export interface Product {
   /** A single-size product on offer: its regular price (sizes carry their own). */
   wasPrice?: number;
   offerEndsAt?: string | null;
+  /** A single-size product's delivery (sizes carry their own). */
+  deliveryDays?: [number, number];
+  deliveryText?: string;
   /** Its visible reviews, all sizes together - absent until it has one. */
   rating?: { average: number; count: number };
   sku?: string;
@@ -443,6 +450,12 @@ export interface FacebookPixelSettings {
 }
 
 /** Server-side reporting to Meta. The token itself never leaves the server. */
+/** «مدة التوصيل» (src/lib/availability.js): [from, to] days, in stock (working days) and not. */
+export interface DeliveryTimes {
+  stock: [number, number];
+  made: [number, number];
+}
+
 export interface ConversionsApiStatus {
   configured: boolean;
   /** FACEBOOK_TEST_EVENT_CODE is set: events land in Events Manager's "Test events". */

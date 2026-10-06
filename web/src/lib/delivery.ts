@@ -47,6 +47,15 @@ export function deliveryWindow(leadDays: number | null | undefined, now = new Da
   return { from: addDeliveryDays(ready, DELIVERY_DAYS[0]), to: addDeliveryDays(ready, DELIVERY_DAYS[1]) };
 }
 
+/**
+ * When a size arrives: `days` [from, to] (the catalogue's deliveryDays) after
+ * today, Fridays not counted.
+ */
+export function windowForDays(days: [number, number], now = new Date()): DeliveryWindow {
+  const today = libyaToday(now);
+  return { from: addDeliveryDays(today, days[0]), to: addDeliveryDays(today, days[1]) };
+}
+
 function weekday(date: Date): string {
   return date.toLocaleDateString('ar-LY', { weekday: 'long', timeZone: 'UTC' });
 }

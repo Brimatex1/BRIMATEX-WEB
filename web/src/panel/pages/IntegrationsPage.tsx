@@ -2,13 +2,12 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
-import { leadText } from '@/lib/preorder';
 import { cn } from '@/lib/utils';
-import type { ConversionsApiStatus, FacebookPixelSettings, IpHealth, OdooSettings, PreorderSettings, WhatsappSupportSettings, YourIp } from '@/types';
+import type { ConversionsApiStatus, DeliveryTimes, FacebookPixelSettings, IpHealth, OdooSettings, WhatsappSupportSettings, YourIp } from '@/types';
 
 import type { PanelMe } from '../api';
 import { PageBody, PageHeader } from '../Shell';
-import { Button, Card, Field, Icon, Pill, Skeleton, SwitchRow, type IconName } from '../ui';
+import { Button, Card, Field, Icon, Pill, Skeleton, type IconName } from '../ui';
 
 /*
  * الربط والتكاملات - admin only. The classic dashboard's «الإعدادات» tab
@@ -36,7 +35,7 @@ export function IntegrationsPage({ me, token }: { me: PanelMe; token: string }) 
           </div>
           <div className="flex min-w-0 flex-col gap-4">
             <MetaCard token={token} />
-            <PreorderCard token={token} />
+            <DeliveryTimesCard token={token} />
           </div>
         </div>
       </PageBody>
@@ -716,34 +715,52 @@ function MetaCard({ token }: { token: string }) {
   );
 }
 
-/* ---------------------------------------------------------------- الطلب المسبق */
+/* ---------------------------------------------------------------- مدة التوصيل */
+
+/** «1–3 أيام عمل» - the server's rangeText (src/lib/availability.js), word for word. */
+function rangeText([from, to]: [number, number], working = false): string {
+  const unit = (n: number) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 'أيام' : 'يوماً');
+  const text = from === to ? (from <= 2 ? unit(from) : `${from} ${unit(from)}`) : `${from}–${to} ${unit(to)}`;
+  return working ? `${text} عمل` : text;
+}
 
 /**
- * Pre-orders (src/lib/preorder.js): with them on, a mattress out of stock in
- * Odoo can still be ordered on the website and in the app - the factory makes
- * it to order - and Meta's catalogue lists it as "available for order".
+ * Delivery times (src/lib/availability.js), in place of pre-orders: every
+ * size can be ordered and shows «متوفر»; one in stock in Odoo arrives in the
+ * first range, one that is not in the second - the customer sees only the
+ * days, the warehouse the order's note.
  */
-function PreorderCard({ token }: { token: string }) {
-  const read = useCallback(() => api.adminPreorderSettings(token), [token]);
+function DeliveryTimesCard({ token }: { token: string }) {
+  const read = useCallback(() => api.adminDeliveryTimes(token), [token]);
   const { data, error, reload } = useSettings(read);
-  const [settings, setSettings] = useState<PreorderSettings | null>(null);
-  const [days, setDays] = useState('');
+  const [times, setTimes] = useState<DeliveryTimes | null>(null);
+  const [fields, setFields] = useState({ stockFrom: '', stockTo: '', madeFrom: '', madeTo: '' });
   const [saving, setSaving] = useState(false);
 
-  const apply = (p: PreorderSettings) => {
-    setSettings(p);
-    setDays(p.days ? String(p.days) : '');
+  const apply = (t: DeliveryTimes) => {
+    setTimes(t);
+    setFields({ stockFrom: String(t.stock[0]), stockTo: String(t.stock[1]), madeFrom: String(t.made[0]), madeTo: String(t.made[1]) });
   };
   useEffect(() => {
-    if (data) apply(data.preorder);
+    if (data) apply(data.deliveryTimes);
   }, [data]);
 
-  async function save(enabled: boolean) {
+  const range = (a: string, b: string): [number, number] | null => {
+    const x = Number(a);
+    const y = Number(b);
+    return Number.isInteger(x) && Number.isInteger(y) && x >= 1 && y <= 60 && x <= y ? [x, y] : null;
+  };
+  const stock = range(fields.stockFrom, fields.stockTo);
+  const made = range(fields.madeFrom, fields.madeTo);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!stock || !made) return;
     setSaving(true);
     try {
-      const { preorder } = await api.adminSavePreorder(token, enabled, days.trim());
-      apply(preorder);
-      toast.success(preorder.enabled ? 'الطلب المسبق مفعّل — المراتب النافدة تُطلب الآن' : 'أُوقف الطلب المسبق');
+      const { deliveryTimes } = await api.adminSaveDeliveryTimes(token, { stock, made });
+      apply(deliveryTimes);
+      toast.success('حُفظت مدة التوصيل — تظهر للعملاء خلال دقائق');
     } catch (err) {
       toast.error(message(err, 'تعذّر الحفظ'));
     } finally {
@@ -751,50 +768,43 @@ function PreorderCard({ token }: { token: string }) {
     }
   }
 
-  if (error && !settings) return <LoadError icon="factory" title="الطلب المسبق" error={error} onRetry={reload} />;
-  if (!settings) return <CardSkeleton icon="factory" title="الطلب المسبق" />;
+  if (error && !times) return <LoadError icon="truck" title="مدة التوصيل" error={error} onRetry={reload} />;
+  if (!times) return <CardSkeleton icon="truck" title="مدة التوصيل" />;
+
+  const set = (k: keyof typeof fields) => (v: string) => setFields((f) => ({ ...f, [k]: v.replace(/\D/g, '').slice(0, 2) }));
+  const num = { ltr: true, inputMode: 'numeric' as const, autoComplete: 'off', className: 'w-[88px]' };
 
   return (
     <Card>
       <IntegrationHead
-        icon="factory"
-        title="الطلب المسبق"
-        line="المرتبة النافدة في أودو تبقى قابلة للطلب في الموقع والتطبيق — المصنع يصنعها على الطلب. تظهر للعميل «طلب مسبق»، وفي كتالوج ميتا «متاحة للطلب» فتُعرض في الإعلانات."
-        status={<StatusPill on={settings.enabled} onLabel="مفعّل" offLabel="غير مفعّل" />}
+        icon="truck"
+        title="مدة التوصيل"
+        line="كل المراتب تظهر للعميل «متوفر» ويطلبها. المتوفرة في مخزن أودو تصل في المدة الأولى، وغير المتوفرة في الثانية — ويرى الفريق في ملاحظة الطلب ما ليس في المخزن."
       />
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save(settings.enabled);
-        }}
-        className="flex flex-col gap-3.5"
-      >
-        <Field
-          label="مدة التجهيز (بالأيام)"
-          value={days}
-          onChange={(v) => setDays(v.replace(/\D/g, ''))}
-          placeholder="7"
-          ltr
-          inputMode="numeric"
-          autoComplete="off"
-          className="max-w-[200px]"
-          hint={`يرى العميل: «${leadText(days ? Number(days) : null)}». اتركها فارغة إن كانت المدة تختلف — يظهر «يُصنع على الطلب» بلا رقم.`}
-        />
-        <SwitchRow
-          title="تفعيل الطلب المسبق"
-          line="المراتب النافدة تُطلب في الموقع والتطبيق بمدة التجهيز أعلاه"
-          checked={settings.enabled}
-          disabled={saving}
-          onChange={(next) => void save(next)}
-        />
-        {settings.enabled ? (
-          <div>
-            <Button type="submit" disabled={saving} aria-busy={saving}>
-              <Icon name="check" size={18} />
-              {saving ? 'جارٍ الحفظ…' : 'حفظ المدة'}
-            </Button>
+      <form onSubmit={save} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <b className="text-[14px]">متوفرة في المخزن (أيام عمل)</b>
+          <div className="flex items-end gap-2">
+            <Field label="من" value={fields.stockFrom} onChange={set('stockFrom')} {...num} />
+            <Field label="إلى" value={fields.stockTo} onChange={set('stockTo')} {...num} />
           </div>
-        ) : null}
+          <span className="text-[12.5px] text-[#5F6373]">يرى العميل: «{stock ? `التوصيل خلال ${rangeText(stock, true)}` : '—'}»</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          <b className="text-[14px]">غير متوفرة في المخزن (أيام)</b>
+          <div className="flex items-end gap-2">
+            <Field label="من" value={fields.madeFrom} onChange={set('madeFrom')} {...num} />
+            <Field label="إلى" value={fields.madeTo} onChange={set('madeTo')} {...num} />
+          </div>
+          <span className="text-[12.5px] text-[#5F6373]">يرى العميل: «{made ? `التوصيل خلال ${rangeText(made)}` : '—'}»، وأقرب يوم توصيل يختاره بعد {made ? made[0] : '—'} أيام عمل.</span>
+        </div>
+        {!stock || !made ? <span className="text-[12.5px] text-[#A12020]">كل مدة من 1 إلى 60 يوماً، و«من» لا تزيد عن «إلى».</span> : null}
+        <div>
+          <Button type="submit" disabled={saving || !stock || !made} aria-busy={saving}>
+            <Icon name="check" size={18} />
+            {saving ? 'جارٍ الحفظ…' : 'حفظ المدة'}
+          </Button>
+        </div>
       </form>
     </Card>
   );
