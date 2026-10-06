@@ -217,7 +217,7 @@ function unitPart() {
         http.get({ hostname: '127.0.0.1', port: PORT, path: p, headers }, (res) => {
           let text = '';
           res.on('data', (c) => (text += c));
-          res.on('end', () => resolve({ status: res.statusCode, location: res.headers.location, text }));
+          res.on('end', () => resolve({ status: res.statusCode, location: res.headers.location, headers: res.headers, text }));
         })
       );
     const unknown = await raw('/no-such-page');
@@ -234,6 +234,12 @@ function unitPart() {
     ok('/shop/ → /shop (301)', slash.status === 301 && slash.location === `http://127.0.0.1:${PORT}/shop?category=comfort`, JSON.stringify(slash.location));
     const www = await raw('/product/1', { Host: 'www.example.com' });
     ok('www → بلا www (301)', www.status === 301 && www.location === 'https://example.com/product/1', www.location);
+    // Every reply's security headers (src/lib/securityHeaders.js).
+    const homeReply = await raw('/');
+    const apiReply = await raw('/api/products');
+    ok('الصفحة والـAPI: nosniff وReferrer-Policy وPermissions-Policy', [homeReply, apiReply].every((r) => r.headers['x-content-type-options'] === 'nosniff' && r.headers['referrer-policy'] === 'strict-origin-when-cross-origin' && /camera=\(\)/.test(r.headers['permissions-policy'] || '')), JSON.stringify(homeReply.headers));
+    ok('بلا HTTPS (محلياً): بلا HSTS', !homeReply.headers['strict-transport-security']);
+    ok('عبر HTTPS: HSTS لسنة', (await raw('/', { 'X-Forwarded-Proto': 'https' })).headers['strict-transport-security'] === 'max-age=31536000');
     const insecure = await raw('/', { Host: 'example.com', 'X-Forwarded-Proto': 'http' });
     ok('http → https (301)', insecure.status === 301 && insecure.location === 'https://example.com/', insecure.location);
     ok('favicon.ico → favicon.svg', (await raw('/favicon.ico')).location?.endsWith('/favicon.svg'));

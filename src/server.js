@@ -11,6 +11,7 @@
 // Configure WhatsApp: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
 
 const { rateKey } = require('./lib/clientIp');
+const { applySecurityHeaders } = require('./lib/securityHeaders');
 require('./lib/no-undici');
 require('./lib/load-env');
 const http = require('http');
@@ -578,6 +579,8 @@ async function serveShell(req, res, url) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  // On every reply, whichever route answers (src/lib/securityHeaders.js).
+  applySecurityHeaders(req, res);
   try {
     // One address per page: www, http, a trailing slash and /favicon.ico move for good.
     const moved = seo.redirectFor(req, url);
