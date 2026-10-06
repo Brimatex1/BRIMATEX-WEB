@@ -14,6 +14,19 @@ export default defineConfig({
     // The server sends `script-src 'self'` — no inline scripts allowed.
     modulePreload: { polyfill: false },
     cssCodeSplit: false,
+    rollupOptions: {
+      output: {
+        // The libraries in a file of their own: they change far less often than
+        // the shop's code, so a returning visitor's browser keeps them across
+        // deploys and fetches only what changed.
+        manualChunks(id) {
+          if (/node_modules[\/](react|react-dom|scheduler|@radix-ui|embla-carousel[^\/]*|sonner|tailwind-merge|clsx|class-variance-authority|react-remove-scroll[^\/]*|tslib|use-callback-ref|use-sidecar|aria-hidden|get-nonce|detect-node-es)[\/]/.test(id)) {
+            return 'vendor';
+          }
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     port: Number(process.env.PORT) || 5173,

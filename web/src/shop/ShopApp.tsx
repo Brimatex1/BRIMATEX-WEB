@@ -14,29 +14,55 @@ import { ShopProvider, useShop } from './state';
 import { isShopTier } from './catalog';
 import { productHrefForSlug } from './marketing';
 
-import { AccountLayout } from './account/AccountLayout';
-import { AddressesPage, NotificationsPage, SettingsPage } from './account/AccountPages';
-import { IssuePage } from './account/IssuePage';
-import { CouponsPage, LoyaltyPage } from './account/LoyaltyPages';
-import { OrderPage, OrdersPage } from './account/OrderPages';
-import { WarrantyPage } from './account/WarrantyPage';
 import { CartDrawer } from './CartDrawer';
 import { LoginDrawer } from './LoginDrawer';
-import { CartPage } from './pages/CartPage';
 import { CategoryPage } from './pages/CategoryPage';
-import { CheckoutPage } from './pages/CheckoutPage';
-import { ComparePage } from './pages/ComparePage';
-import { ConfirmedPage } from './pages/ConfirmedPage';
-import { FavoritesPage } from './pages/FavoritesPage';
 import { HomePage } from './pages/HomePage';
-import { LegalPage } from './pages/LegalPage';
 import { ErrorPage, NotFoundPage, PageErrorBoundary } from './pages/NotFoundPage';
 import { ProductPage } from './pages/ProductPage';
-import { QuizPage } from './pages/QuizPage';
-import { ReviewsPage } from './pages/ReviewsPage';
-import { ReviewWritePage } from './pages/ReviewWritePage';
-import { ShowroomPage } from './pages/ShowroomPage';
-import { SupportPage } from './pages/SupportPage';
+
+/**
+ * The pages an ad lands on - the home, a category, a mattress - come with the
+ * first download; every other page is its own file, fetched when it is first
+ * opened (the whole shop was one 660 KB file). The cart and the checkout are
+ * fetched ahead once the page is idle, so going to pay never waits.
+ */
+const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<any>>>, name: K) =>
+  lazy(() => load().then((m) => ({ default: m[name] })));
+const loadAccountPages = () => import('./account/AccountPages');
+const loadCart = () => import('./pages/CartPage');
+const loadCheckout = () => import('./pages/CheckoutPage');
+const AccountLayout = page(() => import('./account/AccountLayout'), 'AccountLayout');
+const AddressesPage = page(loadAccountPages, 'AddressesPage');
+const NotificationsPage = page(loadAccountPages, 'NotificationsPage');
+const SettingsPage = page(loadAccountPages, 'SettingsPage');
+const IssuePage = page(() => import('./account/IssuePage'), 'IssuePage');
+const CouponsPage = page(() => import('./account/LoyaltyPages'), 'CouponsPage');
+const LoyaltyPage = page(() => import('./account/LoyaltyPages'), 'LoyaltyPage');
+const OrderPage = page(() => import('./account/OrderPages'), 'OrderPage');
+const OrdersPage = page(() => import('./account/OrderPages'), 'OrdersPage');
+const WarrantyPage = page(() => import('./account/WarrantyPage'), 'WarrantyPage');
+const CartPage = page(loadCart, 'CartPage');
+const CheckoutPage = page(loadCheckout, 'CheckoutPage');
+const ComparePage = page(() => import('./pages/ComparePage'), 'ComparePage');
+const ConfirmedPage = page(() => import('./pages/ConfirmedPage'), 'ConfirmedPage');
+const FavoritesPage = page(() => import('./pages/FavoritesPage'), 'FavoritesPage');
+const LegalPage = page(() => import('./pages/LegalPage'), 'LegalPage');
+const QuizPage = page(() => import('./pages/QuizPage'), 'QuizPage');
+const ReviewsPage = page(() => import('./pages/ReviewsPage'), 'ReviewsPage');
+const ReviewWritePage = page(() => import('./pages/ReviewWritePage'), 'ReviewWritePage');
+const ShowroomPage = page(() => import('./pages/ShowroomPage'), 'ShowroomPage');
+const SupportPage = page(() => import('./pages/SupportPage'), 'SupportPage');
+
+/** The cart and the checkout, fetched while nothing else is happening. */
+function usePrefetchCheckout() {
+  useEffect(() => {
+    const go = () => void Promise.all([loadCart(), loadCheckout()]).catch(() => undefined);
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(go, { timeout: 4000 });
+    else window.setTimeout(go, 2500);
+  }, []);
+}
 
 const DesignSystemPage = lazy(() => import('./pages/DesignSystemPage').then((m) => ({ default: m.DesignSystemPage })));
 
@@ -193,6 +219,7 @@ function Tracking() {
 function Layout() {
   const { route, location } = useRouter();
   const focused = isFocused(route);
+  usePrefetchCheckout();
   return (
     <div className="flex min-h-[100svh] flex-col bg-background font-sans text-foreground">
       <a href="#main" className="sr-only absolute start-0 top-0 focus:not-sr-only focus:z-50 focus:rounded-b-md focus:bg-primary focus:px-6 focus:py-2 focus:text-sm focus:text-primary-foreground">

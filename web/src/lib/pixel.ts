@@ -2,7 +2,6 @@ import type { CartLine, OrderResult, Product } from '@/types';
 import { CURRENCY_ISO } from './utils';
 import { matchData, type PixelPerson } from '@/lib/pixelMatch';
 import { visitorId } from '@/lib/visitor';
-import clientParamBuilder from 'meta-capi-param-builder-clientjs';
 
 // Meta (Facebook) Pixel — admin-configurable from the dashboard, applies to
 // every page and product automatically because every call here reads real
@@ -59,6 +58,8 @@ function collectParams(): Promise<void> {
   if (!paramsReady) {
     paramsReady = (async () => {
       try {
+        // Its own small file, fetched here: only the Pixel needs it, after the page is up.
+        const { default: clientParamBuilder } = await import('meta-capi-param-builder-clientjs');
         const known = clientParamBuilder.getClientIpAddress();
         await clientParamBuilder.processAndCollectAllParams(window.location.href, known ? undefined : lookupIp);
       } catch {
