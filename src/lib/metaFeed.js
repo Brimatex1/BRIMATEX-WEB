@@ -36,6 +36,7 @@ const COLUMNS = [
   'availability',
   'condition',
   'price',
+  'sale_price',
   'link',
   'image_link',
   'additional_image_link',
@@ -142,7 +143,7 @@ function rowsFor(product, { origin }) {
   const linkOf = (v) => (product.variants ? `${origin}/product/${product.id}?variant=${v.id}` : `${origin}/product/${product.id}`);
   const tier = product.tier ? `مراتب > ${product.tier.name}` : 'مراتب';
   const story = storyOf(product);
-  const sizes = product.variants ?? [{ id: product.id, label: '', price: product.price, inStock: product.inStock }];
+  const sizes = product.variants ?? [{ id: product.id, label: '', price: product.price, wasPrice: product.wasPrice, inStock: product.inStock }];
   return sizes.map((v) => ({
     id: v.id,
     // Never an item's own id: the card's id is also its first size's, and Meta
@@ -153,7 +154,10 @@ function rowsFor(product, { origin }) {
     // A pre-order (src/lib/preorder.js) is "available for order", which Meta advertises.
     availability: v.inStock !== false ? 'in stock' : v.preorder || (!product.variants && product.preorder) ? 'available for order' : 'out of stock',
     condition: 'new',
-    price: money(v.price),
+    // On offer (a dated line in Odoo's price list): the regular price, and the
+    // offer's as sale_price - the price the size's page states.
+    price: money(v.wasPrice > v.price ? v.wasPrice : v.price),
+    sale_price: v.wasPrice > v.price ? money(v.price) : '',
     link: linkOf(v),
     image_link: image,
     // The cutaway of what is inside (src/lib/productPhotos.js) - a second picture for catalogue ads.

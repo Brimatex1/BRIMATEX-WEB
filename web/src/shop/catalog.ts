@@ -74,7 +74,38 @@ export function sizeParam(parts: { width: number | null; length: number | null }
 
 export function variantsOf(product: Product): ProductVariant[] {
   if (product.variants?.length) return product.variants;
-  return [{ id: product.id, label: '', sku: product.sku, price: product.price, stock: product.stock, inStock: product.inStock, preorder: product.preorder }];
+  return [
+    {
+      id: product.id,
+      label: '',
+      sku: product.sku,
+      price: product.price,
+      wasPrice: product.wasPrice,
+      offerEndsAt: product.offerEndsAt,
+      stock: product.stock,
+      inStock: product.inStock,
+      preorder: product.preorder,
+    },
+  ];
+}
+
+/** A size's regular price while it is on offer (higher than what it sells for), else null. */
+export function wasPriceOf(v: Pick<ProductVariant, 'price' | 'wasPrice'>): number | null {
+  return v.wasPrice && v.wasPrice > v.price ? v.wasPrice : null;
+}
+
+/** Its sizes on offer, the largest saving first. */
+export function offerVariants(product: Product): ProductVariant[] {
+  return variantsOf(product)
+    .filter((v) => wasPriceOf(v) !== null)
+    .sort((a, b) => (b.wasPrice ?? 0) - b.price - ((a.wasPrice ?? 0) - a.price));
+}
+
+/** «ينتهي العرض في 20 أكتوبر» - the end date in Libya, or null when the offer has none. */
+export function offerEndText(iso: string | null | undefined): string | null {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return `ينتهي العرض في ${d.toLocaleDateString('ar-LY', { timeZone: 'Africa/Tripoli', day: 'numeric', month: 'long' })}`;
 }
 
 /** One height for every size (Premium and Elite), or null when it is chosen (Comfort). */

@@ -9,11 +9,11 @@ import comfort from './assets/photos/comfort-beige.jpg';
 import deluxe from './assets/photos/deluxe-navy.jpg';
 import hotel from './assets/photos/hotel-night.jpg';
 import sport from './assets/photos/sport-grey.jpg';
-import { describe, displayName, featuredVariant, parseSize, sizeText, tierOf } from './catalog';
+import { describe, displayName, featuredVariant, parseSize, sizeText, tierOf, wasPriceOf } from './catalog';
 import { responsivePhoto, sizedPhoto } from './photoSizes';
 import { Link } from './router';
 import { useShop } from './state';
-import { Price, RatingStars, SizeText, TierTag } from './ui';
+import { DiscountPrice, Price, RatingStars, SizeText, TierTag } from './ui';
 
 /** The handoff's photos (assets/photos), for a mattress with no photo uploaded from the dashboard. */
 const PLACEHOLDER: Record<string, string> = { بالانس: balance, ديلوكس: deluxe, هوتيل: hotel, سبورت: sport };
@@ -98,7 +98,13 @@ export function ProductCard({ product, variant, className, eager }: { product: P
             </>
           ) : null}
         </span>
-        <Price amount={v.price} className="mt-1" />
+        {wasPriceOf(v) !== null ? (
+          <span className="mt-1">
+            <DiscountPrice amount={v.price} was={wasPriceOf(v)!} />
+          </span>
+        ) : (
+          <Price amount={v.price} className="mt-1" />
+        )}
         {product.rating ? <RatingStars average={product.rating.average} count={product.rating.count} /> : null}
         {tier ? <TierTag tier={tier} className="mt-1 self-start" /> : null}
       </Link>

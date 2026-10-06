@@ -25,6 +25,10 @@ export interface ProductVariant {
   label: string;
   sku?: string;
   price: number;
+  /** On offer: the regular price, higher than `price` (a dated line in Odoo's retail price list). */
+  wasPrice?: number;
+  /** When the offer ends, if it has an end date. */
+  offerEndsAt?: string | null;
   stock?: number | null;
   inStock?: boolean;
   /** Out of stock but orderable - made to order (pre-orders on in the dashboard). */
@@ -107,6 +111,9 @@ export interface Product {
   templateId?: number;
   name: string;
   price: number;
+  /** A single-size product on offer: its regular price (sizes carry their own). */
+  wasPrice?: number;
+  offerEndsAt?: string | null;
   /** Its visible reviews, all sizes together - absent until it has one. */
   rating?: { average: number; count: number };
   sku?: string;

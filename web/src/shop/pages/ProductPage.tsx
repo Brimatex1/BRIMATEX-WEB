@@ -8,7 +8,7 @@ import { trackViewContent } from '@/lib/pixel';
 import { cn } from '@/lib/utils';
 import type { Product, ProductReviews, ProductVariant } from '@/types';
 
-import { TIER_TITLE, availabilityOf, availabilityText, availabilityTone, canOrderVariant, describe, displayName, featuredVariant, parseSize, sizeText, tierOf, variantFromQuery, variantsOf } from '../catalog';
+import { availabilityOf, availabilityText, availabilityTone, canOrderVariant, describe, displayName, featuredVariant, offerEndText, parseSize, sizeText, TIER_TITLE, tierOf, variantFromQuery, variantsOf, wasPriceOf } from '../catalog';
 import { Features } from '../Features';
 import { useIsDesktop, useTitle } from '../hooks';
 import { HeartButton, photoOf, ProductCard } from '../ProductCard';
@@ -16,7 +16,7 @@ import { Link, useRouter } from '../router';
 import { recordViewed } from '../recent';
 import { SizePicker } from '../SizePicker';
 import { useShop } from '../state';
-import { Container, EmptyState, Price, RatingStars, Skeleton, SizeText, StatusDot, TierTag } from '../ui';
+import { Container, DiscountPrice, EmptyState, Price, RatingStars, Skeleton, SizeText, StatusDot, TierTag } from '../ui';
 import { Breadcrumb } from './CategoryPage';
 import { Bar } from './ReviewsPage';
 import { responsivePhoto, sizedPhoto } from '@/shop/photoSizes';
@@ -311,7 +311,14 @@ export function ProductPage({ id }: { id: number }) {
               ) : null}
               {/* A new size's price comes in from below (design/docs/MOTION.md «Change size»). */}
               <span aria-live="polite" className="mt-2 overflow-hidden">
-                <Price key={variant.price} amount={variant.price} size="page" className="animate-price-in" />
+                {wasPriceOf(variant) !== null ? (
+                  <span key={variant.price} className="flex animate-price-in flex-col gap-1">
+                    <DiscountPrice amount={variant.price} was={wasPriceOf(variant)!} size="page" />
+                    {offerEndText(variant.offerEndsAt) ? <span className="text-xs font-semibold text-foreground">{offerEndText(variant.offerEndsAt)}</span> : null}
+                  </span>
+                ) : (
+                  <Price key={variant.price} amount={variant.price} size="page" className="animate-price-in" />
+                )}
               </span>
               <StatusDot tone={availabilityTone(availability)}>{availabilityText(availability, product.leadDays)}</StatusDot>
             </div>

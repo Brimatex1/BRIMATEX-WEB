@@ -8,7 +8,8 @@ import { trackSearch, trackViewCategory } from '@/lib/pixel';
 import { cn } from '@/lib/utils';
 import type { Product, ProductVariant } from '@/types';
 
-import { TIER_KEYS, TIER_TITLE, displayName, featuredVariant, parseSize, sizeText, tierOf, variantsOf, type TierKey } from '../catalog';
+import { TIER_KEYS, TIER_TITLE, displayName, featuredVariant, offerEndText, offerVariants, parseSize, sizeText, tierOf, variantsOf, type TierKey } from '../catalog';
+import { OfferBanners } from '../HomeBanners';
 import { useTitle } from '../hooks';
 import { photoOf, ProductCard } from '../ProductCard';
 import { Link, useRouter } from '../router';
@@ -65,7 +66,8 @@ const keyOf = (v: ProductVariant) => {
 };
 
 /** The size a card shows: the first that meets the size/height filters, else the featured one. */
-function shownVariant(product: Product, f: Filters): ProductVariant | null {
+/** The size a card shows: the featured one when it passes the filters - on the offers page, its best offer. */
+function shownVariant(product: Product, f: Filters, offers = false): ProductVariant | null {
   const all = variantsOf(product);
   const ok = all.filter((v) => {
     const p = parseSize(v);
@@ -77,6 +79,10 @@ function shownVariant(product: Product, f: Filters): ProductVariant | null {
     return true;
   });
   if (!ok.length) return null;
+  if (offers) {
+    const best = offerVariants(product).find((v) => ok.includes(v));
+    if (best) return best;
+  }
   const featured = featuredVariant(product);
   return ok.includes(featured) ? featured : ok[0];
 }
@@ -121,17 +127,18 @@ export function CategoryPage({ mode }: { mode: Mode }) {
   const title = mode.kind === 'search' ? `نتائج البحث عن «${mode.query}»` : mode.kind === 'offers' ? 'العروض' : tier ? `مراتب ${TIER_TITLE[tier]}` : 'كل المراتب';
   useTitle(mode.kind === 'search' ? `بحث: ${mode.query}` : title);
 
-  // The set before filters: the tier, the search's matches, or the discounted ones (none in Odoo yet).
+  // The set before filters: the tier, the search's matches, or the ones on offer
+  // (a dated line in Odoo's retail price list - src/lib/odoo.js, offerPrice).
   const base = useMemo(() => {
     if (mode.kind === 'search') return searchProducts(shop.products, mode.query);
-    if (mode.kind === 'offers') return [] as Product[];
+    if (mode.kind === 'offers') return shop.products.filter((p) => offerVariants(p).length > 0);
     return tier ? shop.products.filter((p) => tierOf(p) === tier) : shop.products;
   }, [shop.products, mode, tier]);
 
   const results = useMemo(() => {
     const list = base
       .filter((p) => !f.tiers.length || f.tiers.includes(tierOf(p)!))
-      .map((p) => ({ product: p, variant: shownVariant(p, f) }))
+      .map((p) => ({ product: p, variant: shownVariant(p, f, mode.kind === 'offers') }))
       .filter((r): r is { product: Product; variant: ProductVariant } => r.variant !== null);
     if (f.sort === 'price-asc') list.sort((a, b) => a.variant.price - b.variant.price);
     if (f.sort === 'price-desc') list.sort((a, b) => b.variant.price - a.variant.price);
@@ -256,12 +263,34 @@ export function CategoryPage({ mode }: { mode: Mode }) {
 
   const loading = shop.loading && shop.products.length === 0;
 
-  // ── Offers with no discounts in Odoo, and searches with nothing ──
-  if (mode.kind === 'offers' && !loading) {
+  // The panel's banners that carry an offer card («60 د.ل خصم») - campaigns, not price cuts.
+  const campaigns = mode.kind === 'offers' ? (shop.home?.banners ?? []).filter((b) => b.card) : [];
+  // The offer that ends first, for the header.
+  const endsFirst =
+    mode.kind === 'offers'
+      ? base
+          .flatMap((p) => offerVariants(p).map((v) => v.offerEndsAt))
+          .filter((x): x is string => Boolean(x))
+          .sort()[0] ?? null
+      : null;
+
+  // ── Offers with no price cut in Odoo: the campaigns, else nothing on offer ──
+  if (mode.kind === 'offers' && !loading && base.length === 0) {
     return (
       <Container className="pb-16">
         <Breadcrumb items={[{ label: 'العروض' }]} />
-        <EmptyState icon={<Tag />} title="لا توجد عروض حالياً" body="سنُعلمك عند وصول عرض جديد على مراتبنا." action="تصفّح المراتب" onAction={() => go({ name: 'category', tier: null })} />
+        <div className="flex flex-col gap-2 pb-5 lg:pb-6">
+          <h1 className="font-display text-[28px] font-bold leading-tight lg:text-[40px]">العروض</h1>
+          {campaigns.length ? <p className="text-[15px] text-muted-foreground lg:text-base">عروض بريماتكس الحالية.</p> : null}
+        </div>
+        <OfferBanners banners={campaigns} />
+        <EmptyState
+          icon={<Tag />}
+          title={campaigns.length ? 'لا تخفيضات على أسعار المراتب حالياً' : 'لا توجد عروض حالياً'}
+          body="سنُعلمك عند وصول عرض جديد على مراتبنا."
+          action="تصفّح المراتب"
+          onAction={() => go({ name: 'category', tier: null })}
+        />
       </Container>
     );
   }
@@ -269,11 +298,23 @@ export function CategoryPage({ mode }: { mode: Mode }) {
 
   return (
     <Container className="pb-16">
-      <Breadcrumb items={mode.kind === 'search' ? [{ label: 'البحث' }] : tier ? [{ label: 'المراتب', to: { name: 'category', tier: null } }, { label: TIER_TITLE[tier] }] : [{ label: 'المراتب' }]} />
-      <div className="flex flex-col gap-2 pb-5 lg:pb-6">
-        <h1 className="font-display text-[28px] font-bold leading-tight lg:text-[40px]">{title}</h1>
-        {mode.kind === 'tier' ? <p className="text-[15px] text-muted-foreground lg:text-base">{INTRO[tier ?? 'all']}</p> : null}
-      </div>
+      <Breadcrumb items={mode.kind === 'offers' ? [{ label: 'العروض' }] : mode.kind === 'search' ? [{ label: 'البحث' }] : tier ? [{ label: 'المراتب', to: { name: 'category', tier: null } }, { label: TIER_TITLE[tier] }] : [{ label: 'المراتب' }]} />
+      {mode.kind === 'offers' ? (
+        // The design's offer header (WebOffers): Sun Glare with the red underline.
+        <div className="mb-6 flex flex-col gap-3 bg-discount px-5 py-6 text-dark-ocean shadow-[0_4px_0_hsl(var(--discount-underline))] lg:flex-row lg:items-center lg:justify-between lg:px-12 lg:py-10">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-bold">تخفيضات لفترة محدودة</span>
+            <h1 className="font-display text-[28px] font-bold leading-tight lg:text-[40px]">العروض</h1>
+            {offerEndText(endsFirst) ? <span className="text-sm">{offerEndText(endsFirst)}</span> : null}
+          </div>
+          <b className="text-base lg:text-lg">{base.length === 1 ? 'مرتبة واحدة عليها تخفيض' : base.length === 2 ? 'مرتبتان عليهما تخفيض' : `${base.length} مراتب عليها تخفيض`}</b>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2 pb-5 lg:pb-6">
+          <h1 className="font-display text-[28px] font-bold leading-tight lg:text-[40px]">{title}</h1>
+          {mode.kind === 'tier' ? <p className="text-[15px] text-muted-foreground lg:text-base">{INTRO[tier ?? 'all']}</p> : null}
+        </div>
+      )}
 
       {/* The tier's mattresses as chips, photo and name. */}
       {mode.kind === 'tier' && tier && base.length ? (
@@ -342,6 +383,7 @@ export function CategoryPage({ mode }: { mode: Mode }) {
             <EmptyState icon={<SlidersHorizontal />} title="لا توجد مراتب بهذه الفلترة" body="جرّب مقاساً آخر أو ألغِ بعض الاختيارات." action="مسح الكل" onAction={clearAll} />
           )}
 
+          {campaigns.length ? <OfferBanners banners={campaigns} /> : null}
           <ShowroomBox tier={tier} />
         </div>
       </div>

@@ -171,13 +171,22 @@ function odooTime(value) {
 }
 
 /**
- * The list's fixed prices, by size and by product: items that apply to one
- * piece today. A size's own item wins over one for its whole product.
+ * The list's prices, by size and by product: items that apply to one piece
+ * today. A size's own item wins over one for its whole product.
+ *
+ * Offers (the shop's العروض) are the list's own lines too: a line with a
+ * start or an end date is a discount while it runs - a lower fixed price, or
+ * a percentage off - over the size's regular price, the undated line. That
+ * is how the owner puts a mattress on offer in Odoo (Sales > Pricelists >
+ * «أسعار المراتب - التجزئة», a line with dates), and it ends by itself on
+ * its end date. The undated lines are the regular prices, as before.
  */
 async function listPrices(pricelistId, variantIds, templateIds) {
   const byVariant = new Map();
   const byTemplate = new Map();
-  if (!pricelistId) return { byVariant, byTemplate };
+  const promoByVariant = new Map();
+  const promoByTemplate = new Map();
+  if (!pricelistId) return { byVariant, byTemplate, promoByVariant, promoByTemplate };
   const items = await searchReadAll(
     'product.pricelist.item',
     [
@@ -186,20 +195,46 @@ async function listPrices(pricelistId, variantIds, templateIds) {
       ['product_id', 'in', variantIds],
       ['product_tmpl_id', 'in', templateIds],
     ],
-    { fields: ['applied_on', 'product_id', 'product_tmpl_id', 'compute_price', 'fixed_price', 'min_quantity', 'date_start', 'date_end'] }
+    { fields: ['applied_on', 'product_id', 'product_tmpl_id', 'compute_price', 'fixed_price', 'percent_price', 'min_quantity', 'date_start', 'date_end'] }
   );
   const now = Date.now();
   for (const item of items) {
-    if (item.compute_price !== 'fixed' || !(Number(item.fixed_price) > 0)) continue;
     if (Number(item.min_quantity) > 1) continue;
     const start = odooTime(item.date_start);
     const end = odooTime(item.date_end);
     if ((start && start > now) || (end && end < now)) continue;
     const id = (field) => (Array.isArray(item[field]) ? item[field][0] : item[field]);
-    if (item.applied_on === '0_product_variant' && id('product_id')) byVariant.set(id('product_id'), Number(item.fixed_price));
-    else if (item.applied_on === '1_product' && id('product_tmpl_id')) byTemplate.set(id('product_tmpl_id'), Number(item.fixed_price));
+    const onVariant = item.applied_on === '0_product_variant' && id('product_id');
+    const onTemplate = item.applied_on === '1_product' && id('product_tmpl_id');
+    if (!onVariant && !onTemplate) continue;
+    if (start || end) {
+      // An offer while it runs: a lower fixed price, or a percentage off.
+      const fixed = item.compute_price === 'fixed' && Number(item.fixed_price) > 0 ? Number(item.fixed_price) : null;
+      const percent = item.compute_price === 'percentage' && Number(item.percent_price) > 0 && Number(item.percent_price) < 100 ? Number(item.percent_price) : null;
+      if (fixed == null && percent == null) continue;
+      const promo = { fixed, percent, endsAt: end ? new Date(end).toISOString() : null };
+      if (onVariant) promoByVariant.set(id('product_id'), promo);
+      else promoByTemplate.set(id('product_tmpl_id'), promo);
+      continue;
+    }
+    if (item.compute_price !== 'fixed' || !(Number(item.fixed_price) > 0)) continue;
+    if (onVariant) byVariant.set(id('product_id'), Number(item.fixed_price));
+    else byTemplate.set(id('product_tmpl_id'), Number(item.fixed_price));
   }
-  return { byVariant, byTemplate };
+  return { byVariant, byTemplate, promoByVariant, promoByTemplate };
+}
+
+/**
+ * A size's price with its offer, if one runs: { price, wasPrice, offerEndsAt }.
+ * The size's own offer wins over its product's; an offer that does not lower
+ * the regular price is no offer.
+ */
+function offerPrice(prices, variantId, templateId, regular) {
+  const promo = prices.promoByVariant?.get(variantId) ?? prices.promoByTemplate?.get(templateId);
+  if (!promo || !(regular > 0)) return { price: regular };
+  const price = promo.fixed != null ? promo.fixed : Math.round(regular * (1 - promo.percent / 100) * 100) / 100;
+  if (!(price > 0) || price >= regular) return { price: regular };
+  return { price, wasPrice: regular, offerEndsAt: promo.endsAt };
 }
 
 /** The Odoo product category the shop sells from; its children are the tiers. */
@@ -315,8 +350,9 @@ async function fetchProducts() {
         // The EAN on the mattress label - the app's scanner finds the size by it.
         barcode: v.barcode || null,
         // The retail price list's price for this size; the card's lst_price (the
-        // variant's own, attribute extras included) only when the list has none.
-        price: prices.byVariant.get(v.id) ?? prices.byTemplate.get(t.id) ?? v.lst_price,
+        // variant's own, attribute extras included) only when the list has none -
+        // and an offer's price over it while one runs (wasPrice: the regular one).
+        ...offerPrice(prices, v.id, t.id, prices.byVariant.get(v.id) ?? prices.byTemplate.get(t.id) ?? v.lst_price),
         stock: typeof v.qty_available === 'number' ? v.qty_available : null,
         inStock: typeof v.qty_available === 'number' ? v.qty_available > 0 : true,
       });
@@ -342,6 +378,8 @@ async function fetchProducts() {
       templateId: t.id,
       name: t.name,
       price: primary.price,
+      // A single-size product's offer (one with sizes carries it per size).
+      ...(primary.wasPrice ? { wasPrice: primary.wasPrice, offerEndsAt: primary.offerEndsAt ?? null } : {}),
       sku: primary.sku,
       stock: primary.stock,
       inStock: vs.some((v) => v.inStock),
@@ -829,6 +867,7 @@ async function invoicePdfUrl(invoiceId) {
 
 module.exports = {
   isConfigured,
+  offerPrice,
   // For src/lib/loyalty.js: Odoo's loyalty models are read straight through.
   call,
   phoneForms,

@@ -26,6 +26,37 @@ function useMode(): BannerMode {
   return mode;
 }
 
+/** A banner's links: a /p/<slug> link becomes the mattress's own address, an https one opens apart. */
+function useBannerLink(): RenderLink {
+  const shop = useShop();
+  return useCallback<RenderLink>(
+    (href, props) => {
+      const to = resolveMarketingLink(href, shop.products);
+      if (/^https:\/\//.test(to)) return <a href={to} target="_blank" rel="noopener noreferrer" {...props} />;
+      return <Link to={to} {...props} />;
+    },
+    [shop.products]
+  );
+}
+
+/**
+ * The offers page's campaigns: the banners that carry an offer card (the
+ * loyalty banner's «60 د.ل خصم»), one under another - the same slides as the
+ * home page, without the carousel.
+ */
+export function OfferBanners({ banners }: { banners: WebBanner[] }) {
+  const mode = useMode();
+  const renderLink = useBannerLink();
+  if (!banners.length) return null;
+  return (
+    <div className="-mx-4 flex flex-col gap-5 lg:mx-0">
+      {banners.map((b, i) => (
+        <BannerSlide key={b.id} banner={b} mode={mode} heading="h2" renderLink={renderLink} eager={i === 0} />
+      ))}
+    </div>
+  );
+}
+
 /**
  * The home page's banners (the panel's «الواجهة والبانرات», up to five):
  * real text and links over each photo (BannerSlide), sliding by themselves
@@ -34,20 +65,12 @@ function useMode(): BannerMode {
  * mattress's own address once the catalogue is in.
  */
 export function HomeBanners({ banners }: { banners: WebBanner[] }) {
-  const shop = useShop();
   const mode = useMode();
   const [viewport, embla] = useEmblaCarousel({ direction: 'rtl', loop: banners.length > 1, duration: 28 });
   const [index, setIndex] = useState(0);
   const [held, setHeld] = useState(false);
 
-  const renderLink = useCallback<RenderLink>(
-    (href, props) => {
-      const to = resolveMarketingLink(href, shop.products);
-      if (/^https:\/\//.test(to)) return <a href={to} target="_blank" rel="noopener noreferrer" {...props} />;
-      return <Link to={to} {...props} />;
-    },
-    [shop.products]
-  );
+  const renderLink = useBannerLink();
 
   useEffect(() => {
     if (!embla) return;
