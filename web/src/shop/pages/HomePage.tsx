@@ -35,7 +35,7 @@ const PROMISES = [
   { icon: Truck, title: 'توصيل مجاني', body: 'إلى كل المدن. اختر اليوم والفترة عند إتمام الطلب.' },
   { icon: CreditCard, title: 'الدفع عند الاستلام', body: 'نقداً أو بطاقة مصرفية أو حوالة مصرفية.' },
   { icon: ShieldCheck, title: 'ضمان من المصنع', body: 'سجّل ضمانك من حسابك.' },
-  { icon: Store, title: 'جرّبها في الصالة', body: 'صالة العرض في حي الأندلس، طرابلس.' },
+  { icon: Store, title: 'جرّبها في الصالة', body: 'صالة العرض في النوفليين، طرابلس.' },
 ];
 
 const TILES: { tier: TierKey; line: string; className: string; arrow: string }[] = [

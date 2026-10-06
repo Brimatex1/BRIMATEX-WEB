@@ -354,7 +354,7 @@ export function ProductPage({ id }: { id: number }) {
                   </>
                 }
               />
-              <MethodCard selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="معروضة للتجربة · حي الأندلس" />
+              <MethodCard selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="معروضة للتجربة · النوفليين" />
             </div>
 
             <div ref={mainButton}>{addButton}</div>

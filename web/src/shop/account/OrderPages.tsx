@@ -346,7 +346,7 @@ export function OrderPage({ orderName }: { orderName: string }) {
           </section>
           <section className="flex flex-col gap-2.5 rounded-lg border border-border p-5 text-[15px]">
             <b className="text-lg">التوصيل والدفع</b>
-            <Row label="العنوان" value={order.method === 'pickup' ? 'صالة العرض · حي الأندلس' : `${order.city} · ${order.address.split('،')[0]}`} />
+            <Row label="العنوان" value={order.method === 'pickup' ? 'صالة العرض · النوفليين' : `${order.city} · ${order.address.split('،')[0]}`} />
             {order.deliveryText ? <Row label="الموعد" value={order.deliveryText} /> : null}
             <Row label="الدفع" value={order.paymentText ? `${order.paymentText} عند الاستلام` : 'عند الاستلام'} />
             <div className="flex items-center justify-between border-t border-border pt-3 font-bold">

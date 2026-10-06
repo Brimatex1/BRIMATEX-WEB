@@ -28,7 +28,7 @@ const PAYMENTS: { value: Payment; label: string; icon: typeof Banknote }[] = [
 ];
 export const PAYMENT_LABEL: Record<Payment, string> = { cash: 'نقداً', card: 'بطاقة مصرفية', transfer: 'حوالة مصرفية' };
 export const SLOT_LABEL: Record<Slot, string> = { morning: 'صباحاً', evening: 'مساءً' };
-const SHOWROOM_ADDRESS = 'استلام من الصالة · حي الأندلس';
+const SHOWROOM_ADDRESS = 'استلام من الصالة · النوفليين';
 
 function isoDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -302,7 +302,7 @@ export function CheckoutPage() {
         orderName: result.orderName,
         total: result.total || payable,
         when,
-        address: pickup ? 'صالة العرض · حي الأندلس' : `${orderCity} · ${address.split('،')[0]}`,
+        address: pickup ? 'صالة العرض · النوفليين' : `${orderCity} · ${address.split('،')[0]}`,
         payment: `${PAYMENT_LABEL[payment]} عند الاستلام`,
         phone,
         lines: shop.cart.lines.map((l) => ({ productId: l.id, quantity: l.qty, price: l.price })),
@@ -549,7 +549,7 @@ export function CheckoutPage() {
           <Section n={pickup ? 1 : 2} title="كيف تصلك المراتب؟">
             <div role="radiogroup" aria-label="طريقة الاستلام" className="grid gap-3 sm:grid-cols-2">
               <Option selected={!pickup} onSelect={() => shop.setMethod('home')} icon={<Truck />} title="توصيل إلى المنزل" sub={`${usingSaved ? chosenSaved!.city : city}${!usingSaved && area ? ` · ${area}` : ''} · مجاني`} />
-              <Option selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="حي الأندلس · بدون رسوم" />
+              <Option selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="النوفليين · بدون رسوم" />
             </div>
             {pickup ? (
               <div className="grid gap-4 sm:grid-cols-2">

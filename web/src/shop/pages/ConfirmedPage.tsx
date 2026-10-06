@@ -46,7 +46,7 @@ export function ConfirmedPage({ order }: { order: string }) {
           orderName: o.orderName,
           total: o.total,
           when: o.deliveryText ?? (o.method === 'pickup' ? 'استلام من الصالة' : ''),
-          address: o.method === 'pickup' ? 'صالة العرض · حي الأندلس' : `${o.city} · ${o.address.split('،')[0]}`,
+          address: o.method === 'pickup' ? 'صالة العرض · النوفليين' : `${o.city} · ${o.address.split('،')[0]}`,
           payment: o.paymentText ? `${o.paymentText} عند الاستلام` : 'عند الاستلام',
           phone: shop.auth.user?.phone ?? '',
           lines: o.items.map((i) => ({ productId: i.productId, quantity: i.quantity, price: 0 })),

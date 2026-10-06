@@ -26,7 +26,7 @@ const COLUMNS: { title: string; links: { label: string; to?: Route; href?: strin
   {
     title: 'بريماتكس',
     links: [
-      { label: 'صالة العرض · حي الأندلس', to: { name: 'showroom' } },
+      { label: 'صالة العرض · النوفليين', to: { name: 'showroom' } },
       ...(INSTAGRAM ? [{ label: 'إنستغرام', href: INSTAGRAM }] : []),
       { label: 'سياسة الخصوصية', to: { name: 'legal', page: 'privacy' } },
       { label: 'الشروط والأحكام', to: { name: 'legal', page: 'terms' } },

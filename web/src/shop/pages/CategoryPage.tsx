@@ -467,7 +467,7 @@ function ShowroomBox({ tier }: { tier: TierKey | null }) {
         <Store className="mt-0.5 size-6 shrink-0 text-brand-text" strokeWidth={1.8} aria-hidden />
         <div className="flex flex-col gap-0.5">
           <b className="text-[15px]">جرّب المراتب قبل الشراء</b>
-          <span className="text-sm text-muted-foreground">كل مراتب {tier ? TIER_TITLE[tier] : 'بريماتكس'} معروضة في صالة العرض، حي الأندلس، طرابلس.</span>
+          <span className="text-sm text-muted-foreground">كل مراتب {tier ? TIER_TITLE[tier] : 'بريماتكس'} معروضة في صالة العرض، النوفليين، طرابلس.</span>
         </div>
       </div>
       <Button asChild variant="outline" size="sm" className="h-10 px-5">

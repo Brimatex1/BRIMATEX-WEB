@@ -67,7 +67,7 @@ function defaults() {
     maintenance: { on: false, message: DEFAULT_MAINTENANCE_MESSAGE },
     guestBrowsing: true,
     // The values web/src/shop/contact.ts shows.
-    contact: { phone: '0935770070', whatsapp, email: 'info@brimatex.ly', showroom: 'حي الأندلس، طرابلس' },
+    contact: { phone: '0935770070', whatsapp, email: 'info@brimatex.ly', showroom: 'النوفليين، طرابلس' },
     quietHours: { from: '22:00', to: '08:00' },
   };
 }

@@ -21,7 +21,7 @@ export const CONTACT = {
 };
 
 export const SHOWROOM = {
-  area: 'حي الأندلس',
+  area: 'النوفليين',
   city: 'طرابلس',
   /** e.g. «السبت – الخميس» and «9 ص – 9 م». */
   days: null as string | null,
@@ -87,7 +87,7 @@ export interface LiveContact {
   /** wa.me digits. */
   whatsapp: string;
   email: string;
-  /** The showroom's address in one line: «حي الأندلس، طرابلس». */
+  /** The showroom's address in one line: «النوفليين، طرابلس». */
   showroom: string;
 }
 

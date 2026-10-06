@@ -94,7 +94,7 @@ function unit() {
   const d = appSettings.defaults();
   ok('الافتراضي: بلا إجبار وبلا صيانة والزائر مسموح', d.forceUpdate === false && d.maintenance.on === false && d.guestBrowsing === true);
   ok('الافتراضي: الهدوء 22:00 إلى 08:00', d.quietHours.from === '22:00' && d.quietHours.to === '08:00');
-  ok('الافتراضي: تواصل الموقع', d.contact.phone === '0935770070' && d.contact.email === 'info@brimatex.ly' && d.contact.showroom === 'حي الأندلس، طرابلس');
+  ok('الافتراضي: تواصل الموقع', d.contact.phone === '0935770070' && d.contact.email === 'info@brimatex.ly' && d.contact.showroom === 'النوفليين، طرابلس');
   ok('رقم دولي ← محلي', appSettings.libyanNumber('+218 93-577-0070') === '0935770070');
   ok('00218 ← محلي', appSettings.libyanNumber('00218912345678') === '0912345678');
   ok('أرقام عربية', appSettings.libyanNumber('٠٩١٢٣٤٥٦٧٨') === '0912345678');
