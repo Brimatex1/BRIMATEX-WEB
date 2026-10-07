@@ -10,8 +10,8 @@ import { Icon, ROLE_LABEL, SECTION_META } from './ui';
 
 /**
  * The panel's frame (AdminHome / AdminOrders): the sidebar on the right
- * (256px) with the sections this role may open, «افتح أودو» and who is
- * signed in; each page brings its own top bar (PageHeader). Under 1024px the
+ * (256px) with the sections this role may open, «العودة إلى المتجر», «افتح
+ * أودو» and who is signed in; each page brings its own top bar (PageHeader). Under 1024px the
  * sidebar folds into a drawer behind a menu button.
  */
 export function Shell({ me, current, onSignOut, children }: { me: PanelMe; current: Section; onSignOut: () => void; children: ReactNode }) {
@@ -30,14 +30,19 @@ export function Shell({ me, current, onSignOut, children }: { me: PanelMe; curre
           <BrimatexLogo className="h-8 w-auto text-dark-ocean" />
           <AdminTag />
         </span>
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className="grid size-10 place-items-center rounded-[10px] text-[#3B3E4C] hover:bg-[#F5F6FA]"
-          aria-label="القائمة"
-        >
-          <Icon name="menu" size={22} />
-        </button>
+        <span className="flex items-center gap-1">
+          <a href="/" className="grid size-10 place-items-center rounded-[10px] text-[#3B3E4C] hover:bg-[#F5F6FA]" aria-label="العودة إلى المتجر" title="العودة إلى المتجر">
+            <Icon name="store" size={22} />
+          </a>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            className="grid size-10 place-items-center rounded-[10px] text-[#3B3E4C] hover:bg-[#F5F6FA]"
+            aria-label="القائمة"
+          >
+            <Icon name="menu" size={22} />
+          </button>
+        </span>
       </div>
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
         <SheetContent side="right" className="flex w-[280px] flex-col gap-[22px] bg-white px-4 pb-[22px] pt-14 font-sans text-[#16161F]">
@@ -94,6 +99,14 @@ function SidebarBody({ me, current, onSignOut }: { me: PanelMe; current: Section
       </nav>
 
       <div className="mt-auto flex flex-col gap-2.5">
+        {/* The storefront is another app (main.tsx): a full load, not a panel move. */}
+        <a
+          href="/"
+          className="flex h-11 items-center gap-2.5 rounded-[10px] px-3 text-sm font-semibold text-[#16161F] no-underline shadow-[inset_0_0_0_1px_#E4E6EE] hover:bg-[#F5F6FA]"
+        >
+          <Icon name="store" size={18} />
+          العودة إلى المتجر
+        </a>
         {me.odooUrl ? (
           <a
             href={me.odooUrl}

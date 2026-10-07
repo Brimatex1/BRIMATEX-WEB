@@ -36,6 +36,8 @@ const ICON_PATHS = {
       <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" />
     </>
   ),
+  // The storefront (العودة إلى المتجر): a shop with its awning.
+  store: <path d="M4 10v9.5h16V10M3.5 5h17l-1 5H4.5zM9.5 19.5v-5h5v5" />,
   external: <path d="M14 5h5v5M19 5l-8 8M10 6H6a1 1 0 00-1 1v11a1 1 0 001 1h11a1 1 0 001-1v-4" />,
   search: (
     <>
