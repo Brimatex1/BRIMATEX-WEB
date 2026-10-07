@@ -90,6 +90,9 @@ async function startTestServer({ port, env = {} } = {}) {
       // otherwise win over the blanks above and reach the real Odoo.
       ODOO_IGNORE_STORED: '1',
       WHATSAPP_TOKEN: '',
+      // Accounts without a WhatsApp code and orders without an account - the suite's
+      // own shortcuts (src/routes/auth.js); tests/account-guard.check.js turns them off.
+      BRIMATEX_ALLOW_UNVERIFIED: '1',
       // Never report test orders to the real Meta dataset.
       FACEBOOK_CAPI_TOKEN: '',
       FACEBOOK_PIXEL_ID: '',

@@ -24,15 +24,19 @@ function Frame({ children }: { children: ReactNode }) {
 }
 
 /**
- * Not signed in: the storefront's sign-in with a code - the number, then the
- * six digits sent on WhatsApp (the same calls as shop/LoginDrawer). The panel
- * has no accounts of its own: a staff member is a customer account with a
- * role, so a number with no account is told so rather than signed up.
+ * Not signed in: the storefront's sign-in (shop/LoginDrawer) - the number and
+ * the password; «نسيت كلمة المرور» sends a WhatsApp code, then a new password
+ * (the first one, for an account opened by code alone). The panel has no
+ * accounts of its own: a staff member is a customer account with a role, so
+ * none is opened here.
  */
 export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: User) => void }) {
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
+  const [mode, setMode] = useState<'login' | 'reset'>('login');
+  const [step, setStep] = useState<'phone' | 'code' | 'password'>('phone');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
+  const [resetToken, setResetToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(0);
@@ -44,17 +48,47 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
     return () => window.clearTimeout(t);
   }, [resendIn]);
 
-  async function sendCode(e?: FormEvent) {
-    e?.preventDefault();
-    if (!/^09\d{8}$/.test(phone)) {
-      setError('رقم الهاتف يتكوّن من 10 أرقام ويبدأ بـ 09.');
+  function go(next: 'login' | 'reset') {
+    setMode(next);
+    setStep('phone');
+    setPassword('');
+    setCode('');
+    setError(null);
+  }
+
+  const phoneOk = () => {
+    if (/^09\d{8}$/.test(phone)) return true;
+    setError('رقم الهاتف يتكوّن من 10 أرقام ويبدأ بـ 09.');
+    return false;
+  };
+
+  async function signIn(e: FormEvent) {
+    e.preventDefault();
+    if (!phoneOk()) return;
+    if (!password) {
+      setError('اكتب كلمة المرور.');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const r = await api.requestPhoneCode(phone);
-      setResendIn(r.resendIn);
+      const r = await api.login(phone, password);
+      onSignedIn(r.token, r.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذّر الدخول');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendCode(e?: FormEvent) {
+    e?.preventDefault();
+    if (!phoneOk()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.requestPasswordOtp(phone);
+      setResendIn(60);
       setStep('code');
       setCode('');
       window.setTimeout(() => codeInput.current?.focus(), 50);
@@ -70,13 +104,9 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
     setBusy(true);
     setError(null);
     try {
-      const r = await api.verifyPhoneCode(phone, value);
-      if ('needsName' in r) {
-        setError('لا يوجد حساب بهذا الرقم. اطلب من المدير إضافتك إلى فريق الإدارة.');
-        setStep('phone');
-      } else {
-        onSignedIn(r.token, r.user);
-      }
+      setResetToken((await api.verifyPasswordOtp(phone, value)).resetToken);
+      setStep('password');
+      setPassword('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'الرمز غير صحيح.');
       setCode('');
@@ -86,38 +116,85 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
     }
   }
 
+  async function savePassword(e: FormEvent) {
+    e.preventDefault();
+    if (password.length < 6) {
+      setError('كلمة المرور 6 أحرف على الأقل.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.resetPassword(resetToken, password);
+      onSignedIn(r.token, r.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذّر الحفظ');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const field = 'h-12 w-full rounded-[10px] bg-[#F5F6FA] px-4 text-[16px] outline-none focus-visible:ring-2 focus-visible:ring-dark-ocean/40';
+  const link = 'font-semibold text-dark-ocean underline';
   const minutes = `${Math.floor(resendIn / 60)}:${String(resendIn % 60).padStart(2, '0')}`;
+  const phoneInput = (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-semibold text-[#5F6373]">رقم الهاتف</span>
+      <input
+        dir="ltr"
+        inputMode="tel"
+        autoComplete="tel"
+        value={phone}
+        onChange={(e) => setPhone(toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 10))}
+        placeholder="09X XXX XXXX"
+        className={cn(field, 'text-right')}
+        autoFocus
+      />
+    </label>
+  );
+  const passwordInput = (label: string, autoComplete: string) => (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[13px] font-semibold text-[#5F6373]">{label}</span>
+      <input dir="ltr" type="password" autoComplete={autoComplete} value={password} onChange={(e) => setPassword(e.target.value)} className={cn(field, 'text-right')} />
+    </label>
+  );
 
   return (
     <Frame>
       <div className="flex flex-col gap-1">
-        <h1 className="m-0 font-display text-[22px] font-bold">الدخول إلى لوحة الإدارة</h1>
+        <h1 className="m-0 font-display text-[22px] font-bold">{mode === 'login' ? 'الدخول إلى لوحة الإدارة' : 'نسيت كلمة المرور'}</h1>
         <p className="text-sm text-[#5F6373]">
-          {step === 'phone' ? 'أدخل رقم هاتفك، وسنرسل إليك رمز الدخول عبر واتساب.' : `أرسلنا رمزاً من 6 أرقام إلى واتساب ${phone}.`}
+          {mode === 'login'
+            ? 'رقم هاتفك وكلمة المرور - نفس حسابك في المتجر.'
+            : step === 'phone'
+              ? 'نرسل رمزاً على واتساب إلى رقمك، ثم تختار كلمة مرور جديدة.'
+              : step === 'code'
+                ? `أرسلنا رمزاً من 6 أرقام إلى واتساب ${phone}.`
+                : 'اختر كلمة مرور جديدة - تدخل بها من الآن.'}
         </p>
       </div>
-      {step === 'phone' ? (
+
+      {mode === 'login' ? (
+        <form onSubmit={signIn} className="flex flex-col gap-4">
+          {phoneInput}
+          {passwordInput('كلمة المرور', 'current-password')}
+          {error ? <p className="text-sm text-[#A12020]">{error}</p> : null}
+          <Button type="submit" disabled={busy}>
+            {busy ? 'جارٍ الدخول…' : 'دخول'}
+          </Button>
+          <button type="button" className={cn(link, 'self-start text-[13.5px]')} onClick={() => go('reset')}>
+            نسيت كلمة المرور؟
+          </button>
+        </form>
+      ) : step === 'phone' ? (
         <form onSubmit={sendCode} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-semibold text-[#5F6373]">رقم الهاتف</span>
-            <input
-              dir="ltr"
-              inputMode="tel"
-              autoComplete="tel"
-              value={phone}
-              onChange={(e) => setPhone(toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 10))}
-              placeholder="09X XXX XXXX"
-              className={cn(field, 'text-right')}
-              autoFocus
-            />
-          </label>
+          {phoneInput}
           {error ? <p className="text-sm text-[#A12020]">{error}</p> : null}
           <Button type="submit" disabled={busy}>
             {busy ? 'جارٍ الإرسال…' : 'أرسل الرمز'}
           </Button>
         </form>
-      ) : (
+      ) : step === 'code' ? (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -126,7 +203,7 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
           className="flex flex-col gap-4"
         >
           <label className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-semibold text-[#5F6373]">رمز الدخول</span>
+            <span className="text-[13px] font-semibold text-[#5F6373]">رمز التحقق</span>
             <input
               ref={codeInput}
               dir="ltr"
@@ -143,22 +220,37 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
           </label>
           {error ? <p className="text-sm text-[#A12020]">{error}</p> : null}
           <Button type="submit" disabled={busy || code.length !== CODE_LENGTH}>
-            {busy ? 'جارٍ التحقق…' : 'دخول'}
+            {busy ? 'جارٍ التحقق…' : 'تأكيد'}
           </Button>
           <div className="flex items-center justify-between text-[13.5px]">
-            <button type="button" className="font-semibold text-dark-ocean underline" onClick={() => setStep('phone')}>
+            <button type="button" className={link} onClick={() => setStep('phone')}>
               تغيير الرقم
             </button>
             {resendIn > 0 ? (
               <span className="text-[#5F6373]">إعادة الإرسال بعد {minutes}</span>
             ) : (
-              <button type="button" className="font-semibold text-dark-ocean underline" onClick={() => void sendCode()}>
+              <button type="button" className={link} onClick={() => void sendCode()}>
                 أعد إرسال الرمز
               </button>
             )}
           </div>
         </form>
+      ) : (
+        <form onSubmit={savePassword} className="flex flex-col gap-4">
+          {passwordInput('كلمة المرور الجديدة', 'new-password')}
+          <span className="-mt-2 text-[12.5px] text-[#5F6373]">6 أحرف أو أرقام على الأقل.</span>
+          {error ? <p className="text-sm text-[#A12020]">{error}</p> : null}
+          <Button type="submit" disabled={busy}>
+            {busy ? 'جارٍ الحفظ…' : 'حفظ والدخول'}
+          </Button>
+        </form>
       )}
+
+      {mode === 'reset' ? (
+        <button type="button" className={cn(link, 'self-start text-[13.5px]')} onClick={() => go('login')}>
+          رجوع إلى الدخول
+        </button>
+      ) : null}
     </Frame>
   );
 }

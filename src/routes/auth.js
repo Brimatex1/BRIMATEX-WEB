@@ -29,6 +29,40 @@ const { sendJson, readBody } = require('../lib/respond');
  */
 const NOT_HANDLED = Symbol('auth-route-not-handled');
 
+/**
+ * The test suite's own servers (tests/_server.js) only: accounts made without
+ * a code and orders without an account. Everywhere else a new account proves
+ * its number with a WhatsApp code, once - then signs in with its password -
+ * and every order comes from an account (src/routes/orders.js): a made-up
+ * number can neither open an account nor order.
+ */
+const ALLOW_UNVERIFIED = process.env.BRIMATEX_ALLOW_UNVERIFIED === '1';
+
+/**
+ * Wrong passwords: five for one number within 15 minutes, then that number
+ * waits (a guessed password is an account taken); twenty from one address.
+ * A right one clears the number's count.
+ */
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const LOGIN_FAILS_PER_PHONE = 5;
+const LOGIN_FAILS_PER_ADDRESS = 20;
+const loginFails = new Map();
+
+function failsOf(key, now) {
+  const list = (loginFails.get(key) || []).filter((t) => now - t < LOGIN_WINDOW_MS);
+  if (list.length) loginFails.set(key, list);
+  else loginFails.delete(key);
+  return list;
+}
+
+function loginLocked(phone, ip, now = Date.now()) {
+  return failsOf(`p:${phone}`, now).length >= LOGIN_FAILS_PER_PHONE || failsOf(`a:${ip}`, now).length >= LOGIN_FAILS_PER_ADDRESS;
+}
+
+function recordLoginFail(phone, ip, now = Date.now()) {
+  for (const key of [`p:${phone}`, `a:${ip}`]) loginFails.set(key, [...failsOf(key, now), now]);
+}
+
 /** Sign-in codes asked for per address per minute - each one is a paid WhatsApp message. */
 const CODE_REQUESTS_PER_MIN = 5;
 const codeRequests = new Map();
@@ -89,6 +123,10 @@ function createAuthRoutes({ isValidPhone }) {
           return sendJson(res, 400, { error: 'انتهت صلاحية التوثيق — أعد المحاولة' });
         }
       } else {
+        // A number nobody proved: closed - the account's number is checked by a WhatsApp code first.
+        if (!ALLOW_UNVERIFIED) {
+          return sendJson(res, 400, { error: 'أكّد رقمك برمز واتساب أولاً — حدّث التطبيق إن لم يظهر لك الرمز', code: 'verify_required' });
+        }
         if (!phone?.trim()) {
           return sendJson(res, 400, { error: 'رقم الهاتف مطلوب' });
         }
@@ -119,14 +157,22 @@ function createAuthRoutes({ isValidPhone }) {
       } catch {
         return sendJson(res, 400, { error: 'JSON غير صالح' });
       }
-      const { phone, password } = payload;
-      if (!phone?.trim() || !password?.trim()) {
-        return sendJson(res, 400, { error: 'رقم الهاتف والكلمة المرورية مطلوبة' });
+      const { password } = payload;
+      const phone = String(payload.phone || '').trim();
+      if (!phone || !password?.trim()) {
+        return sendJson(res, 400, { error: 'رقم الهاتف وكلمة المرور مطلوبان' });
+      }
+      const ip = rateKey(req);
+      if (loginLocked(phone, ip)) {
+        return sendJson(res, 429, { error: 'محاولات كثيرة. انتظر 15 دقيقة، أو اختر «نسيت كلمة المرور».', code: 'locked' });
       }
       const user = await auth.authenticate(phone, password);
       if (!user) {
-        return sendJson(res, 401, { error: 'رقم الهاتف أو الكلمة المرورية غير صحيحة' });
+        recordLoginFail(phone, ip);
+        // An account opened by code alone has no password of its own yet: «نسيت كلمة المرور» sets one.
+        return sendJson(res, 401, { error: 'رقم الهاتف أو كلمة المرور غير صحيحة. أول مرة بكلمة مرور؟ اختر «نسيت كلمة المرور» لتعيينها.' });
       }
+      loginFails.delete(`p:${phone}`);
       const token = await auth.createSession(user.id);
       return sendJson(res, 200, {
         message: 'تم الدخول بنجاح',
@@ -232,6 +278,10 @@ function createAuthRoutes({ isValidPhone }) {
        account), so neither can be spent on the other's route. */
 
     if (req.method === 'POST' && url.pathname === '/api/auth/signup/otp/request') {
+      // Each code is a paid WhatsApp message: a few a minute per address, as the code sign-in.
+      if (tooManyCodeRequests(rateKey(req))) {
+        return sendJson(res, 429, { error: 'طلبت رموزاً كثيرة. انتظر دقيقة ثم حاول مجدداً.' });
+      }
       const body = await readBody(req);
       let payload;
       try {
@@ -295,6 +345,9 @@ function createAuthRoutes({ isValidPhone }) {
        the code's lifetime, attempt limit and resend cooldown. */
 
     if (req.method === 'POST' && url.pathname === '/api/auth/otp/request') {
+      if (tooManyCodeRequests(rateKey(req))) {
+        return sendJson(res, 429, { error: 'طلبت رموزاً كثيرة. انتظر دقيقة ثم حاول مجدداً.' });
+      }
       const body = await readBody(req);
       let payload;
       try {

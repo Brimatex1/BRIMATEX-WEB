@@ -176,6 +176,13 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
 
       const orderToken = req.headers.authorization?.split(' ')[1];
       const orderSession = orderToken ? await auth.verifySession(orderToken) : null;
+      // Every order comes from an account - its number proved by a WhatsApp code
+      // when it was opened. The website and the apps ask for it before checkout;
+      // here it is what stops orders sent straight to the server under a made-up
+      // number. The test suite's servers alone take orders without one.
+      if (!orderSession && process.env.BRIMATEX_ALLOW_UNVERIFIED !== '1') {
+        return sendJson(res, 401, { error: 'سجّل الدخول لإتمام الطلب', code: 'login_required' });
+      }
 
       // Catalogue prices by product (and size) id - the subtotal a voucher
       // discounts, and the demo order's total.
