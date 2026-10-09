@@ -31,7 +31,7 @@ const TITLE = {
 /**
  * - login: the number and the password - every sign-in, no code.
  * - signup: a new account - the number, the WhatsApp code (once, to prove the
- *   number is theirs), then the name and a password.
+ *   number is theirs), then the first name, the family name and a password.
  * - reset: «نسيت كلمة المرور» - the number, the code, a new password. An
  *   account opened by code alone (before passwords) sets its first one here.
  */
@@ -54,7 +54,8 @@ export function LoginDrawer() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState('');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [proof, setProof] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,7 +82,8 @@ export function LoginDrawer() {
     setStep('phone');
     setPassword('');
     setCode('');
-    setName('');
+    setFirstName('');
+    setLastName('');
     setProof('');
     setError(null);
   }
@@ -155,8 +157,12 @@ export function LoginDrawer() {
 
   async function finish(e: FormEvent) {
     e.preventDefault();
-    if (mode === 'signup' && name.trim().length < 2) {
-      setError('اكتب اسمك');
+    if (mode === 'signup' && firstName.trim().length < 2) {
+      setError('اكتب اسمك الأول');
+      return;
+    }
+    if (mode === 'signup' && lastName.trim().length < 2) {
+      setError('اكتب لقبك');
       return;
     }
     if (password.length < MIN_PASSWORD) {
@@ -167,7 +173,8 @@ export function LoginDrawer() {
     setError(null);
     try {
       if (mode === 'signup') {
-        const r = await api.registerVerified(name.trim(), password, proof);
+        // One name on the account, as on the order and the invoice: «الاسم الأول اللقب».
+        const r = await api.registerVerified(`${firstName.trim()} ${lastName.trim()}`, password, proof);
         // A new account, now that the WhatsApp code proved the number.
         trackCompleteRegistration();
         done(r.token, r.user);
@@ -191,7 +198,7 @@ export function LoginDrawer() {
   const line =
     mode === 'signup'
       ? step === 'details'
-        ? 'اسمك على طلباتك وفاتورتك، وكلمة مرور تدخل بها في كل مرة.'
+        ? 'اسمك ولقبك على طلباتك وفاتورتك، وكلمة مرور تدخل بها في كل مرة.'
         : 'نرسل رمزاً على واتساب مرة واحدة لنتأكد أن الرقم رقمك.'
       : mode === 'reset'
         ? step === 'details'
@@ -373,21 +380,37 @@ export function LoginDrawer() {
         {mode !== 'login' && step === 'details' ? (
           <form onSubmit={finish} className="flex animate-step-in flex-col gap-4">
             {mode === 'signup' ? (
-              <label className="flex flex-col gap-2">
-                <b className="text-[15px]">الاسم الكامل</b>
-                <input
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setError(null);
-                  }}
-                  autoComplete="name"
-                  autoFocus
-                  aria-invalid={Boolean(error)}
-                  aria-describedby={error ? 'login-error' : undefined}
-                  className={fieldClass(Boolean(error))}
-                />
-              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-2">
+                  <b className="text-[15px]">الاسم الأول</b>
+                  <input
+                    value={firstName}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      setError(null);
+                    }}
+                    autoComplete="given-name"
+                    autoFocus
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    className={fieldClass(Boolean(error))}
+                  />
+                </label>
+                <label className="flex flex-col gap-2">
+                  <b className="text-[15px]">اللقب</b>
+                  <input
+                    value={lastName}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      setError(null);
+                    }}
+                    autoComplete="family-name"
+                    aria-invalid={Boolean(error)}
+                    aria-describedby={error ? 'login-error' : undefined}
+                    className={fieldClass(Boolean(error))}
+                  />
+                </label>
+              </div>
             ) : null}
             {passwordField(mode === 'signup' ? 'كلمة المرور' : 'كلمة المرور الجديدة', 'new-password', mode === 'reset')}
             <span className="-mt-2 text-[13px] text-muted-foreground">{MIN_PASSWORD} أحرف أو أرقام على الأقل.</span>
