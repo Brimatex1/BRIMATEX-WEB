@@ -1,108 +1,69 @@
-# واجهة BRIMATEX — React + Tailwind + shadcn/ui
+# Frontend
 
-## البنية
+React 18 + TypeScript + Vite + Tailwind CSS (shadcn/ui primitives), right to
+left, in `web/`. One build serves three apps, chosen by the address in
+`web/src/main.tsx`:
+
+| Address | App | Source |
+|---|---|---|
+| `/admin/classic…` | The classic dashboard - reviews, Odoo connection, Meta pixel, WhatsApp | `web/src/AdminApp.tsx`, `web/src/components/` |
+| `/admin…` | The admin panel - orders, customers, products, banners, push, quiz, settings | `web/src/panel/` |
+| anything else | The storefront | `web/src/shop/` |
+
+The two admin apps are lazy chunks: customers never download them.
+
+## Layout
 
 ```
-BRIMATEX-WEB-main/
-├── server.js              نقطة تشغيل الخادم
-├── package.json           أوامر المشروع
-├── src/                   الخادم (Node بلا تبعيات)
-│   ├── server.js          توجيه API وخدمة الملفات
-│   ├── lib/               odoo · whatsapp · auth
-│   ├── data/              المنتجات والطلبات والمستخدمون
-│   └── public/            ← ناتج البناء (يُولَّد تلقائياً)
-├── web/                   الواجهة (React)
-│   ├── src/
-│   │   ├── components/ui/ مكوّنات shadcn/ui
-│   │   ├── components/    أقسام التطبيق
-│   │   ├── hooks/         useCart · useAuth
-│   │   ├── lib/           api · utils
-│   │   └── types.ts
-│   └── vite.config.ts
-├── tests/
-│   ├── smoke.test.js      الخادم + ناتج البناء
-│   └── frontend.check.js  كود الواجهة
-└── legacy/                النسخة السابقة (HTML/CSS/JS خام)
+web/
+├── index.html            the single page; loads src/main.tsx
+├── vite.config.ts        build into ../src/public, dev proxy to the server
+├── tailwind.config.js
+└── src/
+    ├── main.tsx          picks the app by address
+    ├── index.css         fonts (IBM Plex Sans Arabic) and the colour tokens
+    ├── shop/             storefront: ShopApp.tsx, router.tsx, pages/, account/
+    ├── panel/            admin panel: PanelApp.tsx, router.tsx, pages/
+    ├── AdminApp.tsx      classic dashboard
+    ├── components/       classic dashboard panels, and ui/ (shadcn/ui)
+    ├── hooks/            data hooks shared by the apps
+    └── lib/              api client, Meta Pixel, delivery dates, search, …
 ```
 
-## التشغيل
+## Running
 
-### أول مرة
-
-```powershell
-cd C:\Users\mbour\Downloads\BRIMATEX-WEB-main
-npm run setup     # تثبيت حزم الواجهة (مرة واحدة، بضع دقائق)
-npm run build     # بناء الواجهة إلى src/public
-npm start         # تشغيل الموقع على http://localhost:3000
+```bash
+npm install          # also installs web/ (postinstall)
+npm run dev:api      # the server on http://localhost:3000
+npm run dev:web      # Vite on http://localhost:5173
 ```
 
-### أثناء التطوير
+Open http://localhost:5173. Vite forwards `/api`, `/uploads` and `/images` to
+the server (or to `API_TARGET` if set).
 
-نافذتان في PowerShell:
+`npm run build` type-checks and builds into `src/public/`, which the server
+serves. On `main` the "build" workflow does this and commits the result -
+see the README's Deployment section. Do not commit a local build.
 
-```powershell
-# النافذة الأولى — الخادم
-npm run dev:api
+`npm run typecheck` runs the TypeScript checks alone.
 
-# النافذة الثانية — الواجهة مع إعادة التحميل الفوري
-npm run dev:web
-```
+## Design system
 
-ثم افتح **http://localhost:5173** (يُمرِّر `/api` تلقائياً إلى الخادم على المنفذ 3000).
+Colours are CSS variables in `web/src/index.css`, mapped in
+`tailwind.config.js`; the brand palette and contrast are in
+[BRAND_COLORS.md](BRAND_COLORS.md). Change the variables, not components.
 
-### قبل النشر
+Add a shadcn/ui component with `npx shadcn@latest add <name>` inside `web/`
+(settings in `web/components.json`), or copy it into `web/src/components/ui/`.
 
-```powershell
-npm run build     # بناء الإنتاج
-npm start         # يخدم كل شيء من المنفذ 3000
-```
+## Things to know
 
-## الاختبارات
-
-```powershell
-npm test                        # الخادم وواجهات API وناتج البناء
-node tests\frontend.check.js    # كود الواجهة: الاستيرادات والوصول والمنطق
-npm run typecheck               # فحص أنواع TypeScript (بعد npm run setup)
-```
-
-## نظام التصميم
-
-الألوان معرَّفة كمتغيرات CSS في `web/src/index.css` ومربوطة في `web/tailwind.config.js`.
-لتغيير الهوية البصرية، عدّل المتغيرات فقط — كل المكوّنات تتبعها تلقائياً.
-
-| الرمز | الاستخدام | الوضع الفاتح |
-|-------|-----------|--------------|
-| `--primary` | الأزرار والعناوين | بني داكن |
-| `--accent` | التمييز والأسعار | ذهبي |
-| `--background` | خلفية الصفحة | أبيض دافئ |
-| `--muted-foreground` | نص ثانوي | رمادي |
-| `--destructive` | الأخطاء والحذف | أحمر |
-| `--success` | التأكيدات | أخضر |
-
-الوضع الداكن جاهز: أضف `class="dark"` على `<html>`.
-
-**الخطوط:** Cormorant للعناوين، Montserrat للنصوص — تُحمَّل من Google Fonts.
-
-## إضافة مكوّن shadcn جديد
-
-```powershell
-cd web
-npx shadcn@latest add dialog
-```
-
-أو انسخ المكوّن يدوياً إلى `web/src/components/ui/`. الإعدادات في `components.json`.
-
-## ملاحظات مهمة
-
-**سياسة الأمان (CSP):** الخادم يرسل `script-src 'self'`، لذا لا يعمل أي JavaScript مضمّن
-داخل HTML. هذا سبب ضبط `modulePreload.polyfill: false` في `vite.config.ts` — لمنع Vite
-من حقن سكربت مضمّن. عند إضافة نطاق خارجي جديد (خطوط، صور، واجهات)، أضفه إلى ترويسة
-CSP في `src/server.js`.
-
-**التخزين المؤقت:** ملفات `/assets/` تحمل بصمة في أسمائها وتُخزَّن سنة كاملة، بينما
-`index.html` لا يُخزَّن أبداً. لا حاجة لمسح ذاكرة المتصفح بعد كل نشر.
-
-**حد الطلبات:** 10 طلبات لكل عنوان IP في الدقيقة، قابل للتعديل عبر متغير البيئة
-`RATE_LIMIT_ORDERS_PER_MIN`.
-
-**النسخة السابقة:** محفوظة في `legacy/` — يمكن العودة إليها بنسخ ملفاتها إلى `src/public/`.
+- **Content Security Policy.** The server sends `script-src 'self'`
+  (`SHELL_CSP` in `src/server.js`), so no inline script runs - which is why
+  `vite.config.ts` sets `modulePreload.polyfill: false`. A new outside origin
+  (fonts, images, an API) must be added to `SHELL_CSP`.
+- **Caching.** Files under `/assets/` carry a content hash and are cached for a
+  year; `index.html` is sent `no-cache` (checked on every visit), so a deploy
+  needs no cache clearing.
+- **Order rate limit.** 10 orders per address per minute
+  (`RATE_LIMIT_ORDERS_PER_MIN`).

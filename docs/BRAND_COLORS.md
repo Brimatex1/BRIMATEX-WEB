@@ -65,9 +65,7 @@
 
 | الملف | الوصف |
 |---|---|
-| [`assets/logos/brimatex-logo.svg`](../assets/logos/brimatex-logo.svg) | الشعار الكامل الملوّن |
-| [`assets/logos/logo-compact.svg`](../assets/logos/logo-compact.svg) | نسخة مختصرة |
-| [`assets/brand/brimatex-wordmark.svg`](../assets/brand/brimatex-wordmark.svg) | الشعار النصي (تصدير Illustrator) |
+| [`assets/brand/brimatex-logo.svg`](../assets/brand/brimatex-logo.svg) | الشعار (تصدير Illustrator) - مصدر `web/src/components/BrimatexLogo.tsx` |
 
 **ملاحظة:** الشعار النصي مصدَّر بلون `#282767` بينما القيمة الرسمية `#282868` —
 فرق نقطة واحدة في قناتين، ناتج عن تقريب التصدير. غير محسوس بصرياً، لكن يُفضَّل

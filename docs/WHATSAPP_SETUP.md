@@ -1,163 +1,69 @@
-# WhatsApp Integration Setup (Twilio)
+# WhatsApp
 
-This guide explains how to set up automatic invoice delivery via WhatsApp using Twilio.
+The server talks to WhatsApp in two separate ways. Both are optional: left
+unconfigured, the store works and nothing is sent.
 
-## Overview
+| Purpose | Service | Code | Variables |
+|---|---|---|---|
+| One-time codes - opening an account, resetting a password | WhatsApp Cloud API (Meta) | `src/lib/whatsapp-cloud.js`, `src/lib/otp.js` | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE`, `WHATSAPP_OTP_LANG` |
+| An invoice message after each order | Twilio | `src/lib/whatsapp.js` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` |
 
-When a customer places an order, the system automatically sends their invoice details via WhatsApp. The message includes:
-- Order number
-- Invoice number  
-- Invoice status (draft/posted/paid)
-- Total amount
-- Company information
+The «chat with us» button is neither: it is a plain `wa.me` link to the
+support line (`WHATSAPP_SUPPORT_PHONE`, or the dashboard).
 
-## Configuration
+## One-time codes (Cloud API)
 
-### Option 1: Demo Mode (Free)
+Sign-in is phone number + password. A WhatsApp code is sent only to prove a
+number: once when an account is opened (`/api/auth/signup/otp/*`), and when a
+password is forgotten (`/api/auth/otp/*`). A code lives 5 minutes and allows 5
+attempts (`src/lib/otp.js`).
 
-No configuration needed. The system will log WhatsApp messages to console without sending them.
+**Without the variables** the code is printed to the server log instead
+(`[WhatsApp OTP demo] 218… -> 123456`), so the whole flow can be tested locally.
 
-```bash
-node server.js
-# Output: [WhatsApp Demo] Would send to +966501234567: 🧾 الفاتورة الخاصة بك من بريماتكس...
-```
+To send for real:
 
-### Option 2: Twilio WhatsApp API (Production)
+1. In Meta Business Manager, add a phone number to a WhatsApp Business Account.
+   That number leaves the ordinary WhatsApp app for good - it must **not** be
+   the sales line customers chat with.
+2. Create a message template of category **Authentication** (Meta allows no
+   other category for codes), language Arabic, and wait for approval. Its name
+   goes in `WHATSAPP_OTP_TEMPLATE` (default `brimatex_otp`).
+3. Create a **system user** with a permanent token that has
+   `whatsapp_business_messaging`. The token the App Dashboard shows by default
+   expires after 24 hours.
+4. In `.env` on the server:
 
-1. **Create a Twilio Account**
-   - Go to https://www.twilio.com/console
-   - Sign up and verify your phone number
-   - Get your Account SID and Auth Token from the console dashboard
+   ```
+   WHATSAPP_TOKEN=...
+   WHATSAPP_PHONE_NUMBER_ID=...
+   WHATSAPP_OTP_TEMPLATE=brimatex_otp
+   WHATSAPP_OTP_LANG=ar
+   ```
 
-2. **Set Up WhatsApp Channel**
-   - In Twilio Console: Messaging > Channels > WhatsApp
-   - Choose "Sandbox" for free testing or "Production" for real messages
-   - Sandbox mode requires customers to opt-in via template message first
-   - Production requires WhatsApp Business Account approval (2-3 days)
+5. Restart the app. Numbers are sent in the international Libyan form
+   (`0912345678` -> `218912345678`).
 
-3. **Configure Environment Variables**
+The token is a secret: only in `.env` on the server, never in the repository
+or a chat.
 
-```bash
-export TWILIO_ACCOUNT_SID="ACxxxxxxxxxxxxxxxxxxxxx"
-export TWILIO_AUTH_TOKEN="your_auth_token_here"
-export TWILIO_WHATSAPP_FROM="whatsapp:+14155552671"  # Twilio sandbox number or your production number
-```
+## Invoice message (Twilio)
 
-For **Sandbox Testing** (no cost, instant):
-- Default Sandbox number: `whatsapp:+14155552671`
-- Customers receive welcome message with opt-in code
-- Messages limited to 24-hour window per customer
-- No rate limits
+After an order is created in Odoo, `src/routes/orders.js` sends the customer a
+short invoice message, fire-and-forget - a failure never affects the order.
+Without the Twilio variables the message is only logged.
 
-For **Production**:
-- Get your own WhatsApp Business Number
-- Requires WhatsApp Business Account setup
-- Full message history available
-- Higher rate limits
+1. Create a Twilio account and enable the WhatsApp channel (the sandbox for
+   testing, an approved WhatsApp sender for production).
+2. In `.env`:
 
-4. **Test the Integration**
+   ```
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_WHATSAPP_FROM=whatsapp:+218...
+   ```
 
-```bash
-# With demo mode
-node server.js
+3. Restart the app.
 
-# With Twilio (set env vars first)
-export TWILIO_ACCOUNT_SID="your_sid"
-export TWILIO_AUTH_TOKEN="your_token"
-node server.js
-```
-
-Place a test order with a phone number. The invoice should be sent via WhatsApp within seconds.
-
-## Sandbox Testing Flow
-
-1. Join Twilio's WhatsApp Sandbox:
-   - Go to https://www.twilio.com/console/sms/whatsapp/sandbox
-   - Send "join <sandbox-code>" to sandbox number
-   - You'll receive: "You successfully joined the WhatsApp Sandbox!"
-
-2. Place an order with your phone number
-3. Receive invoice via WhatsApp
-
-## Message Format
-
-```
-🧾 الفاتورة الخاصة بك من بريماتكس
-
-رقم الطلب: DEMO-851095
-رقم الفاتورة: INV-851095
-الحالة: ✅ منشورة
-المبلغ: 5800 ر.س
-
-شكراً لاختيارك بريماتكس 🛏️
-للمزيد من المعلومات، يرجى زيارة موقعنا أو التواصل معنا.
-
-تجربة 100 ليلة · توصيل مجاني · ضمان حتى 12 سنة
-```
-
-## Phone Number Formats
-
-The system automatically formats phone numbers:
-- `05xxxxxxxx` → `+966 5xxxxxxxx` (Saudi Arabia)
-- `9665xxxxxxxx` → `+966 5xxxxxxxx`
-- `+966xxxxxxxx` → `+966xxxxxxxx` (kept as-is)
-- International: `+1234567890` → `+1234567890` (kept as-is)
-
-## Error Handling
-
-- **No phone number**: Message skipped, no error
-- **Invalid Twilio credentials**: Logged to console, order still succeeds
-- **Network error**: Logged, message may be retried in production
-- **Customer not opted-in (Sandbox)**: Twilio returns error, logged to console
-
-Errors do NOT block order completion—the invoice is still created in Odoo/demo mode.
-
-## Monitoring
-
-Check message delivery:
-- **Console logs**: `[WhatsApp]` prefix shows all activity
-- **Twilio Dashboard**: Messages > Logs shows delivery status
-- **SMS log in Odoo**: If using Odoo SMS integration
-
-## Costs
-
-- **Demo/Sandbox**: Free (up to 100 messages)
-- **Production**: $0.0079 USD per outbound message (estimate: ~₪0.03 per message)
-- **Incoming messages**: Free
-
-## Troubleshooting
-
-**"No customer phone, skipping"**
-- Customer didn't enter phone number in checkout form
-- Check that form field is present in index.html
-
-**"Message not received"**
-- Sandbox: Customer didn't opt-in to sandbox
-- Production: WhatsApp Business Account approval pending
-- Network: Check Twilio dashboard for delivery status
-
-**"Twilio error 400: Invalid phone"**
-- Phone number format incorrect
-- Check logs for formatted phone number
-- Verify number starts with +
-
-**"Twilio error 401: Unauthorized"**
-- TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN is wrong
-- Check both values in Twilio Console
-- Verify no extra spaces in env variables
-
-## Integration with Odoo
-
-When connected to real Odoo:
-1. Order created → sale.order in Odoo
-2. Sale order confirmed automatically
-3. Invoice created (account.move)
-4. WhatsApp message sent with invoice details
-5. Customer receives message with order & invoice info
-
-## Next Steps
-
-- Set up SMS reminders for invoice payment
-- Add customer chat handler for WhatsApp replies
-- Implement delivery/payment status updates via WhatsApp
-- Add order tracking link in WhatsApp message
+> Known issue: `src/lib/whatsapp.js` still prefixes local numbers with `+966`
+> (Saudi Arabia) instead of `+218`. Fix it before enabling Twilio.

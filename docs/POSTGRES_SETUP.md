@@ -83,7 +83,9 @@ free tier and need no local install (no Docker, no `psql`).
    [Postgres] متصل — الحسابات والطلبات تُحفظ في قاعدة البيانات
    ```
 
-   Tables (`users`, `sessions`, `addresses`, `wishlist_items`, `orders`) are
+   Tables (`users`, `sessions`, `addresses`, `wishlist_items`, `orders`,
+   `devices`, `otp_challenges`, `reviews`, `product_overrides`, `perk_unlocks`,
+   `point_redemptions`, `voucher_uses`, `offer_sends` - see `src/lib/db.js`) are
    created automatically the first time the server starts — no manual
    migration step.
 
