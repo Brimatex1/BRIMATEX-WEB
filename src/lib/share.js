@@ -12,9 +12,9 @@
 
 const SITE_NAME = 'بريماتكس';
 // Worded the way Libyans search - in Arabic, with "مراتب" / "مرتبة" in them;
-// Odoo's product names are English. The app sets the same titles once it
-// runs (web/src/lib/pageTitle.ts), and search engines keep that one: change
-// both together.
+// Odoo's product names are English. The storefront sets its own titles once
+// it runs (useTitle in web/src/shop/hooks.ts), and search engines keep that
+// one: change both together.
 const DEFAULT_TITLE = 'بريماتكس — مراتب صناعة ليبية | الدفع عند الاستلام';
 const SHOP_TITLE = 'مراتب للبيع في ليبيا — بريماتكس';
 const DEFAULT_DESCRIPTION = 'مراتب بريماتكس من مصنعنا في ليبيا — الدفع عند الاستلام وتوصيل مجاني لباب بيتك.';
