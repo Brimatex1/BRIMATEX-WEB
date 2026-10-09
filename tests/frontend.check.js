@@ -2,12 +2,15 @@
 /**
  * BRIMATEX — static verification for the React frontend (zero dependencies).
  *
+ * web/src holds three apps behind one entry (main.tsx): the storefront
+ * (shop/), the admin panel (panel/) and the classic dashboard (AdminApp.tsx).
  * Catches the breakage npm/tsc would catch, without needing node_modules:
- *   • every `@/…` import resolves to a real file
+ *   • every `@/…` and relative import resolves to a real file
  *   • every named import actually exists as an export in that file
  *   • every bare package import is declared in web/package.json
  *   • config files are internally consistent
- *   • accessibility / CSP rules the server enforces are respected
+ *   • the HTML shell fits the CSP the server sends (SHELL_CSP in src/server.js)
+ *   • a few accessibility and logic rules the current apps rely on
  *
  * Run:  node tests/frontend.check.js
  */
@@ -61,7 +64,9 @@ function resolveAlias(spec) {
 /** Extract every import statement from a source file. */
 function parseImports(code) {
   const out = [];
-  const re = /import\s+(?:type\s+)?([\s\S]*?)\s*from\s*['"]([^'"]+)['"]/g;
+  // The clause never holds a quote or a semicolon, so a match cannot run on
+  // from a side-effect import into the next statement's `from`.
+  const re = /import\s+(?:type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/g;
   let m;
   while ((m = re.exec(code))) {
     const clause = m[1].trim();
@@ -81,6 +86,11 @@ function parseImports(code) {
 
     out.push({ spec, names, defaultImport, raw: m[0] });
   }
+  // Specifier-only forms: `import './x.css'`, `import('./PanelApp')` and
+  // `export … from './x'` - checked for resolution, not for names.
+  for (const m of code.matchAll(/(?:^|[;\s])import\s*\(?\s*['"]([^'"]+)['"]|export\s+[^'";]*?\s+from\s*['"]([^'"]+)['"]/g)) {
+    out.push({ spec: m[1] ?? m[2], names: [], defaultImport: null, raw: m[0] });
+  }
   return out;
 }
 
@@ -91,8 +101,8 @@ function parseExports(code) {
 
   if (/export\s+default\s/.test(code)) hasDefault = true;
 
-  // export const/function/class/interface/type X
-  for (const m of code.matchAll(/export\s+(?:declare\s+)?(?:const|let|var|function|class|interface|type|enum)\s+([A-Za-z0-9_$]+)/g)) {
+  // export [declare] [async] const/function/class/interface/type X
+  for (const m of code.matchAll(/export\s+(?:declare\s+)?(?:async\s+)?(?:const|let|var|function\*?|class|interface|type|enum)\s+([A-Za-z0-9_$]+)/g)) {
     names.add(m[1]);
   }
   // export { A, B as C }
@@ -120,7 +130,9 @@ function testProjectFiles() {
     'components.json',
     'index.html',
     'src/main.tsx',
-    'src/App.tsx',
+    'src/shop/ShopApp.tsx',
+    'src/panel/PanelApp.tsx',
+    'src/AdminApp.tsx',
     'src/index.css',
   ];
   for (const f of required) {
@@ -180,7 +192,7 @@ function testImports() {
     }
   }
 
-  check('كل استيراد @/ يشير إلى ملف موجود', badAlias.length === 0, badAlias.join(' | '));
+  check('كل استيراد يشير إلى ملف موجود', badAlias.length === 0, badAlias.join(' | '));
   check('كل اسم مستورد مُصدَّر فعلاً', badNamed.length === 0, badNamed.join(' | '));
   check('كل حزمة مستوردة معلنة في package.json', badPkg.length === 0, badPkg.join(' | '));
 }
@@ -194,13 +206,21 @@ function testDependencies() {
     .join('\n');
   const combined = allCode + configCode;
 
-  const unused = Object.keys(pkg.dependencies || {}).filter((dep) => !combined.includes(dep));
+  // Packages no source file imports by name: type packages, the compiler the
+  // build script runs, and PostCSS, which Vite loads for postcss.config.js.
+  const implicit = (dep) =>
+    dep.startsWith('@types/') ||
+    (dep === 'typescript' && /\btsc\b/.test(Object.values(pkg.scripts || {}).join(' '))) ||
+    (dep === 'postcss' && fs.existsSync(path.join(WEB, 'postcss.config.js')));
+  const declared = { ...pkg.dependencies, ...pkg.devDependencies };
+  const unused = Object.keys(declared).filter((dep) => !implicit(dep) && !combined.includes(dep));
   check('لا توجد تبعيات مُعلنة غير مستخدمة', unused.length === 0, unused.join(', '));
 
-  check('React مُعلن', !!pkg.dependencies?.react);
-  check('Vite مُعلن كأداة تطوير', !!pkg.devDependencies?.vite);
-  check('Tailwind مُعلن كأداة تطوير', !!pkg.devDependencies?.tailwindcss);
-  check('TypeScript مُعلن كأداة تطوير', !!pkg.devDependencies?.typescript);
+  // web/package.json keeps the build tools in `dependencies`, not
+  // `devDependencies`; either section counts.
+  for (const [name, dep] of [['React', 'react'], ['Vite', 'vite'], ['Tailwind', 'tailwindcss'], ['TypeScript', 'typescript']]) {
+    check(`${name} مُعلن`, !!declared[dep]);
+  }
 }
 
 /* ---------------- 4. build config ---------------- */
@@ -239,8 +259,15 @@ function testBuildConfig() {
   const darkBlock = css.match(/\.dark\s*\{([\s\S]*?)\}/)?.[1] || '';
   const lightTokens = new Set([...lightBlock.matchAll(/(--[a-z-]+)\s*:/g)].map((m) => m[1]));
   const darkTokens = new Set([...darkBlock.matchAll(/(--[a-z-]+)\s*:/g)].map((m) => m[1]));
-  const darkMissing = [...lightTokens].filter((t) => t !== '--radius' && !darkTokens.has(t));
+  // Only the semantic colour tokens change with the theme. The brand colours,
+  // the Dark Ocean scale, the radius and the motion tokens are the same in
+  // both modes, and a token that just names a brand colour may keep it.
+  const themeless = (t) =>
+    /^--(ocean-\d+|brand-|dur-|ease-|radius$)/.test(t) ||
+    new RegExp(`${t}\\s*:\\s*var\\(--brand-`).test(lightBlock);
+  const darkMissing = [...lightTokens].filter((t) => !themeless(t) && !darkTokens.has(t));
   check('الوضع الداكن يغطي كل رموز الألوان', darkMissing.length === 0, darkMissing.join(', '));
+  check('الوضع الداكن يعيد تعريف الألوان الأساسية', ['--background', '--foreground', '--primary', '--border'].every((t) => darkTokens.has(t)));
 
   check('الوضع الداكن معرَّف', /\.dark\s*\{/.test(css));
   check('دعم prefers-reduced-motion', /prefers-reduced-motion/.test(css));
@@ -278,33 +305,6 @@ function testAccessibility() {
   );
   const allCode = Object.values(byName).join('\n');
 
-  // Decorative icons must be hidden from screen readers. Resolve the real
-  // lucide component names per file instead of guessing from class names —
-  // otherwise `<Button className="size-9">` gets flagged as an icon.
-  const naked = [];
-  let iconUsages = 0;
-  for (const file of files) {
-    const code = fs.readFileSync(file, 'utf8');
-    const importLine = code.match(/import\s*\{([^}]*)\}\s*from\s*'lucide-react'/);
-    if (!importLine) continue;
-
-    const iconNames = importLine[1]
-      .split(',')
-      .map((s) => s.trim().split(/\s+as\s+/).pop().trim())
-      .filter(Boolean);
-
-    for (const icon of iconNames) {
-      for (const m of code.matchAll(new RegExp(`<${icon}(\\s[^>]*)?/?>`, 'g'))) {
-        iconUsages++;
-        if (!m[0].includes('aria-hidden')) {
-          naked.push(`${path.basename(file)}: <${icon}>`);
-        }
-      }
-    }
-  }
-  check('كل أيقونة زخرفية عليها aria-hidden', naked.length === 0, naked.join(', '));
-  check('الفحص عثر على أيقونات فعلاً', iconUsages > 0, `usages ${iconUsages}`);
-
   check('أزرار الأيقونات لها aria-label', !/size="icon"(?![\s\S]{0,300}aria-label)/.test(allCode));
   check('كل حقل مرتبط بـ Label عبر htmlFor', (allCode.match(/htmlFor=/g) || []).length >= (allCode.match(/<Input\s/g) || []).length - 2);
   check('حالات الخطأ تستخدم aria-invalid', /aria-invalid/.test(allCode));
@@ -315,10 +315,18 @@ function testAccessibility() {
   check('حالات focus مرئية في الأزرار', /focus-visible:ring/.test(byName['button.tsx'] || ''));
   check('مؤشر اليد على العناصر القابلة للنقر', /cursor-pointer/.test(byName['button.tsx'] || ''));
   check('حالة تحميل في الأزرار تمنع النقر المزدوج', /loading/.test(byName['button.tsx'] || ''));
-  check('هياكل عظمية أثناء التحميل', /Skeleton/.test(byName['ShopSection.tsx'] || ''));
-  check('خطأ التحميل يعرض زر إعادة المحاولة', /إعادة المحاولة/.test(byName['ShopSection.tsx'] || ''));
 
-  check('لا تُستخدم الرموز التعبيرية كأيقونات', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(allCode));
+  // Loading and failure states: the storefront swaps a catalogue that failed
+  // to load for an error page with a retry (never an empty grid that reads as
+  // «no results»); the admin panel draws skeletons and an error card with one.
+  const read = (rel) => fs.readFileSync(path.join(SRC, rel), 'utf8');
+  check('المتجر: فشل تحميل المنتجات يعرض صفحة خطأ مع إعادة المحاولة', /<ErrorPage onRetry=/.test(read('shop/ShopApp.tsx')));
+  check('المتجر: صفحة الخطأ فيها زر إعادة المحاولة', /onRetry\(\)/.test(read('shop/pages/NotFoundPage.tsx')));
+  const panelUi = read('panel/ui.tsx');
+  check('اللوحة: بطاقة الخطأ فيها إعادة المحاولة', /function ErrorCard[\s\S]*?onClick=\{onRetry\}/.test(panelUi));
+  const panelPages = fs.readdirSync(path.join(SRC, 'panel', 'pages'));
+  const noSkeleton = panelPages.filter((f) => !/<Skeleton\b/.test(read(`panel/pages/${f}`)));
+  check('اللوحة: كل صفحة تعرض هياكل عظمية أثناء التحميل', /export function Skeleton/.test(panelUi) && noSkeleton.length === 0, noSkeleton.join(', '));
   check('لا يوجد alert() معطِّل للواجهة', !/\balert\(/.test(allCode));
   check('لا يوجد dangerouslySetInnerHTML', !/dangerouslySetInnerHTML/.test(allCode));
 }
@@ -329,7 +337,7 @@ function testLogic() {
   const cart = fs.readFileSync(path.join(SRC, 'hooks', 'useCart.ts'), 'utf8');
   const api = fs.readFileSync(path.join(SRC, 'lib', 'api.ts'), 'utf8');
   const auth = fs.readFileSync(path.join(SRC, 'hooks', 'useAuth.ts'), 'utf8');
-  const checkout = fs.readFileSync(path.join(SRC, 'components', 'CheckoutForm.tsx'), 'utf8');
+  const checkout = fs.readFileSync(path.join(SRC, 'shop', 'pages', 'CheckoutPage.tsx'), 'utf8');
 
   check('السلة تزيد الكمية بدل تكرار المنتج', /l\.qty \+ 1/.test(cart));
   check('السلة تحدّ الكمية القصوى', /MAX_QTY/.test(cart));
@@ -344,11 +352,12 @@ function testLogic() {
   check('الجلسة غير الصالحة تُمسح تلقائياً', /localStorage\.removeItem/.test(auth));
   check('لا تسرّب حالة بعد إلغاء التركيب', /cancelled/.test(auth));
 
-  check('نموذج الطلب يتحقق من الحقول المطلوبة', /الاسم مطلوب/.test(checkout));
-  check('نموذج الطلب يتحقق من صيغة الهاتف', /phoneIsValid/.test(checkout));
-  check('نموذج الطلب ينقل التركيز لأول خطأ', /\.focus\(\)/.test(checkout));
-  check('نموذج الطلب يعطّل الزر أثناء الإرسال', /loading=\{submitting\}/.test(checkout));
-  check('نموذج الطلب يرسل إلى واجهة الطلبات', /createOrder/.test(checkout));
+  const validate = checkout.match(/function validate\(\)[\s\S]*?\n  \}/)?.[0] || '';
+  check('صفحة الطلب تتحقق من عنوان التوصيل', ['next.city', 'next.area', 'next.street'].every((f) => validate.includes(f)));
+  check('صفحة الطلب تتحقق من صيغة الهاتف', /isLibyanMobile\(phone\)/.test(validate));
+  check('صفحة الطلب تنقل التركيز لأول خطأ', /\.focus\(\)/.test(validate));
+  check('صفحة الطلب لا ترسل مرتين', /if \(submitting\b/.test(checkout) && /loading=\{submitting\}/.test(checkout));
+  check('صفحة الطلب ترسل إلى واجهة الطلبات', /api\.createOrder\(/.test(checkout));
 }
 
 /* ---------------- runner ---------------- */

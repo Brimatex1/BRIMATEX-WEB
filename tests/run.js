@@ -11,15 +11,11 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-// Not run: it checks the storefront design that the redesign replaced, and
-// fails on rules the new design no longer follows. Rewrite it before adding back.
-const SKIP = new Set(['frontend.check.js']);
-
 const filters = process.argv.slice(2);
 const files = [
   ...fs
     .readdirSync(__dirname)
-    .filter((f) => f.endsWith('.check.js') && !SKIP.has(f))
+    .filter((f) => f.endsWith('.check.js'))
     .sort(),
   'smoke.test.js',
 ].filter((f) => !filters.length || filters.some((word) => f.includes(word)));
