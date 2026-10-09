@@ -17,6 +17,7 @@ const { startTestServer } = require('./_server');
 const PORT = process.env.TEST_PORT || 3219;
 const REVIEW_PHONE = '09' + Math.floor(10000000 + Math.random() * 89999999);
 const REVIEW_PASSWORD = 'review-' + Math.random().toString(36).slice(2, 10);
+const REVIEW_CODE = String(100000 + Math.floor(Math.random() * 899999));
 let out = { text: '' };
 let pass = 0;
 let fail = 0;
@@ -78,7 +79,7 @@ async function run() {
   console.log('\n\x1b[1m\x1b[36m═══ خصوصية أبل ═══\x1b[0m');
   const started = await startTestServer({
     port: PORT,
-    env: { BRIMATEX_REVIEW_PHONE: REVIEW_PHONE, BRIMATEX_REVIEW_PASSWORD: REVIEW_PASSWORD },
+    env: { BRIMATEX_REVIEW_PHONE: REVIEW_PHONE, BRIMATEX_REVIEW_PASSWORD: REVIEW_PASSWORD, BRIMATEX_REVIEW_CODE: REVIEW_CODE },
   });
   const server = started.server;
   out = started.out;
@@ -107,8 +108,9 @@ async function run() {
     ok('بلا رمز: 400 verify_required', bare.status === 400 && bare.json?.code === 'verify_required', JSON.stringify(bare.json));
     ok('طلب الرمز (200)', (await req('POST', '/api/auth/otp/request', { phone: REVIEW_PHONE })).status === 200);
     await wait(400);
-    const proof = await req('POST', '/api/auth/otp/verify', { phone: REVIEW_PHONE, code: codeFor(REVIEW_PHONE) });
-    ok('الرمز يعطي إثباتاً', proof.status === 200 && Boolean(proof.json?.resetToken), JSON.stringify(proof.json));
+    ok('رقم المراجع لا يُرسل له واتساب', codeFor(REVIEW_PHONE) === null);
+    const proof = await req('POST', '/api/auth/otp/verify', { phone: REVIEW_PHONE, code: REVIEW_CODE });
+    ok('رمزه الثابت من .env يعطي إثباتاً', proof.status === 200 && Boolean(proof.json?.resetToken), JSON.stringify(proof.json));
     const gone = await req('DELETE', '/api/auth/me', { resetToken: proof.json?.resetToken }, token);
     ok('الحذف بالإثبات (200)', gone.status === 200, JSON.stringify(gone.json));
     ok('الجلسة القديمة انتهت', (await req('GET', '/api/auth/me', null, token)).status === 401);

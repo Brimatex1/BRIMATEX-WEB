@@ -29,6 +29,19 @@ function generateCode() {
 }
 
 /**
+ * Apple's reviewer (src/lib/reviewAccount.js) cannot receive WhatsApp on the
+ * review number, yet must be able to test deleting the account, which asks for
+ * a code. Their number alone gets the fixed code set in .env
+ * (BRIMATEX_REVIEW_CODE, six digits, given to Apple in the App Review notes),
+ * and nothing is sent. Any other number: a random code, by WhatsApp.
+ */
+function reviewCodeFor(phone) {
+  const reviewPhone = String(process.env.BRIMATEX_REVIEW_PHONE || '').trim();
+  const reviewCode = String(process.env.BRIMATEX_REVIEW_CODE || '');
+  return reviewPhone && phone === reviewPhone && /^\d{6}$/.test(reviewCode) ? reviewCode : null;
+}
+
+/**
  * Issues a code and sends it. The caller must **not** vary its response by the
  * outcome: whether the phone has an account, whether the send succeeded, and
  * whether a cooldown is active all look identical from outside, or the endpoint
@@ -43,7 +56,8 @@ async function requestCode(phone) {
     return { issued: false, reason: 'cooldown', retryInSeconds: Math.ceil(waitMs / 1000) };
   }
 
-  const code = generateCode();
+  const fixed = reviewCodeFor(phone);
+  const code = fixed || generateCode();
   const now = new Date();
 
   await backend.put({
@@ -54,6 +68,8 @@ async function requestCode(phone) {
     sentAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + CODE_TTL_MS).toISOString(),
   });
+
+  if (fixed) return { issued: true };
 
   const result = await whatsapp.sendOtp(phone, code);
   if (!result.sent) {

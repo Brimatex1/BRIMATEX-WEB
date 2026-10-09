@@ -3,6 +3,8 @@
 //
 //   BRIMATEX_REVIEW_PHONE      the number given to the reviewer, as typed at sign-in
 //   BRIMATEX_REVIEW_PASSWORD   its password - a secret: only in .env, never in a chat
+//   BRIMATEX_REVIEW_CODE       six digits that stand in for the WhatsApp code on that
+//                              number alone (src/lib/otp.js) - deleting asks for one
 //
 // The account exists whenever the server runs: created at start-up if missing,
 // and again right after the reviewer deletes it (they test deletion). Its
