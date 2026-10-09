@@ -96,18 +96,22 @@ async function updateOrder(orderName, updates) {
 }
 
 /**
- * Drops the account link from a customer's orders without deleting the orders.
- * The factory needs the record for warranty and accounting; it does not need to
- * keep naming an account the customer asked us to erase.
+ * A deleted account's orders lose who placed them: the account link, and the
+ * name, phone and address in the order's copy here - only the city stays, for
+ * the panel's figures, with the products, amounts and order number. The
+ * official record - the customer, the order and its invoice - stays in Odoo,
+ * which is never touched from here. Orders from before accounts carry no link,
+ * so the proved phone number finds those too.
  */
-async function unlinkUser(userId) {
+async function forgetCustomer(userId, phone) {
   const orders = readAll();
   let touched = 0;
   const next = orders.map((o) => {
-    if (o.userId !== userId) return o;
+    const mine = o.userId === userId || (!o.userId && phone && o.customer?.phone === phone);
+    if (!mine) return o;
     touched += 1;
     const { userId: _drop, ...rest } = o;
-    return rest;
+    return { ...rest, customer: { city: o.customer?.city || null } };
   });
   if (touched) writeAll(next);
   return touched;
@@ -121,5 +125,5 @@ module.exports = {
   getOrderByInvoiceName,
   getOrderByRequestId,
   updateOrder,
-  unlinkUser,
+  forgetCustomer,
 };

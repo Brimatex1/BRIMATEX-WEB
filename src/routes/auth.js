@@ -527,9 +527,9 @@ function createAuthRoutes({ isValidPhone }) {
         return sendJson(res, 400, { error: 'أكّد الحذف برمز واتساب المرسل إلى رقمك', code: 'verify_required' });
       }
 
-      // Unlink before delete so the orders survive on both backends, not only
-      // where the foreign key happens to be `on delete set null`.
-      await orders.unlinkUser(session.userId);
+      // The orders stay, without who placed them (the owner's call): the record
+      // with the customer's details stays in Odoo, never touched from here.
+      await orders.forgetCustomer(session.userId, leaving.phone);
       // The file store has no cascade: its reviews, points records and devices
       // go explicitly (Postgres drops them with the user row).
       await perks.forgetUser(session.userId);

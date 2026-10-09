@@ -11,8 +11,13 @@
 
 'use strict';
 
+const fs = require('fs');
 const http = require('http');
+const path = require('path');
 const { startTestServer } = require('./_server');
+
+/** The file store's order log - the test server has no database. */
+const ORDERS_LOG = path.join(__dirname, '..', 'src', 'data', 'orders.local.jsonl');
 
 const PORT = process.env.TEST_PORT || 3219;
 const REVIEW_PHONE = '09' + Math.floor(10000000 + Math.random() * 89999999);
@@ -118,6 +123,32 @@ async function run() {
     ok('حساب المراجع عاد فوراً', back.status === 200 && Boolean(back.json?.token), JSON.stringify(back.json));
     const fresh = await req('GET', '/api/auth/me', null, back.json?.token);
     ok('وعاد فارغاً (بلا إجابة تتبّع قديمة)', fresh.status === 200 && !fresh.json?.user?.trackingStatus, JSON.stringify(fresh.json?.user));
+
+    console.log('\n\x1b[1m5. بعد الحذف: طلباته في الموقع بلا اسمه ولا رقمه ولا عنوانه\x1b[0m');
+    const phone = '09' + Math.floor(10000000 + Math.random() * 89999999);
+    const reg = await req('POST', '/api/auth/register', { name: 'زبون يغادر', phone, password: 'secret123' });
+    const products = (await req('GET', '/api/products')).json?.products || [];
+    const item = products.find((p) => p.enabled !== false);
+    const placed = await req(
+      'POST',
+      '/api/orders',
+      { customer: { name: 'زبون يغادر', phone, city: 'مصراتة', address: 'شارع الاختبار 7' }, items: [{ productId: (item?.variants?.[0] ?? item)?.id, quantity: 1 }] },
+      reg.json?.token
+    );
+    ok('طلب من الحساب (201)', placed.status === 201, JSON.stringify(placed.json)?.slice(0, 160));
+    await req('POST', '/api/auth/otp/request', { phone });
+    await wait(400);
+    const leaveProof = await req('POST', '/api/auth/otp/verify', { phone, code: codeFor(phone) });
+    const left = await req('DELETE', '/api/auth/me', { resetToken: leaveProof.json?.resetToken }, reg.json?.token);
+    ok('حذف الحساب (200)', left.status === 200, JSON.stringify(left.json));
+    const kept = fs
+      .readFileSync(ORDERS_LOG, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l))
+      .find((o) => o.orderName === placed.json?.orderName);
+    ok('الطلب باقٍ برقمه ومبلغه', Boolean(kept) && kept.total > 0, JSON.stringify(kept)?.slice(0, 160));
+    ok('بلا اسم ولا رقم ولا عنوان - المدينة فقط', JSON.stringify(kept?.customer) === JSON.stringify({ city: 'مصراتة' }) && !kept?.userId, JSON.stringify(kept?.customer));
   } finally {
     server.kill();
   }

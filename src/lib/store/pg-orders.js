@@ -153,16 +153,24 @@ async function updateOrder(orderName, updates) {
 }
 
 /**
- * Drops the account link from a customer's orders. The foreign key would do
- * this on its own (`on delete set null`), but doing it explicitly keeps the
- * two backends identical and lets the caller unlink without deleting.
+ * A deleted account's orders lose who placed them: the account link, and the
+ * name, phone and address in the order's copy here - only the city stays, for
+ * the panel's figures, with the products, amounts and order number. The
+ * official record - the customer, the order and its invoice - stays in Odoo,
+ * which is never touched from here. Orders from before accounts carry no link,
+ * so the proved phone number finds those too.
  */
-async function unlinkUser(userId) {
-  const { rowCount } = await db.query(
-    'update orders set user_id = null where user_id = $1',
-    [userId]
-  );
-  return rowCount;
+async function forgetCustomer(userId, phone) {
+  // Postgres 9.2 has no json operators, so the phone is matched here.
+  const { rows } = await db.query('select order_name, user_id, customer from orders where user_id = $1 or user_id is null', [userId]);
+  const mine = rows.filter((r) => r.user_id === userId || (phone && r.customer?.phone === phone));
+  for (const r of mine) {
+    await db.query('update orders set user_id = null, customer = $2 where order_name = $1', [
+      r.order_name,
+      JSON.stringify({ city: r.customer?.city || null }),
+    ]);
+  }
+  return mine.length;
 }
 
 module.exports = {
@@ -173,5 +181,5 @@ module.exports = {
   getOrderByInvoiceName,
   getOrderByRequestId,
   updateOrder,
-  unlinkUser,
+  forgetCustomer,
 };
