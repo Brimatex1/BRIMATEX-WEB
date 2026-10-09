@@ -63,7 +63,6 @@ Without the Twilio variables the message is only logged.
    TWILIO_WHATSAPP_FROM=whatsapp:+218...
    ```
 
-3. Restart the app.
-
-> Known issue: `src/lib/whatsapp.js` still prefixes local numbers with `+966`
-> (Saudi Arabia) instead of `+218`. Fix it before enabling Twilio.
+3. Restart the app. Numbers are sent as Libyan E.164, through the same
+   `toInternational()` the one-time codes use (`0912345678`, `218912345678`,
+   `+218 091…` -> `+218912345678`); covered by `tests/whatsapp.check.js`.

@@ -3,6 +3,7 @@
 // Configure: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM
 
 const http = require('./http');
+const { toInternational } = require('./whatsapp-cloud');
 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || '';
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN || '';
@@ -18,12 +19,8 @@ async function sendInvoiceViaWhatsApp(customerPhone, invoiceName, invoiceStatus,
     return { sent: false, reason: 'no_phone' };
   }
 
-  let formattedPhone = customerPhone.replace(/\s+/g, '');
-  if (!formattedPhone.startsWith('+')) {
-    if (formattedPhone.startsWith('0')) formattedPhone = '+966' + formattedPhone.substring(1);
-    else if (!formattedPhone.startsWith('966')) formattedPhone = '+966' + formattedPhone;
-    else formattedPhone = '+' + formattedPhone;
-  }
+  // Libyan numbers, the same normalisation the OTP sender uses; Twilio wants E.164.
+  const formattedPhone = '+' + toInternational(customerPhone);
 
   const message = `
 🧾 *الفاتورة الخاصة بك من بريماتكس*
