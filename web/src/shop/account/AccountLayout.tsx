@@ -3,6 +3,7 @@ import { ChevronLeft, UserRound } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { OrderSummary } from '@/types';
@@ -48,17 +49,49 @@ export function useMyOrders() {
   return { orders, error, reload: load };
 }
 
+/** What deleting removes and what stays - the same words as the app's. */
+const DELETE_TEXT =
+  'يُحذف حسابك نهائياً: بياناتك وعناوينك والمفضّلة وتقييماتك، ويُلغى رصيد نقاط الولاء. الفواتير التي يُلزمنا القانون بحفظها تبقى في سجلات الشركة، والطلب الجاري يُكمَل أو يُلغى حسب حالته. للتأكيد نرسل رمزاً إلى واتساب رقمك.';
+
 function DeleteAccount({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const shop = useShop();
   const { go } = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  async function confirm() {
-    if (!shop.auth.token) return;
+  // Two steps: send a WhatsApp code to the account's number, then delete with it.
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState('');
+  const phone = shop.auth.user?.phone ?? '';
+
+  useEffect(() => {
+    if (!open) {
+      setCodeSent(false);
+      setCode('');
+      setError(null);
+    }
+  }, [open]);
+
+  async function sendCode() {
+    if (!phone) return;
     setBusy(true);
     setError(null);
     try {
-      await api.deleteAccount(shop.auth.token);
+      await api.requestPasswordOtp(phone);
+      setCodeSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذّر إرسال الرمز');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm() {
+    if (!shop.auth.token || code.length !== 6) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { resetToken } = await api.verifyPasswordOtp(phone, code);
+      await api.deleteAccount(shop.auth.token, resetToken);
       shop.auth.signOut();
       onOpenChange(false);
       go({ name: 'home' });
@@ -72,16 +105,35 @@ function DeleteAccount({ open, onOpenChange }: { open: boolean; onOpenChange: (o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent role="alertdialog" className="max-w-md">
         <DialogTitle className="text-xl font-bold">حذف الحساب نهائياً؟</DialogTitle>
-        <DialogDescription className="text-[15px] leading-relaxed">ستُحذف بيانات حسابك وعناوينك والمفضّلة ولا يمكن استرجاعها. يجب أن تكتمل الطلبات الجارية أو تُلغى أولاً.</DialogDescription>
+        <DialogDescription className="text-[15px] leading-relaxed">{DELETE_TEXT}</DialogDescription>
+        {codeSent ? (
+          <Input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            dir="ltr"
+            className="text-center text-lg tracking-[0.4em]"
+            placeholder="رمز التحقق"
+            aria-label="رمز التحقق"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          />
+        ) : null}
         {error ? (
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         ) : null}
         <div className="flex gap-3">
-          <Button variant="destructive" size="store" className="flex-1" loading={busy} onClick={() => void confirm()}>
-            حذف الحساب
-          </Button>
+          {codeSent ? (
+            <Button variant="destructive" size="store" className="flex-1" loading={busy} disabled={code.length !== 6} onClick={() => void confirm()}>
+              حذف الحساب
+            </Button>
+          ) : (
+            <Button variant="destructive" size="store" className="flex-1" loading={busy} onClick={() => void sendCode()}>
+              أرسل رمز التأكيد
+            </Button>
+          )}
           <Button variant="outline" size="store" className="flex-1" onClick={() => onOpenChange(false)}>
             تراجع
           </Button>

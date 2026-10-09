@@ -18,6 +18,9 @@ const auth = require('../lib/auth');
 const otp = require('../lib/otp');
 const orders = require('../lib/orders');
 const avatar = require('../lib/avatar');
+const perks = require('../lib/perks');
+const devices = require('../lib/devices');
+const reviewAccount = require('../lib/reviewAccount');
 const { sendJson, readBody } = require('../lib/respond');
 
 /**
@@ -463,6 +466,8 @@ function createAuthRoutes({ isValidPhone }) {
           avatarUrl: user.avatarUrl || null,
           // Effective role, so the UI knows whether to offer the dashboard.
           role: auth.roleOf(user),
+          // The app's last App Tracking Transparency answer (null: none yet).
+          trackingStatus: user.trackingStatus || null,
           addresses,
           wishlist,
         },
@@ -504,15 +509,37 @@ function createAuthRoutes({ isValidPhone }) {
       if (!token) return sendJson(res, 401, { error: 'غير مصرح' });
       const session = await auth.verifySession(token);
       if (!session) return sendJson(res, 401, { error: 'رمز الجلسة غير صحيح' });
+      const leaving = await auth.getUser(session.userId);
+      if (!leaving) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
+
+      // The owner of the number confirms with a WhatsApp code first (the
+      // recovery flow: /api/auth/otp/request, then /otp/verify gives the
+      // resetToken). A session alone - a phone left unlocked - cannot erase an
+      // account for good. The token is burned here whatever happens next.
+      let payload = {};
+      try {
+        payload = JSON.parse((await readBody(req)) || '{}');
+      } catch {
+        return sendJson(res, 400, { error: 'JSON غير صالح' });
+      }
+      const provedPhone = payload.resetToken ? await otp.consumeResetToken(String(payload.resetToken)) : null;
+      if (!provedPhone || provedPhone !== leaving.phone) {
+        return sendJson(res, 400, { error: 'أكّد الحذف برمز واتساب المرسل إلى رقمك', code: 'verify_required' });
+      }
 
       // Unlink before delete so the orders survive on both backends, not only
       // where the foreign key happens to be `on delete set null`.
       await orders.unlinkUser(session.userId);
-      const leaving = await auth.getUser(session.userId);
+      // The file store has no cascade: its reviews, points records and devices
+      // go explicitly (Postgres drops them with the user row).
+      await perks.forgetUser(session.userId);
+      await devices.forgetUser(session.userId);
       const deleted = await auth.deleteUser(session.userId);
       // Their photo goes with the account.
       if (deleted && leaving?.avatarUrl) avatar.remove(leaving.avatarUrl);
       if (!deleted) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
+      // Apple's reviewer tests deletion: their account comes straight back, empty.
+      await reviewAccount.ensure();
 
       return sendJson(res, 200, { message: 'تم حذف الحساب نهائياً' });
     }

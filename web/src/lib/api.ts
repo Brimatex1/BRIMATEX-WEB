@@ -264,8 +264,17 @@ export const api = {
   /** The customer's name (settings). */
   updateName: (token: string, name: string) => request<{ user: User }>('/api/auth/me', { ...jsonBody({ name }, token), method: 'PATCH' }),
 
-  /** Deletes the account and its data (App Store 5.1.1(v) asks the same of the app). */
-  deleteAccount: (token: string) => request<{ message: string }>('/api/auth/me', { method: 'DELETE', ...authHeaders(token) }),
+  /**
+   * Deletes the account and its data (App Store 5.1.1(v) asks the same of the
+   * app). `resetToken` proves the number: requestPasswordOtp, then
+   * verifyPasswordOtp with the WhatsApp code.
+   */
+  deleteAccount: (token: string, resetToken: string) =>
+    request<{ message: string }>('/api/auth/me', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resetToken }),
+    }),
 
   /** Cancels an order that has not left for delivery yet, with the customer's reason. */
   cancelOrder: (token: string, orderName: string, reason: string) =>

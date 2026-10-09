@@ -49,6 +49,7 @@ module.exports = {
   findForOrder: backend.findForOrder,
   findForUser: backend.findForUser,
   remove: backend.remove,
+  forgetUser: backend.forgetUser,
   listPlatforms: backend.listPlatforms,
   listAll: backend.listAll,
   offerHistory: backend.offerHistory,

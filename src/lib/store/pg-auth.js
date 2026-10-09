@@ -17,6 +17,8 @@ function toUser(row) {
     role: row.role,
     odooPartnerId: row.odoo_partner_id,
     avatarUrl: row.avatar_url || null,
+    trackingStatus: row.tracking_status || null,
+    trackingAt: row.tracking_at || null,
     createdAt: row.created_at,
   };
 }
@@ -75,6 +77,8 @@ const UPDATABLE_COLUMNS = {
   passwordHash: 'password_hash',
   odooPartnerId: 'odoo_partner_id',
   avatarUrl: 'avatar_url',
+  trackingStatus: 'tracking_status',
+  trackingAt: 'tracking_at',
 };
 
 async function updateUser(userId, updates) {

@@ -74,9 +74,10 @@ const PNG = Buffer.from(
 const dataUrl = (buf, type = 'png') => `data:image/${type};base64,${buf.toString('base64')}`;
 
 (async () => {
-  const { server } = await startTestServer({ port: PORT });
+  const { server, out } = await startTestServer({ port: PORT });
   try {
-    const reg = await req('POST', '/api/auth/register', { name: 'صاحب صورة', phone: uniq(), password: 'secret1' });
+    const phone = uniq();
+    const reg = await req('POST', '/api/auth/register', { name: 'صاحب صورة', phone, password: 'secret1' });
     const token = reg.json.token;
 
     ok('ضيف: 401', (await req('POST', '/api/user/avatar', { imageDataUrl: dataUrl(PNG) })).status === 401);
@@ -104,7 +105,13 @@ const dataUrl = (buf, type = 'png') => `data:image/${type};base64,${buf.toString
     ok('ملفها حُذف', (await req('GET', second.json.avatarUrl)).type !== 'image/png');
 
     const again = await req('POST', '/api/user/avatar', { imageDataUrl: dataUrl(PNG) }, token);
-    await req('DELETE', '/api/auth/me', null, token);
+    // Deleting asks for a WhatsApp code first; in a test server it is printed to the log.
+    await req('POST', '/api/auth/otp/request', { phone });
+    await new Promise((r) => setTimeout(r, 400));
+    const intl = '218' + phone.slice(1);
+    const code = [...out.text.matchAll(/OTP demo\] (\d+) -> (\d{6})/g)].filter((m) => m[1] === intl).pop()?.[2];
+    const proof = await req('POST', '/api/auth/otp/verify', { phone, code });
+    await req('DELETE', '/api/auth/me', { resetToken: proof.json?.resetToken }, token);
     ok('حذف الحساب يحذف صورته', (await req('GET', again.json.avatarUrl)).type !== 'image/png');
   } finally {
     server.kill();

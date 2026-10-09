@@ -81,6 +81,9 @@ export interface AdminReview {
   subRatings?: { comfort?: number; quality?: number; value?: number } | null;
   name: string;
   phone: string | null;
+  /** How many customers reported it («إبلاغ», Apple 1.2), and the latest time. */
+  reports?: number;
+  reportedAt?: string | null;
 }
 
 /** A picture in the home page's sliding banner - set from the dashboard (src/lib/banners.js). */

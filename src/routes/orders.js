@@ -28,6 +28,7 @@ const { stockNote } = require('../lib/availability');
 const { sendJson, readBody } = require('../lib/respond');
 const { readDelivery } = require('../lib/delivery');
 const appSettings = require('../lib/appSettings');
+const reviewAccount = require('../lib/reviewAccount');
 
 /**
  * Arabic-Indic (٠١٢…) and Persian (۰۱۲…) digits as 0-9 - what a phone set to
@@ -183,6 +184,9 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       if (!orderSession && process.env.BRIMATEX_ALLOW_UNVERIFIED !== '1') {
         return sendJson(res, 401, { error: 'سجّل الدخول لإتمام الطلب', code: 'login_required' });
       }
+      // Apple's reviewer (src/lib/reviewAccount.js): the order is kept as a demo
+      // order - never to Odoo, delivery, Meta or WhatsApp.
+      const forReview = await reviewAccount.isReviewUser(orderSession?.userId);
 
       // Catalogue prices by product (and size) id - the subtotal a voucher
       // discounts, and the demo order's total.
@@ -236,7 +240,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       const releaseVoucher = () =>
         voucher ? perks.releaseVoucher(orderSession.userId, voucher.code).catch(() => {}) : null;
 
-      if (odoo.isConfigured()) {
+      if (odoo.isConfigured() && !forReview) {
         let odooResult;
         try {
           // Each line carries the catalogue's price - the one the customer saw.
@@ -346,6 +350,19 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
         throw err;
       }
       if (voucher) await perks.attachVoucherToOrder(orderSession.userId, voucher.code, orderName);
+
+      if (forReview) {
+        return sendJson(res, 201, {
+          source: 'demo',
+          orderName,
+          invoiceName,
+          invoiceStatus: 'draft',
+          total,
+          discount: discount?.amount || 0,
+          voucherCode: voucher?.code || null,
+          message: `تم إنشاء الطلب ${orderName} والفاتورة ${invoiceName}`,
+        });
+      }
 
       reportPurchase(req, order, { channel, orderName, total, userId: orderSession?.userId, products: result.products });
 

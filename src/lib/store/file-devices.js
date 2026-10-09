@@ -94,6 +94,11 @@ async function remove(token) {
   writeAll(readAll().filter((r) => r.token !== token));
 }
 
+/** A deleted account's phones (pg-devices has the foreign key's cascade instead). */
+async function forgetUser(userId) {
+  writeAll(readAll().filter((r) => r.userId !== userId));
+}
+
 /** Every device's platform with its owner and last order - the panel's iOS / Android split. No tokens. */
 async function listPlatforms() {
   return readAll().map((r) => ({ platform: r.platform, userId: r.userId || null, lastOrder: r.lastOrder || null }));
@@ -136,4 +141,4 @@ async function recordOffers(tokens, campaignId, atIso) {
   return claimed;
 }
 
-module.exports = { register, findForOrder, findForUser, remove, listPlatforms, listAll, offerHistory, recordOffers };
+module.exports = { register, findForOrder, findForUser, remove, forgetUser, listPlatforms, listAll, offerHistory, recordOffers };

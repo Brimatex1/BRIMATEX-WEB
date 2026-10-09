@@ -22,6 +22,7 @@ const banners = require('./lib/banners');
 const instagram = require('./lib/instagram');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
+const reviewAccount = require('./lib/reviewAccount');
 const { visitorCookie, metaCookies } = require('./lib/visitor');
 const metaFeed = require('./lib/metaFeed');
 const seo = require('./lib/seo');
@@ -187,6 +188,9 @@ function isValidPhone(phone) {
 // this only bites pillow/bedding demo products until Odoo carries them too.
 const COMING_SOON_CATEGORIES = new Set(['pillow', 'bedding']);
 
+/** «address|review» pairs already reported since the process started - one report each. */
+const REVIEW_REPORTS_SEEN = new Set();
+
 function validateOrder(order, allProducts) {
   if (!order || typeof order !== 'object') return 'بيانات الطلب غير صالحة';
   const { customer, items } = order;
@@ -259,6 +263,21 @@ async function handleApi(req, res, url) {
     const product = products.find((p) => p.id === id || (p.variants ?? []).some((v) => v.id === id));
     const ids = product ? [product.id, ...(product.variants ?? []).map((v) => v.id)] : [id];
     return sendJson(res, 200, await perksLib.publicReviews(ids));
+  }
+
+  // «إبلاغ» on a review (Apple 1.2: a way to report objectionable content). No
+  // account needed; one address counts once per review, and the panel shows
+  // the count beside the review to hide it.
+  const reportMatch = url.pathname.match(/^\/api\/reviews\/([0-9a-f-]{8,64})\/report$/i);
+  if (req.method === 'POST' && reportMatch) {
+    const key = `${rateKey(req)}|${reportMatch[1]}`;
+    if (!REVIEW_REPORTS_SEEN.has(key)) {
+      if (REVIEW_REPORTS_SEEN.size > 10000) REVIEW_REPORTS_SEEN.clear();
+      REVIEW_REPORTS_SEEN.add(key);
+      const found = await perksLib.reportReview(reportMatch[1]);
+      if (!found) return sendJson(res, 404, { error: 'التقييم غير موجود' });
+    }
+    return sendJson(res, 200, { message: 'شكراً، وصل بلاغك وسيراجعه فريقنا' });
   }
 
   // The apps' and the website's settings (the panel's الإعدادات, src/lib/appSettings.js),
@@ -627,6 +646,8 @@ async function start() {
   } else {
     console.log('[Postgres] DATABASE_URL غير مضبوط — الحسابات والطلبات تُحفظ في ملفات محلية');
   }
+  // Apple's App Review account, when configured (src/lib/reviewAccount.js).
+  await reviewAccount.ensure();
 
   server.listen(PORT, () => {
     const mode = odoo.isConfigured() ? 'Odoo متصل' : 'وضع تجريبي (بدون أودو)';

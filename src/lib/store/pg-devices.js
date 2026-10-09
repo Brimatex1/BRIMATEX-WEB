@@ -77,6 +77,11 @@ async function remove(token) {
   await db.query('delete from devices where token = $1', [token]);
 }
 
+/** A deleted account's phones - explicit, though the foreign key cascades too. */
+async function forgetUser(userId) {
+  await db.query('delete from devices where user_id = $1', [userId]);
+}
+
 /** Every device's platform with its owner and last order - the panel's iOS / Android split. No tokens. */
 async function listPlatforms() {
   const { rows } = await db.query('select platform, user_id, last_order from devices');
@@ -121,4 +126,4 @@ async function recordOffers(tokens, campaignId, atIso) {
   }
 }
 
-module.exports = { register, findForOrder, findForUser, remove, listPlatforms, listAll, offerHistory, recordOffers };
+module.exports = { register, findForOrder, findForUser, remove, forgetUser, listPlatforms, listAll, offerHistory, recordOffers };

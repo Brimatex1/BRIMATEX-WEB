@@ -110,6 +110,29 @@ async function listAllReviews() {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/** A customer reported the review (Apple 1.2): counted for the panel. False when there is no such review. */
+async function reportReview(id) {
+  const data = read();
+  const review = data.reviews.find((r) => r.id === id);
+  if (!review) return false;
+  review.reports = (review.reports || 0) + 1;
+  review.reportedAt = new Date().toISOString();
+  write(data);
+  return true;
+}
+
+/** A deleted account's loyalty records and reviews (no cascade in a file). */
+async function forgetUser(userId) {
+  const data = read();
+  const mine = (row) => row.userId === userId;
+  write({
+    unlocks: data.unlocks.filter((r) => !mine(r)),
+    redemptions: data.redemptions.filter((r) => !mine(r)),
+    uses: data.uses.filter((r) => !mine(r)),
+    reviews: data.reviews.filter((r) => !mine(r)),
+  });
+}
+
 async function setReviewHidden(id, hidden) {
   const data = read();
   const review = data.reviews.find((r) => r.id === id);
@@ -133,4 +156,6 @@ module.exports = {
   addReview,
   listAllReviews,
   setReviewHidden,
+  reportReview,
+  forgetUser,
 };

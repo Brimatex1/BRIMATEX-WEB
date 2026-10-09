@@ -176,6 +176,7 @@ function ReviewRow({ review: r, product, busy, onDecide }: { review: AdminReview
         <div className="flex flex-wrap items-center gap-2.5">
           <Stars value={r.rating} />
           <Pill tone={STATE_META[state].tone}>{STATE_META[state].pill}</Pill>
+          {r.reports ? <Pill tone="red">{r.reports === 1 ? 'بلاغ واحد' : `${r.reports} بلاغات`}</Pill> : null}
         </div>
         {r.title ? <b className="text-[15px]">{r.title}</b> : null}
         {r.comment ? <p className="whitespace-pre-line text-sm leading-relaxed text-[#16161F]">{r.comment}</p> : null}

@@ -321,6 +321,27 @@ do $$ begin
     alter table reviews add column sub_value integer;
   end if;
 end $$;
+-- Apple 1.2: customers can report a review; the panel shows how many did.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'reviews' and column_name = 'reports'
+  ) then
+    alter table reviews add column reports integer not null default 0;
+    alter table reviews add column reported_at timestamptz;
+  end if;
+end $$;
+-- The app's latest App Tracking Transparency answer, and when it came. Only
+-- 'authorized' may ever be shared with Meta; anything else, or nothing, may not.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'users' and column_name = 'tracking_status'
+  ) then
+    alter table users add column tracking_status text;
+    alter table users add column tracking_at timestamptz;
+  end if;
+end $$;
 `;
 
 let migrated = false;

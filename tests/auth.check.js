@@ -140,8 +140,10 @@ async function run() {
     ok('الرمز المُبطَل يردّ 401', (await req('GET', '/api/auth/me', null, { Authorization: `Bearer ${token}` })).status === 401);
 
     const again = await req('POST', '/api/auth/login', { phone, password: 'newsecret1' });
-    ok('DELETE /api/auth/me (200)', (await req('DELETE', '/api/auth/me', null, { Authorization: `Bearer ${again.json?.token}` })).status === 200);
-    ok('الدخول بعد الحذف يفشل', (await req('POST', '/api/auth/login', { phone, password: 'newsecret1' })).status !== 200);
+    const unproved = await req('DELETE', '/api/auth/me', null, { Authorization: `Bearer ${again.json?.token}` });
+    ok('حذف بلا رمز واتساب: مرفوض (400)', unproved.status === 400 && unproved.json?.code === 'verify_required', JSON.stringify(unproved.json));
+    // The deletion itself, with a code, comes after section 4's one-minute wait
+    // (a number gets a new code once a minute).
 
     console.log('\n\x1b[1m4. الدخول بالرمز (التطبيق، بلا كلمة مرور)\x1b[0m');
     const p2 = '09' + Math.floor(10000000 + Math.random() * 89999999);
@@ -176,7 +178,22 @@ async function run() {
     const back = await req('POST', '/api/auth/phone/verify', { phone: p2, code: c2 });
     ok('رقم مسجّل: الدخول مباشرة', back.status === 200 && Boolean(back.json?.token) && back.json?.user?.name === 'سالم التجربة', JSON.stringify(back.json));
     ok('رقم غير صالح يُرفض', (await req('POST', '/api/auth/phone/request', { phone: '123' })).status === 400);
-    await req('DELETE', '/api/auth/me', null, { Authorization: `Bearer ${back.json?.token}` });
+
+    console.log('\n\x1b[1m5. حذف الحساب برمز واتساب\x1b[0m');
+    ok('طلب رمز التأكيد (200)', (await req('POST', '/api/auth/otp/request', { phone })).status === 200);
+    await wait(400);
+    const proof = await req('POST', '/api/auth/otp/verify', { phone, code: codeFor(intl) });
+    ok('الرمز يعطي إثباتاً', proof.status === 200 && Boolean(proof.json?.resetToken), JSON.stringify(proof.json));
+    const otherNumber = await req('DELETE', '/api/auth/me', { resetToken: proof.json?.resetToken }, { Authorization: `Bearer ${back.json?.token}` });
+    ok('إثبات رقم آخر لا يحذف هذا الحساب (400)', otherNumber.status === 400, JSON.stringify(otherNumber.json));
+    // That attempt burned the token: a fresh code proves the number again.
+    await wait(61_000);
+    await req('POST', '/api/auth/otp/request', { phone });
+    await wait(400);
+    const proof2 = await req('POST', '/api/auth/otp/verify', { phone, code: codeFor(intl) });
+    const gone = await req('DELETE', '/api/auth/me', { resetToken: proof2.json?.resetToken }, { Authorization: `Bearer ${again.json?.token}` });
+    ok('DELETE /api/auth/me بالإثبات (200)', gone.status === 200, JSON.stringify(gone.json));
+    ok('الدخول بعد الحذف يفشل', (await req('POST', '/api/auth/login', { phone, password: 'newsecret1' })).status !== 200);
   } catch (e) {
     fail++;
     failures.push('خطأ غير متوقع: ' + e.message);

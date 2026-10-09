@@ -20,6 +20,9 @@ const avatar = require('../lib/avatar');
 const odoo = require('../lib/odoo');
 const { sendJson, readBody } = require('../lib/respond');
 
+/** The answers the app may report (src/features/tracking.ts in the app). */
+const TRACKING_STATUSES = new Set(['authorized', 'denied', 'notDetermined', 'unavailable']);
+
 /** The session's user id, or null after answering 401. */
 async function sessionUser(req, res) {
   const token = req.headers.authorization?.split(' ')[1];
@@ -291,6 +294,23 @@ async function handleUserRoutes(req, res, url) {
     await auth.removeWishlistItem(session.userId, productId);
 
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
+  }
+
+  /* --- App Tracking Transparency ---
+     The app reports the customer's current answer at every launch and sign-in
+     (they can change it in iOS Settings at any time). Only 'authorized' may
+     ever let this account's data reach Meta; Android and the web report
+     'unavailable', which counts as no. */
+
+  if (req.method === 'POST' && url.pathname === '/api/user/tracking') {
+    const userId = await sessionUser(req, res);
+    if (!userId) return;
+    const body = await jsonBody(req, res);
+    if (!body) return;
+    const status = TRACKING_STATUSES.has(body.status) ? body.status : null;
+    if (!status) return sendJson(res, 400, { error: 'حالة غير معروفة' });
+    await auth.updateUser(userId, { trackingStatus: status, trackingAt: new Date().toISOString() });
+    return sendJson(res, 200, { ok: true, status });
   }
 
   /* --- Profile photo (src/lib/avatar.js) ---

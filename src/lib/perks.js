@@ -397,7 +397,19 @@ async function adminReviews() {
     subRatings: r.subRatings || null,
     name: users.get(r.userId)?.name || '—',
     phone: users.get(r.userId)?.phone || null,
+    reports: r.reports || 0,
+    reportedAt: r.reportedAt || null,
   }));
+}
+
+/** «إبلاغ» from a customer (Apple 1.2). False when there is no such review. */
+async function reportReview(id) {
+  return store.reportReview(String(id));
+}
+
+/** A deleted account's points records, vouchers and reviews (POST-less: the account is going). */
+async function forgetUser(userId) {
+  return store.forgetUser(userId);
 }
 
 async function setReviewHidden(id, hidden) {
@@ -424,4 +436,6 @@ module.exports = {
   withRatings,
   adminReviews,
   setReviewHidden,
+  reportReview,
+  forgetUser,
 };

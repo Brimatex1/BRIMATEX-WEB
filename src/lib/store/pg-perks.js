@@ -133,7 +133,7 @@ async function listReviews(userId) {
 /** Every review, with its author and whether it is hidden - newest first. */
 async function listAllReviews() {
   const { rows } = await db.query(
-    'select id, user_id, product_id, order_name, rating, comment, created_at, hidden, pending, title, sub_comfort, sub_quality, sub_value from reviews order by created_at desc'
+    'select id, user_id, product_id, order_name, rating, comment, created_at, hidden, pending, title, sub_comfort, sub_quality, sub_value, reports, reported_at from reviews order by created_at desc'
   );
   return rows.map((r) => ({
     id: r.id,
@@ -147,7 +147,22 @@ async function listAllReviews() {
     pending: r.pending,
     title: r.title || '',
     subRatings: subRatingsOf(r),
+    reports: Number(r.reports) || 0,
+    reportedAt: r.reported_at ? new Date(r.reported_at).toISOString() : null,
   }));
+}
+
+/** A customer reported the review (Apple 1.2): counted for the panel. False when there is no such review. */
+async function reportReview(id) {
+  const { rowCount } = await db.query('update reviews set reports = reports + 1, reported_at = now() where id = $1', [id]);
+  return rowCount > 0;
+}
+
+/** A deleted account's loyalty records and reviews - explicit, though the foreign keys cascade too. */
+async function forgetUser(userId) {
+  for (const table of ['reviews', 'voucher_uses', 'point_redemptions', 'perk_unlocks']) {
+    await db.query(`delete from ${table} where user_id = $1`, [userId]);
+  }
 }
 
 /** False when there is no such review. Deciding on a review ends its wait either way. */
@@ -197,4 +212,6 @@ module.exports = {
   addReview,
   listAllReviews,
   setReviewHidden,
+  reportReview,
+  forgetUser,
 };
