@@ -88,9 +88,10 @@ say "node $(node --version)"
 # ‎.env‎، ‎src/public/uploads/‎) ليست في المستودع، فلا تُمَسّ. و‎node_modules‎
 # يُستثنى صراحةً كي لا نُبطئ النسخ بعشرات آلاف الملفات.
 say "نسخ الملفات"
-# ‎./data‎ (المجلد القديم) و‎*.jsonl‎ مستثناة عمداً: المستودع يتتبّع نسخة
-# قديمة من ‎data/users.jsonl‎ فيها حسابات حقيقية، ونسخُها فوق الخادم يطمس
-# بيانات العملاء. النشر يحمل الشيفرة لا البيانات — أبداً.
+# ./data (an old folder, no longer in the repository) and every *.jsonl are
+# excluded on purpose: the file store's customer data lives in src/data/*.jsonl
+# on the host, and a copy from the repository must never land on top of it.
+# A deploy carries code, never data.
 tar -C "$SRC" \
     --exclude=.git \
     --exclude=node_modules \
