@@ -296,11 +296,12 @@ async function handleUserRoutes(req, res, url) {
     return sendJson(res, 200, { message: 'تم الحذف من المفضلة' });
   }
 
-  /* --- App Tracking Transparency ---
-     The app reports the customer's current answer at every launch and sign-in
-     (they can change it in iOS Settings at any time). Only 'authorized' may
-     ever let this account's data reach Meta; Android and the web report
-     'unavailable', which counts as no. */
+  /* --- Consent to share data for Brimatex's ads: one field for both apps ---
+     iOS sends its App Tracking Transparency answer; Android the answer on the
+     app's own disclosure screen (Google Play) - 'authorized' only on «أوافق».
+     The app reports it at every launch and sign-in, and Android at once when
+     changed in Settings. Only 'authorized' may ever let this account's data
+     reach Meta; anything else - or no answer - counts as no. */
 
   if (req.method === 'POST' && url.pathname === '/api/user/tracking') {
     const userId = await sessionUser(req, res);

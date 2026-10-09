@@ -64,7 +64,7 @@ const APP_PATHS = new Set([
   '/', '/shop', '/quiz', '/cart', '/account', '/wishlist', '/orders', '/admin', '/vouchers', '/points',
   // The 2026 storefront (web/src/shop/router.tsx).
   '/mattresses', '/offers', '/search', '/compare', '/checkout', '/checkout/success',
-  '/showroom', '/help', '/privacy', '/terms', '/account/reviews/new',
+  '/showroom', '/help', '/privacy', '/terms', '/delete-account', '/account/reviews/new',
 ]);
 
 /** The storefront's addresses with a part in them - the same as web/src/shop/router.tsx parse(). */

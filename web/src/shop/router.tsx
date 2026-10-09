@@ -17,7 +17,7 @@ import { isTierKey } from '@/lib/tiers';
  *   /account  /account/orders/:name  /account/orders/:name/issue
  *   /account/addresses|favorites|warranty|loyalty|coupons|notifications|settings
  *   /account/reviews/new?product=&order=
- *   /quiz  /showroom  /help  /privacy  /terms
+ *   /quiz  /showroom  /help  /privacy  /terms  /delete-account
  *
  * Old addresses still work: /shop?category= becomes /mattresses/:tier,
  * /wishlist the favorites, /orders the account, /points and /vouchers the
@@ -45,6 +45,7 @@ export type Route =
   | { name: 'showroom' }
   | { name: 'help' }
   | { name: 'legal'; page: 'privacy' | 'terms' }
+  | { name: 'deleteAccount' }
   | { name: 'notFound' };
 
 export type AccountSection = 'orders' | 'addresses' | 'favorites' | 'warranty' | 'loyalty' | 'coupons' | 'notifications' | 'settings';
@@ -96,6 +97,7 @@ export function parse(pathname: string, search: string): Route {
   if (path === '/help') return { name: 'help' };
   if (path === '/privacy') return { name: 'legal', page: 'privacy' };
   if (path === '/terms') return { name: 'legal', page: 'terms' };
+  if (path === '/delete-account') return { name: 'deleteAccount' };
   return { name: 'notFound' };
 }
 
@@ -140,6 +142,8 @@ export function href(route: Route): string {
       return '/help';
     case 'legal':
       return `/${route.page}`;
+    case 'deleteAccount':
+      return '/delete-account';
     case 'notFound':
       return '/';
   }

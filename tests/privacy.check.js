@@ -149,6 +149,17 @@ async function run() {
       .find((o) => o.orderName === placed.json?.orderName);
     ok('الطلب باقٍ برقمه ومبلغه', Boolean(kept) && kept.total > 0, JSON.stringify(kept)?.slice(0, 160));
     ok('بلا اسم ولا رقم ولا عنوان - المدينة فقط', JSON.stringify(kept?.customer) === JSON.stringify({ city: 'مصراتة' }) && !kept?.userId, JSON.stringify(kept?.customer));
+
+    console.log('\n\x1b[1m6. الحذف بكلمة المرور (Google Play)، وصفحة الحذف على الويب\x1b[0m');
+    const p2 = '09' + Math.floor(10000000 + Math.random() * 89999999);
+    const reg2 = await req('POST', '/api/auth/register', { name: 'زبون آخر', phone: p2, password: 'secret456' });
+    const wrong = await req('DELETE', '/api/auth/me', { password: 'not-it' }, reg2.json?.token);
+    ok('كلمة مرور خاطئة: 400 ولا حذف', wrong.status === 400 && wrong.json?.code === 'wrong_password', JSON.stringify(wrong.json));
+    ok('الحساب ما زال يدخل', (await req('POST', '/api/auth/login', { phone: p2, password: 'secret456' })).status === 200);
+    const byPassword = await req('DELETE', '/api/auth/me', { password: 'secret456' }, reg2.json?.token);
+    ok('كلمة المرور الصحيحة تحذف (200)', byPassword.status === 200, JSON.stringify(byPassword.json));
+    ok('الدخول بعدها يفشل', (await req('POST', '/api/auth/login', { phone: p2, password: 'secret456' })).status !== 200);
+    ok('صفحة /delete-account تُخدم (200)', (await req('GET', '/delete-account')).status === 200);
   } finally {
     server.kill();
   }

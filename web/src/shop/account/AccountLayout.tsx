@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ChevronLeft, UserRound } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { OrderSummary } from '@/types';
@@ -49,100 +46,6 @@ export function useMyOrders() {
   return { orders, error, reload: load };
 }
 
-/** What deleting removes and what stays - the same words as the app's. */
-const DELETE_TEXT =
-  'يُحذف حسابك نهائياً: بياناتك وعناوينك والمفضّلة وتقييماتك، ويُلغى رصيد نقاط الولاء. الفواتير التي يُلزمنا القانون بحفظها تبقى في سجلات الشركة، والطلب الجاري يُكمَل أو يُلغى حسب حالته. للتأكيد نرسل رمزاً إلى واتساب رقمك.';
-
-function DeleteAccount({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const shop = useShop();
-  const { go } = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Two steps: send a WhatsApp code to the account's number, then delete with it.
-  const [codeSent, setCodeSent] = useState(false);
-  const [code, setCode] = useState('');
-  const phone = shop.auth.user?.phone ?? '';
-
-  useEffect(() => {
-    if (!open) {
-      setCodeSent(false);
-      setCode('');
-      setError(null);
-    }
-  }, [open]);
-
-  async function sendCode() {
-    if (!phone) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await api.requestPasswordOtp(phone);
-      setCodeSent(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذّر إرسال الرمز');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirm() {
-    if (!shop.auth.token || code.length !== 6) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const { resetToken } = await api.verifyPasswordOtp(phone, code);
-      await api.deleteAccount(shop.auth.token, resetToken);
-      shop.auth.signOut();
-      onOpenChange(false);
-      go({ name: 'home' });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذّر حذف الحساب');
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent role="alertdialog" className="max-w-md">
-        <DialogTitle className="text-xl font-bold">حذف الحساب نهائياً؟</DialogTitle>
-        <DialogDescription className="text-[15px] leading-relaxed">{DELETE_TEXT}</DialogDescription>
-        {codeSent ? (
-          <Input
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            dir="ltr"
-            className="text-center text-lg tracking-[0.4em]"
-            placeholder="رمز التحقق"
-            aria-label="رمز التحقق"
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          />
-        ) : null}
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-        <div className="flex gap-3">
-          {codeSent ? (
-            <Button variant="destructive" size="store" className="flex-1" loading={busy} disabled={code.length !== 6} onClick={() => void confirm()}>
-              حذف الحساب
-            </Button>
-          ) : (
-            <Button variant="destructive" size="store" className="flex-1" loading={busy} onClick={() => void sendCode()}>
-              أرسل رمز التأكيد
-            </Button>
-          )}
-          <Button variant="outline" size="store" className="flex-1" onClick={() => onOpenChange(false)}>
-            تراجع
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /**
  * حسابي (handoff WebAccount): the sidebar - photo or initial, name, number,
  * the account's pages, «تسجيل الخروج» and «حذف الحساب» in red - beside the
@@ -152,7 +55,6 @@ export function AccountLayout({ section, crumbs, children }: { section: AccountS
   const shop = useShop();
   const { go } = useRouter();
   const user = shop.auth.user;
-  const [deleting, setDeleting] = useState(false);
   const perks = shop.loyalty.info;
   const nav = useRef<HTMLElement>(null);
 
@@ -247,7 +149,7 @@ export function AccountLayout({ section, crumbs, children }: { section: AccountS
             >
               تسجيل الخروج
             </button>
-            <button type="button" className="px-3 py-1.5 text-[15px] font-bold text-destructive hover:underline" onClick={() => setDeleting(true)}>
+            <button type="button" className="px-3 py-1.5 text-[15px] font-bold text-destructive hover:underline" onClick={() => go({ name: 'deleteAccount' })}>
               حذف الحساب
             </button>
           </div>
@@ -266,11 +168,10 @@ export function AccountLayout({ section, crumbs, children }: { section: AccountS
         >
           تسجيل الخروج
         </button>
-        <button type="button" className="text-[15px] font-bold text-destructive" onClick={() => setDeleting(true)}>
+        <button type="button" className="text-[15px] font-bold text-destructive" onClick={() => go({ name: 'deleteAccount' })}>
           حذف الحساب
         </button>
       </div>
-      <DeleteAccount open={deleting} onOpenChange={setDeleting} />
     </Container>
   );
 }

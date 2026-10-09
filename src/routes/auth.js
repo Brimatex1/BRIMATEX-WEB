@@ -512,19 +512,33 @@ function createAuthRoutes({ isValidPhone }) {
       const leaving = await auth.getUser(session.userId);
       if (!leaving) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
 
-      // The owner of the number confirms with a WhatsApp code first (the
-      // recovery flow: /api/auth/otp/request, then /otp/verify gives the
-      // resetToken). A session alone - a phone left unlocked - cannot erase an
-      // account for good. The token is burned here whatever happens next.
+      // The owner confirms first - a session alone, on a phone left unlocked,
+      // cannot erase an account for good. Either the account's password
+      // (Google Play asks for that), or a WhatsApp code to its number for an
+      // account that never set one (the recovery flow: /api/auth/otp/request,
+      // then /otp/verify gives the resetToken, burned here whatever happens).
       let payload = {};
       try {
         payload = JSON.parse((await readBody(req)) || '{}');
       } catch {
         return sendJson(res, 400, { error: 'JSON غير صالح' });
       }
-      const provedPhone = payload.resetToken ? await otp.consumeResetToken(String(payload.resetToken)) : null;
-      if (!provedPhone || provedPhone !== leaving.phone) {
-        return sendJson(res, 400, { error: 'أكّد الحذف برمز واتساب المرسل إلى رقمك', code: 'verify_required' });
+      let proved = false;
+      if (payload.password) {
+        const ip = rateKey(req);
+        if (loginLocked(leaving.phone, ip)) {
+          return sendJson(res, 429, { error: 'محاولات كثيرة. انتظر 15 دقيقة، أو أكّد برمز واتساب.', code: 'locked' });
+        }
+        proved = Boolean(await auth.authenticate(leaving.phone, String(payload.password)));
+        if (!proved) {
+          recordLoginFail(leaving.phone, ip);
+          return sendJson(res, 400, { error: 'كلمة المرور غير صحيحة', code: 'wrong_password' });
+        }
+      } else if (payload.resetToken) {
+        proved = (await otp.consumeResetToken(String(payload.resetToken))) === leaving.phone;
+      }
+      if (!proved) {
+        return sendJson(res, 400, { error: 'أكّد الحذف بكلمة المرور أو برمز واتساب المرسل إلى رقمك', code: 'verify_required' });
       }
 
       // The orders stay, without who placed them (the owner's call): the record

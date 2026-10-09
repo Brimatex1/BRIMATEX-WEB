@@ -52,6 +52,7 @@ const QuizPage = page(() => import('./pages/QuizPage'), 'QuizPage');
 const ReviewsPage = page(() => import('./pages/ReviewsPage'), 'ReviewsPage');
 const ReviewWritePage = page(() => import('./pages/ReviewWritePage'), 'ReviewWritePage');
 const ShowroomPage = page(() => import('./pages/ShowroomPage'), 'ShowroomPage');
+const DeleteAccountPage = page(() => import('./pages/DeleteAccountPage'), 'DeleteAccountPage');
 const SupportPage = page(() => import('./pages/SupportPage'), 'SupportPage');
 
 /** The cart and the checkout, fetched while nothing else is happening. */
@@ -148,6 +149,8 @@ function Pages() {
       return <SupportPage />;
     case 'legal':
       return <LegalPage key={route.page} page={route.page} />;
+    case 'deleteAccount':
+      return <DeleteAccountPage />;
     case 'notFound':
       return <NotFoundPage />;
     case 'compare':
