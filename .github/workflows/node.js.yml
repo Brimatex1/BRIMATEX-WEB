@@ -6,94 +6,88 @@ on:
   pull_request:
     branches: [ "main" ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  lint:
-    name: Lint and Validate
+  checks:
+    name: Syntax and types
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js 18.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18.x
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
 
-    - name: Check syntax
-      run: |
-        node --check server.js
-        node --check src/server.js
-        for file in src/lib/*.js src/lib/store/*.js; do node --check "$file"; done
+      # Every server file parses - including the ones only required lazily,
+      # which the startup check below would never load.
+      - name: Server syntax
+        run: |
+          for file in server.js src/*.js src/lib/*.js src/lib/store/*.js src/routes/*.js scripts/*.js; do
+            node --check "$file"
+          done
 
-    - name: Validate structure
-      run: |
-        [ -f "src/lib/auth.js" ] || exit 1
-        [ -f "src/lib/odoo.js" ] || exit 1
-        [ -f "src/lib/whatsapp.js" ] || exit 1
-        # src/public/index.html is Vite's build output (gitignored, only
-        # exists after `npm run build`) — check the real source instead.
-        [ -f "web/index.html" ] || exit 1
-        [ -f "src/data/demo-products.json" ] || exit 1
-        echo "✅ All required files present"
+      - name: Install dependencies
+        run: npm ci
 
-  test:
-    name: Test Server (${{ matrix.node-version }})
+      - name: Frontend type check
+        run: npm run typecheck
+
+  startup:
+    name: Server starts (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
+        # The hosting's Node may be older than ours: the server must start on all.
         node-version: [18.x, 20.x, 22.x]
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    - name: Check Node.js version
-      run: node --version
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Test server startup
-      run: |
-        timeout 3 node server.js || true
-        echo "✅ Server starts without errors"
-
-    - name: Test API health endpoint
-      run: |
-        node server.js > /tmp/server.log 2>&1 &
-        SERVER_PID=$!
-        sleep 2
-        curl -f http://localhost:3000/api/health || exit 1
-        kill $SERVER_PID || true
-        echo "✅ Health endpoint works"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install server dependencies
+        run: npm ci --ignore-scripts
+      - name: Health endpoint answers
+        run: |
+          node server.js > /tmp/server.log 2>&1 &
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:3000/api/health && exit 0
+            sleep 1
+          done
+          cat /tmp/server.log
+          exit 1
 
   suite:
-    name: مجموعة الاختبارات
+    name: Test suite
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    # 22.x، لا 20.x: tests/matching.check.js يستورد web/src/lib/pixelMatch.ts
-    # مباشرة (نفس الكود الذي يشغّله المتصفح)، وNode 20 لا يقرأ ملفات .ts.
-    - name: Use Node.js 22.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22.x
+      - uses: actions/checkout@v4
+      # 22.x, not 20.x: tests/matching.check.js imports web/src/lib/pixelMatch.ts
+      # directly (the same code the browser runs), and Node 20 cannot read .ts.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    # smoke.test.js يفحص ربط DOM في src/public/index.html، وهو ناتج بناء لا
-    # يُلتزم إلا على main (يودعه وركفلو «بناء واجهة الموقع»). فروع الطلبات لا
-    # تحمله، وبلا الملف يسقط الخادم فتفشل المجموعة بـECONNRESET — فيُبنى هنا.
-    - name: Build frontend
-      run: npm run build
+      # smoke.test.js checks the DOM wiring in src/public/index.html, a build
+      # output committed only on main (by the "build" workflow). Pull-request
+      # branches lack it, and without it the server fails - so build it here.
+      - name: Build frontend
+        run: npm run build
 
-    # بلا .env ولا src/data/settings.local.json في العامل: المخزن ملفّي وأودو
-    # غير مُعدّ، فيُنفَّذ اختبار التفرّد فعلاً بدل أن يتخطّى نفسه — تخطّيه
-    # حمايةٌ لمبيعات أودو الحقيقية، لا عيبٌ فيه.
-    - name: Run test suite
-      run: npm test
+      # No .env and no src/data/settings.local.json on the runner: the store is
+      # the file store and Odoo is not configured, so the idempotency test runs
+      # for real instead of skipping itself (its skip protects real Odoo sales).
+      - name: Run test suite
+        run: npm test

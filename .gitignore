@@ -1,20 +1,18 @@
-﻿# Dependencies
+# Dependencies
 node_modules/
 web/node_modules/
 
-# ناتج بناء الواجهة (`npm run build`) — متتبَّع عمداً، خلافاً للمعتاد.
-#
-# المضيف لا يستطيع بناء الواجهة إطلاقاً: Rollup 4 يحمل مكوّناً أصلياً يتطلّب
-# GLIBC 2.29 والمضيف أقدم. فالملفات المبنيّة لا تصله إلا محمولةً في المستودع.
-# يبنيها الوركفلو ويودعها — انظر .github/workflows/deploy.yml.
-# لا تُعدّلها بيدك: أي تعديل يُمحى في البناء التالي.
+# src/public/ - the frontend build - is tracked on purpose, unlike most
+# projects: the host cannot build the frontend at all (Rollup 4 ships a native
+# part that needs GLIBC 2.29, newer than the host's), so the built files reach
+# it only inside the repository. The "build" workflow builds and commits them
+# (.github/workflows/deploy.yml). Do not edit them by hand.
 
-# Product images uploaded from the admin dashboard — رفعها المدير على المضيف،
-# ليست ناتج بناء ولا تُودع.
+# Product images uploaded from the dashboard - they live on the host only.
 src/public/uploads/
 
-# Local runtime data â€” the store writes these at runtime.
-# demo-products.json is source data and stays tracked.
+# Runtime data the server writes (file store, settings, push and quiz state).
+# src/data/demo-products.json is source data and stays tracked.
 src/data/orders.local.jsonl
 src/data/support.local.jsonl
 src/data/users.jsonl
@@ -23,9 +21,13 @@ src/data/otp.jsonl
 src/data/devices.jsonl
 src/data/product-overrides.local.json
 src/data/perks.json
-
-# Dashboard settings â€” holds the Odoo API key.
+src/data/quiz.local.json
+src/data/push.local.json
+# Holds the Odoo API key.
 src/data/settings.local.json
+
+# The deploy fingerprint scripts/deploy.sh writes in the app folder on the host.
+deployed.json
 
 # Environment
 .env
@@ -39,18 +41,10 @@ Thumbs.db
 .idea/
 *.swp
 
-# Claude Code local session/plan state
+# Claude Code local session state
 .claude/
 
-# Logs
+# Logs and build info
 *.log
 npm-debug.log*
-
-# TypeScript build info
 *.tsbuildinfo
-
-# بصمة النشر — يكتبها scripts/deploy.sh في مجلد التطبيق على المضيف،
-# وتظهر هنا فقط إن شُغّل النشر في مكانه.
-deployed.json
-src/data/quiz.local.json
-src/data/push.local.json
