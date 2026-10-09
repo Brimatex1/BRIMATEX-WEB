@@ -56,7 +56,7 @@ export function LegalPage({ page }: { page: LegalPageKey }) {
   const doc = LEGAL[page];
   useTitle(doc.title);
 
-  // Opened at /privacy#cookies: go to that section once it is on the page.
+  // Opened at /privacy#tracking: go to that section once it is on the page.
   useEffect(() => {
     const id = decodeURIComponent(window.location.hash.slice(1));
     if (id) scrollToSection(id);
