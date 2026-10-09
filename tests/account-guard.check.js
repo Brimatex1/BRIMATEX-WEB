@@ -93,6 +93,8 @@ async function run() {
     ok('الحساب بالاسم وكلمة المرور (201)', created.status === 201 && Boolean(created.json?.token) && created.json?.user?.phone === phone, JSON.stringify(created.json));
     const reused = await req('POST', '/api/auth/register', { name: 'ثانٍ', password, signupToken: verified.json?.signupToken });
     ok('التوثيق لمرة واحدة', reused.status === 400);
+    const again = await req('POST', '/api/auth/signup/otp/request', { phone });
+    ok('حساب جديد برقم مسجّل: «مسجّل من قبل» (409) بلا رمز', again.status === 409 && again.json?.code === 'registered' && /مسجّل من قبل/.test(again.json?.error || ''), JSON.stringify(again.json));
 
     console.log('\n\x1b[1m2. الدخول بالرقم وكلمة المرور\x1b[0m');
     const signedIn = await req('POST', '/api/auth/login', { phone, password });

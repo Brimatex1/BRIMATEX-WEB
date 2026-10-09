@@ -294,19 +294,18 @@ function createAuthRoutes({ isValidPhone }) {
         return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
       }
 
-      // A registered number gets nothing: no code, and no separate message
-      // either — Meta fixes the body text of authentication templates, so
-      // telling the owner "you already have an account" would need a second
-      // template of category UTILITY.
+      // A registered number is told so, on the screen - no code is sent. The
+      // owner's choice: a customer who already has an account should go to
+      // sign-in (or «نسيت كلمة المرور»), not wait for a code that never comes.
+      // It does say which numbers have an account; the code limits per number
+      // and per address keep that from being asked in bulk.
       const user = await auth.findByPhone(phone);
-      if (!user) {
-        const result = await otp.requestCode(phone);
-        if (!result.issued) console.log(`[signup OTP] not sent for ${phone}: ${result.reason}`);
+      if (user) {
+        return sendJson(res, 409, { error: 'هذا الرقم مسجّل من قبل. سجّل الدخول، أو اختر «نسيت كلمة المرور».', code: 'registered' });
       }
-
-      // Identical reply either way, exactly as in the recovery route — varying it
-      // would answer "does this number have an account here?" for anyone asking.
-      return sendJson(res, 200, { message: 'إن كان الرقم متاحاً فسيصلك رمز على واتساب' });
+      const result = await otp.requestCode(phone);
+      if (!result.issued) console.log(`[signup OTP] not sent for ${phone}: ${result.reason}`);
+      return sendJson(res, 200, { message: 'أرسلنا رمزاً على واتساب' });
     }
 
     if (req.method === 'POST' && url.pathname === '/api/auth/signup/otp/verify') {

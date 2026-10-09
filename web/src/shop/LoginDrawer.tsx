@@ -3,7 +3,7 @@ import { AlertTriangle, Eye, EyeOff, LockKeyhole } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { trackCompleteRegistration } from '@/lib/pixel';
 import { cn, toLatinDigits } from '@/lib/utils';
 
@@ -131,7 +131,13 @@ export function LoginDrawer() {
       setCode('');
       window.setTimeout(() => codeInput.current?.focus(), 50);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'تعذّر إرسال الرمز');
+      // A number that already has an account: to sign-in, the number kept, with the message.
+      if (mode === 'signup' && err instanceof ApiError && err.status === 409) {
+        go('login');
+        setError(err.message);
+      } else {
+        setError(err instanceof Error ? err.message : 'تعذّر إرسال الرمز');
+      }
     } finally {
       setBusy(false);
     }
@@ -324,7 +330,7 @@ export function LoginDrawer() {
             <b className="text-[15px]">رمز التحقق</b>
             <span className="-mt-2 text-sm text-muted-foreground">
               {mode === 'signup'
-                ? 'أرسلنا رمزاً من 6 أرقام على واتساب. إن كان الرقم مسجّلاً من قبل فلن يصلك رمز - سجّل الدخول، أو «نسيت كلمة المرور».'
+                ? 'أرسلنا رمزاً من 6 أرقام على واتساب إلى رقمك.'
                 : 'أرسلنا رمزاً من 6 أرقام على واتساب. إن لم يكن للرقم حساب فلن يصلك رمز - أنشئ حساباً.'}
             </span>
             {/* One real input under six boxes: paste, autofill and the keyboard all work. */}
