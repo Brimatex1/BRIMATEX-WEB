@@ -48,18 +48,23 @@ export function timeline(order: OrderSummary): Step[] {
     const state: Step['state'] = all || i < current ? 'done' : i === current ? 'current' : 'upcoming';
     let detail: string | null = null;
     if (key === 'new') detail = formatMoment(order.placedAt);
-    if (key === 'out') detail = order.shippedAt ? formatMoment(order.shippedAt) : order.deliveryText && order.method !== 'pickup' ? `الوصول المتوقّع ${order.deliveryText}` : null;
+    if (key === 'out') detail = order.shippedAt ? formatMoment(order.shippedAt) : order.deliveryText && !collects(order) ? `الوصول المتوقّع ${order.deliveryText}` : null;
     if (key === 'delivered') detail = order.paidAt ? formatMoment(order.paidAt) : null;
-    return { key, label: key === 'out' && order.method === 'pickup' ? 'جاهز للاستلام' : LABELS[key], state, detail };
+    return { key, label: key === 'out' && collects(order) ? 'جاهز للاستلام' : LABELS[key], state, detail };
   });
+}
+
+/** Whether the customer collects the order - at the showroom or from an authorized distributor. */
+export function collects(order: Pick<OrderSummary, 'method'>): boolean {
+  return order.method === 'pickup' || order.method === 'distributor';
 }
 
 /** The words on an order card, with the status's tone (blue on its way, amber being prepared, green delivered). */
 export function statusLine(order: OrderSummary): { label: string; tone: Tone } {
   if (isCancelled(order)) return { label: 'ملغى', tone: 'destructive' };
   const step = currentStep(order);
-  if (step === 4) return { label: order.method === 'pickup' ? 'تم الاستلام' : 'تم التسليم', tone: 'success' };
-  if (step === 3) return { label: order.method === 'pickup' ? 'جاهز للاستلام' : 'خرج للتوصيل', tone: 'info' };
+  if (step === 4) return { label: collects(order) ? 'تم الاستلام' : 'تم التسليم', tone: 'success' };
+  if (step === 3) return { label: collects(order) ? 'جاهز للاستلام' : 'خرج للتوصيل', tone: 'info' };
   if (step === 2) return { label: order.leadDays != null ? 'قيد التصنيع' : 'قيد التجهيز', tone: 'warning' };
   return { label: 'بانتظار التأكيد', tone: 'warning' };
 }

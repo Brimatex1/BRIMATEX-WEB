@@ -4,14 +4,17 @@
  * method only tells the driver what to bring (cash, a card machine, or the
  * bank details).
  *
- * Delivery days: every day but Friday, morning or evening. Free everywhere
- * for now, as the website says. A day too soon for a pre-order is the app's
- * to prevent (it offers days after the making time); the server checks only
- * that the day is real, not Friday and not past.
+ * The owner's rule (handoff, Oct 2026): home delivery is free and only inside
+ * Tripoli, within 48 hours of the order - the first day offered is two days
+ * after today; then every day but Friday, morning or evening. Outside Tripoli
+ * the customer collects the order free from an authorized distributor
+ * (src/lib/distributors.js). Pickup at the branch (الفرع) is free too.
  */
 'use strict';
 
-const METHODS = { home: 'توصيل إلى المنزل', pickup: 'استلام من الصالة' };
+const { isTripoli } = require('./distributors');
+
+const METHODS = { home: 'توصيل إلى المنزل', pickup: 'استلام من الفرع', distributor: 'استلام من موزّع معتمد' };
 const SLOTS = { morning: 'صباحاً', evening: 'مساءً' };
 const PAYMENTS = { cash: 'نقداً', card: 'بطاقة مصرفية', transfer: 'حوالة مصرفية' };
 
@@ -19,10 +22,14 @@ const PAYMENTS = { cash: 'نقداً', card: 'بطاقة مصرفية', transfer
 const LIBYA_OFFSET_HOURS = 2;
 /** The slot's start in Libyan time - Odoo's commitment date is stored in UTC. */
 const SLOT_HOUR = { morning: 9, evening: 17 };
+/** Home delivery: within 48 hours, so the first day is two days after today. */
+const FIRST_DAY_AHEAD = 2;
 /** How far ahead a day can be chosen. */
 const MAX_DAYS_AHEAD = 45;
-/** The rule above in words, for the panel's «مدن التوصيل» (every city alike). */
-const DAYS_TEXT = 'كل الأيام عدا الجمعة، صباحاً أو مساءً';
+/** The rule above in words, for the panel's «مدن التوصيل». */
+const DAYS_TEXT = 'داخل طرابلس خلال 48 ساعة، كل الأيام عدا الجمعة، صباحاً أو مساءً';
+/** What the website and the apps say about delivery, everywhere the same. */
+const HOME_TEXT = 'توصيل مجاني داخل طرابلس · خلال 48 ساعة';
 
 const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -40,8 +47,10 @@ function dayLabel(iso) {
 
 /**
  * The order's delivery and payment, checked: { method, date, slot,
- * paymentMethod, commitmentDate, noteLines } - or { error } in Arabic. An
- * order without them (the website's) is accepted as before: { none: true }.
+ * distributorId, paymentMethod, commitmentDate, noteLines } - or { error } in
+ * Arabic. An order without them (an old client's) is accepted as before:
+ * { none: true }. The distributor itself is checked by the orders route, which
+ * can ask Odoo (src/lib/distributors.js); here only its id is read.
  */
 function readDelivery(order, now = new Date()) {
   const d = order?.delivery;
@@ -56,14 +65,22 @@ function readDelivery(order, now = new Date()) {
   let date = null;
   let slot = null;
   let commitmentDate = null;
+  let distributorId = null;
+  if (method === 'home' && !isTripoli(order?.customer?.city)) {
+    return { error: 'التوصيل إلى المنزل داخل طرابلس فقط. اختر الاستلام من موزّع معتمد', code: 'home_outside_tripoli' };
+  }
+  if (method === 'distributor') {
+    distributorId = d.distributorId == null ? null : Number(d.distributorId);
+    if (distributorId !== null && (!Number.isInteger(distributorId) || distributorId <= 0)) return { error: 'اختر الموزّع' };
+  }
   if (method === 'home') {
     date = String(d.date || '');
     slot = d.slot;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return { error: 'اختر يوم التوصيل' };
     if (!SLOTS[slot]) return { error: 'اختر فترة التوصيل' };
     const today = libyaToday(now);
-    if (date <= today) return { error: 'اختر يوماً بعد اليوم' };
     const ahead = (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000;
+    if (ahead < FIRST_DAY_AHEAD) return { error: 'يصل الطلب داخل طرابلس خلال 48 ساعة. اختر يوماً بعد يومين' };
     if (ahead > MAX_DAYS_AHEAD) return { error: 'اختر يوماً أقرب' };
     if (new Date(`${date}T12:00:00Z`).getUTCDay() === 5) return { error: 'لا يوجد توصيل يوم الجمعة' };
     const hourUtc = String(SLOT_HOUR[slot] - LIBYA_OFFSET_HOURS).padStart(2, '0');
@@ -72,7 +89,7 @@ function readDelivery(order, now = new Date()) {
   }
   if (pay) lines.push(`الدفع عند الاستلام: ${PAYMENTS[pay]}`);
 
-  return { method, date, slot, paymentMethod: pay || null, commitmentDate, noteLines: lines };
+  return { method, date, slot, distributorId, paymentMethod: pay || null, commitmentDate, noteLines: lines };
 }
 
-module.exports = { readDelivery, dayLabel, libyaToday, METHODS, SLOTS, PAYMENTS, DAYS_TEXT };
+module.exports = { readDelivery, dayLabel, libyaToday, METHODS, SLOTS, PAYMENTS, DAYS_TEXT, HOME_TEXT, FIRST_DAY_AHEAD };

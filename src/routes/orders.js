@@ -27,6 +27,7 @@ const { getProducts, productLookup } = require('../lib/catalogue');
 const { stockNote } = require('../lib/availability');
 const { sendJson, readBody } = require('../lib/respond');
 const { readDelivery } = require('../lib/delivery');
+const distributors = require('../lib/distributors');
 const appSettings = require('../lib/appSettings');
 const reviewAccount = require('../lib/reviewAccount');
 
@@ -133,9 +134,22 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       const result = await getProducts();
       const validationError = validateOrder(order, result.products);
       if (validationError) return sendJson(res, 400, { error: validationError });
-      // The app's checkout: home delivery on a day and a slot, or the showroom; how it is paid.
+      // The checkout: home delivery in Tripoli on a day and a slot, the branch, or an
+      // authorized distributor outside Tripoli; and how it is paid.
       const delivery = readDelivery(order);
-      if (delivery.error) return sendJson(res, 400, { error: delivery.error });
+      if (delivery.error) return sendJson(res, 400, { error: delivery.error, ...(delivery.code ? { code: delivery.code } : {}) });
+      // The distributor the customer chose must be one of the owner's (Odoo's
+      // «موزّع معتمد»); none chosen - none in that city yet - the team calls.
+      let distributor = null;
+      if (delivery.method === 'distributor') {
+        if (delivery.distributorId) {
+          distributor = await distributors.byId(delivery.distributorId);
+          if (!distributor) return sendJson(res, 400, { error: 'الموزّع غير متاح. اختر موزّعاً آخر', code: 'distributor_unknown' });
+          delivery.noteLines.push(`الموزّع: ${distributor.name} — ${[distributor.city, distributor.address].filter(Boolean).join('، ')}`);
+        } else {
+          delivery.noteLines.push(`لا موزّع معتمد مختار: يتواصل الفريق مع الزبون لتحديد أقرب موزّع في ${order.customer?.city || 'مدينته'}`);
+        }
+      }
 
       // Idempotency. The network in Libya drops between us accepting an order
       // and the reply reaching the phone; the app then shows "try again" and the
@@ -227,13 +241,13 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       if (loyaltyAsk.request) {
         if (!orderSession) return sendJson(res, 401, { error: 'سجّل الدخول لاستخدام النقاط أو القسيمة' });
         if (voucher) return sendJson(res, 400, { error: 'استخدم قسيمة واحدة في الطلب' });
-        note = [note.trim(), loyaltyAsk.request.usePoints ? 'يستخدم الزبون نقاطه في هذا الطلب' : `قسيمة: ${loyaltyAsk.request.coupon}`]
+        note = [note.trim(), loyaltyAsk.request.usePoints ? 'يستخدم الزبون نقاطه في هذا الطلب' : '', loyaltyAsk.request.coupon ? `قسيمة: ${loyaltyAsk.request.coupon}` : '']
           .filter(Boolean)
           .join('\n');
       }
       if (delivery.noteLines) note = [note.trim(), ...delivery.noteLines].filter(Boolean).join('\n');
       // Sizes not in stock: the note tells the warehouse (the customer saw only the later delivery days).
-      const madeToOrder = stockNote(order.items, result.products, settings.readDeliveryTimes());
+      const madeToOrder = stockNote(order.items, result.products);
       if (madeToOrder) note = [note.trim(), madeToOrder].filter(Boolean).join('\n');
 
       /** Gives the voucher back when the order could not be created. */
@@ -251,6 +265,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           }));
           odooResult = await odoo.createSaleOrder(order.customer, pricedItems, note, discount, {
             commitmentDate: delivery.commitmentDate,
+            // Collected from the distributor: the order ships to them (ODOO.md).
+            shippingPartnerId: distributor?.id || null,
           });
         } catch (err) {
           await releaseVoucher();
@@ -263,8 +279,8 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
           // order as placed - the note tells the team what the customer asked.
           try {
             const applied = await loyalty.applyToOrder(odooResult.id, loyaltyAsk.request);
-            if (applied.error) console.error('[loyalty] not applied to', odooResult.name, applied.error);
-            else if (applied.total != null) odooResult.total = applied.total;
+            if (applied.error) console.error('[loyalty] not all applied to', odooResult.name, applied.error);
+            if (applied.total != null) odooResult.total = applied.total;
           } catch (err) {
             console.error('[loyalty] not applied to', odooResult.name, err.message);
           }

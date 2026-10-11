@@ -293,7 +293,17 @@ export interface CouponCheck {
 }
 
 /** Points or one coupon on an order - never both (the owner's rule). */
-export type LoyaltyChoice = { usePoints: true } | { coupon: string };
+/** Points, one coupon, or both (the owner's rule since Oct 2026). */
+export type LoyaltyChoice = { usePoints?: true; coupon?: string };
+
+/** An authorized distributor - where a customer outside Tripoli collects the order (GET /api/distributors). */
+export interface Distributor {
+  id: number;
+  name: string;
+  city: string;
+  address: string;
+  phone: string | null;
+}
 
 export interface OrderResult {
   source: string;
@@ -337,7 +347,7 @@ export interface OrderSummary {
   /** Made to order: days to make it (0 = no set time); null when nothing in it is. */
   leadDays?: number | null;
   /** The checkout's choices read back (src/routes/user.js): home or showroom, the day and period, the payment. */
-  method?: 'home' | 'pickup' | null;
+  method?: 'home' | 'pickup' | 'distributor' | null;
   deliveryText?: string | null;
   paymentText?: string | null;
   /** It has not left for delivery yet, so the customer may still cancel it. */
@@ -453,12 +463,6 @@ export interface FacebookPixelSettings {
 }
 
 /** Server-side reporting to Meta. The token itself never leaves the server. */
-/** «مدة التوصيل» (src/lib/availability.js): [from, to] days, in stock (working days) and not. */
-export interface DeliveryTimes {
-  stock: [number, number];
-  made: [number, number];
-}
-
 export interface ConversionsApiStatus {
   configured: boolean;
   /** FACEBOOK_TEST_EVENT_CODE is set: events land in Events Manager's "Test events". */

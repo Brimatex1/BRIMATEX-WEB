@@ -1,6 +1,5 @@
-import { windowForDays, windowText } from '@/lib/delivery';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, CreditCard, ShieldCheck, ShoppingBasket, Store, Truck } from 'lucide-react';
+import { Check, ChevronDown, CreditCard, MapPin, ShieldCheck, ShoppingBasket, Store, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -271,6 +270,7 @@ export function ProductPage({ id }: { id: number }) {
   const warranty = warrantyText(product.warrantyYears);
   const related = [...shop.products.filter((p) => p.id !== product.id && tierOf(p) === tier), ...shop.products.filter((p) => p.id !== product.id && tierOf(p) !== tier)].slice(0, 4);
   const pickup = shop.method === 'pickup';
+  const viaDistributor = shop.method === 'distributor';
 
   function choose(v: ProductVariant) {
     const p = parseSize(v);
@@ -343,18 +343,19 @@ export function ProductPage({ id }: { id: number }) {
 
             <div role="radiogroup" aria-label="طريقة الاستلام" className="flex flex-col divide-y divide-border rounded-lg border border-border">
               <MethodCard
-                selected={!pickup}
+                selected={!pickup && !viaDistributor}
                 onSelect={() => shop.setMethod('home')}
                 icon={<Truck />}
                 title="توصيل إلى المنزل"
                 sub={
                   <>
-                    <span className="text-success">● مجاني</span> · {shop.city ?? 'إلى كل المدن'}
-                    {variant.deliveryDays ? <span className="block">يصلك {windowText(windowForDays(variant.deliveryDays))}</span> : null}
+                    <span className="text-success">● مجاني</span> · داخل طرابلس
+                    <span className="block">يصلك خلال 48 ساعة من تأكيد الطلب</span>
                   </>
                 }
               />
               <MethodCard selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="معروضة للتجربة · النوفليين" />
+              <MethodCard selected={viaDistributor} onSelect={() => shop.setMethod('distributor')} icon={<MapPin />} title="استلام من موزّع معتمد" sub={<><span className="text-success">● مجاني</span> · خارج طرابلس</>} />
             </div>
 
             <div ref={mainButton}>{addButton}</div>

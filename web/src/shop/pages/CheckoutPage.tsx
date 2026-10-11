@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Banknote, Building2, Check, ChevronDown, ChevronLeft, CreditCard, Store, Truck } from 'lucide-react';
+import { AlertTriangle, Banknote, Building2, Check, ChevronDown, ChevronLeft, CreditCard, MapPin, Store, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { api, ApiError } from '@/lib/api';
 import { forgetCheckout, setPixelPerson, trackAddPaymentInfo, trackCheckoutOnce, trackPurchase, trackingContext } from '@/lib/pixel';
 import { cn, formatPrice, toLatinDigits } from '@/lib/utils';
-import type { LoyaltyChoice } from '@/types';
+import type { Distributor, LoyaltyChoice } from '@/types';
 
 import { displayName, lineParts } from '../catalog';
 import { useTitle } from '../hooks';
@@ -115,6 +115,67 @@ function Field({ id, label, value, onChange, error, placeholder, ltr, autoComple
   );
 }
 
+/** Whether a city is Tripoli, the only city with home delivery (the server's distributors.isTripoli). */
+function isTripoli(city: string) {
+  const key = city
+    .replace(/[ً-ٟـ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .trim()
+    .toLowerCase();
+  return key === 'طرابلس' || key === 'tripoli';
+}
+
+/** Outside Tripoli: the customer's city, then the authorized distributors there (from Odoo). */
+function DistributorPicker({ city, onCity, error, chosenId, onChoose, onList }: { city: string; onCity: (v: string) => void; error?: string; chosenId: number | null; onChoose: (id: number | null) => void; onList: (list: Distributor[]) => void }) {
+  const [list, setList] = useState<Distributor[] | null>(null);
+  useEffect(() => {
+    const wanted = city.trim();
+    if (!wanted) {
+      setList([]);
+      onList([]);
+      return;
+    }
+    let live = true;
+    const timer = window.setTimeout(() => {
+      api
+        .distributors(wanted)
+        .then((r) => {
+          if (!live) return;
+          setList(r.distributors);
+          onList(r.distributors);
+          if (r.distributors.length === 1) onChoose(r.distributors[0].id);
+        })
+        .catch(() => {
+          if (!live) return;
+          setList([]);
+          onList([]);
+        });
+    }, 350);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+    // onList and onChoose are state setters - stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Field id="co-city" label="مدينتك" value={city} onChange={onCity} error={error} autoComplete="address-level2" />
+      {list === null ? null : list.length === 0 ? (
+        <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground">سنتواصل معك لتحديد أقرب موزّع معتمد في مدينتك، والاستلام مجاني.</p>
+      ) : (
+        <div role="radiogroup" aria-label="الموزّع المعتمد" className="grid gap-3 sm:grid-cols-2">
+          {list.map((d) => (
+            <Option key={d.id} selected={chosenId === d.id} onSelect={() => onChoose(d.id)} icon={<MapPin />} title={d.name} sub={[d.city, d.address].filter(Boolean).join(' · ')} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Option({ selected, onSelect, title, sub, icon, className }: { selected: boolean; onSelect: () => void; title: React.ReactNode; sub?: React.ReactNode; icon?: React.ReactNode; className?: string }) {
   return (
     <button
@@ -147,7 +208,14 @@ export function CheckoutPage() {
   const { go } = useRouter();
   useTitle('إتمام الطلب');
   const user = shop.auth.user;
+  // Home delivery is inside Tripoli only (48 h); the branch; or, outside Tripoli, an authorized distributor.
   const pickup = shop.method === 'pickup';
+  const viaDistributor = shop.method === 'distributor';
+  const home = !pickup && !viaDistributor;
+  // The distributor the customer chose, from the list for their city (none: the team calls).
+  const [distributorId, setDistributorId] = useState<number | null>(null);
+  const [distributorList, setDistributorList] = useState<Distributor[]>([]);
+  const chosenDistributor = viaDistributor ? (distributorList.find((d) => d.id === distributorId) ?? null) : null;
 
   const saved = user?.addresses ?? [];
   const [savedId, setSavedId] = useState<string | null>(saved[0]?.id ?? null);
@@ -164,7 +232,7 @@ export function CheckoutPage() {
   const [failure, setFailure] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const requestId = useRef(newRequestId());
-  // The loyalty add-on: points or one coupon, never both.
+  // The loyalty add-on: points, one coupon, or both.
   const [usePoints, setUsePoints] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
   const [perkNote, setPerkNote] = useState<string | null>(null);
@@ -217,7 +285,8 @@ export function CheckoutPage() {
   const pointsOff = perks && usePoints && canUsePoints ? Math.min(perks.value, total) : 0;
   const couponOff = coupon ? Math.min(coupon.discount, total) : 0;
   const payable = Math.max(0, Math.round((total - pointsOff - couponOff) * 100) / 100);
-  const loyaltyChoice: LoyaltyChoice | undefined = pointsOff > 0 ? { usePoints: true } : coupon ? { coupon: coupon.code } : undefined;
+  const loyaltyChoice: LoyaltyChoice | undefined =
+    pointsOff > 0 || coupon ? { ...(pointsOff > 0 ? { usePoints: true as const } : {}), ...(coupon ? { coupon: coupon.code } : {}) } : undefined;
 
   // A coupon kept from «قسائمي» was checked against another cart: check it again for this one.
   const token = shop.auth.token;
@@ -242,25 +311,24 @@ export function CheckoutPage() {
   }, [coupon?.code, coupon?.subtotal, total, token]);
 
   function togglePoints() {
-    const next = !usePoints;
-    setUsePoints(next);
-    if (next && coupon) {
-      shop.loyalty.setCoupon(null);
-      setPerkNote('أزلنا القسيمة، فالنقاط والقسيمة لا تُجمعان في طلب واحد.');
-    } else setPerkNote(null);
+    setUsePoints(!usePoints);
+    setPerkNote(null);
   }
 
-  const usingSaved = !pickup && savedId !== null && saved.some((a) => a.id === savedId);
+  const usingSaved = home && savedId !== null && saved.some((a) => a.id === savedId);
   const chosenSaved = saved.find((a) => a.id === savedId);
-  const when = pickup ? 'استلام من الصالة' : date ? `${dayText(date)} · ${SLOT_LABEL[slot]}` : '';
+  const when = pickup ? 'استلام من الصالة' : viaDistributor ? 'استلام من موزّع معتمد' : date ? `${dayText(date)} · ${SLOT_LABEL[slot]}` : '';
 
   function validate(): boolean {
     const next: typeof errors = {};
-    if (!pickup && !usingSaved) {
+    if (home && !usingSaved) {
       if (!city.trim()) next.city = 'اختر المدينة.';
+      else if (!isTripoli(city)) next.city = 'التوصيل إلى المنزل داخل طرابلس فقط. اختر «استلام من موزّع معتمد».';
       if (!area.trim()) next.area = 'أدخل المنطقة.';
       if (street.trim().length < 3) next.street = 'أدخل أقرب معلم ليصل السائق بسهولة.';
     }
+    if (home && usingSaved && !isTripoli(chosenSaved!.city)) next.city = 'التوصيل إلى المنزل داخل طرابلس فقط. اختر «استلام من موزّع معتمد».';
+    if (viaDistributor && !city.trim()) next.city = 'اختر مدينتك.';
     if (!isLibyanMobile(phone)) next.phone = 'رقم الهاتف يتكوّن من 10 أرقام ويبدأ بـ 09.';
     setErrors(next);
     const first = Object.keys(next)[0];
@@ -273,8 +341,14 @@ export function CheckoutPage() {
     if (submitting || shop.maintenance || !user || !lines.length || !validate()) return;
     setSubmitting(true);
     setFailure(null);
-    const address = pickup ? SHOWROOM_ADDRESS : usingSaved ? chosenSaved!.address : `${area.trim()}، ${street.trim()}`;
-    const orderCity = pickup ? 'طرابلس' : usingSaved ? chosenSaved!.city : city.trim();
+    const address = pickup
+      ? SHOWROOM_ADDRESS
+      : viaDistributor
+        ? `استلام من موزّع معتمد${chosenDistributor ? ` · ${chosenDistributor.name}` : ''}`
+        : usingSaved
+          ? chosenSaved!.address
+          : `${area.trim()}، ${street.trim()}`;
+    const orderCity = pickup ? 'طرابلس' : viaDistributor ? city.trim() : usingSaved ? chosenSaved!.city : city.trim();
     try {
       trackAddPaymentInfo(shop.cart.lines, total);
       const result = await api.createOrder(
@@ -285,9 +359,17 @@ export function CheckoutPage() {
         trackingContext(),
         null,
         requestId.current,
-        { delivery: pickup ? { method: 'pickup' } : { method: 'home', date: date ?? undefined, slot }, paymentMethod: payment, ...(loyaltyChoice ? { loyalty: loyaltyChoice } : {}) }
+        {
+          delivery: pickup
+            ? { method: 'pickup' }
+            : viaDistributor
+              ? { method: 'distributor', ...(chosenDistributor ? { distributorId: chosenDistributor.id } : {}) }
+              : { method: 'home', date: date ?? undefined, slot },
+          paymentMethod: payment,
+          ...(loyaltyChoice ? { loyalty: loyaltyChoice } : {}),
+        }
       );
-      if (!pickup && !usingSaved && saveAddress && shop.auth.token) {
+      if (home && !usingSaved && saveAddress && shop.auth.token) {
         api
           .addAddress(shop.auth.token, address, orderCity)
           .then(({ address: a }) => shop.auth.patchUser({ addresses: [...(user.addresses ?? []), a] }))
@@ -302,11 +384,20 @@ export function CheckoutPage() {
         orderName: result.orderName,
         total: result.total || payable,
         when,
-        address: pickup ? 'صالة العرض · النوفليين' : `${orderCity} · ${address.split('،')[0]}`,
+        address: pickup
+          ? 'صالة العرض · النوفليين'
+          : viaDistributor
+            ? chosenDistributor
+              ? `${chosenDistributor.name} · ${chosenDistributor.city}`
+              : `موزّع معتمد · ${orderCity}`
+            : `${orderCity} · ${address.split('،')[0]}`,
         payment: `${PAYMENT_LABEL[payment]} عند الاستلام`,
         phone,
         lines: shop.cart.lines.map((l) => ({ productId: l.id, quantity: l.qty, price: l.price })),
-        discount: pointsOff > 0 ? { label: 'خصم النقاط', amount: pointsOff } : coupon && couponOff > 0 ? { label: `خصم القسيمة ${coupon.code}`, amount: couponOff } : null,
+        discount:
+          pointsOff + couponOff > 0
+            ? { label: [pointsOff > 0 ? 'خصم النقاط' : '', coupon && couponOff > 0 ? `القسيمة ${coupon.code}` : ''].filter(Boolean).join(' و'), amount: pointsOff + couponOff }
+            : null,
       };
       try {
         sessionStorage.setItem(LAST_ORDER_KEY, JSON.stringify(placed));
@@ -385,7 +476,7 @@ export function CheckoutPage() {
   const totals = (
     <div className="flex flex-col gap-2.5">
       <SummaryRow label="المنتجات" value={<Price amount={total} size="row" />} />
-      <SummaryRow label="التوصيل" value={pickup ? 'بدون رسوم' : 'مجاني'} />
+      <SummaryRow label="التوصيل" value={home ? 'مجاني داخل طرابلس' : 'مجاني'} />
       <SummaryRow label="الموعد" value={when} />
       {pointsOff > 0 ? (
         <div className="animate-fade-up text-success">
@@ -475,10 +566,7 @@ export function CheckoutPage() {
                     onApplied={(c) => {
                       shop.loyalty.setCoupon(c);
                       setCouponOpen(false);
-                      if (usePoints) {
-                        setUsePoints(false);
-                        setPerkNote('أوقفنا خصم النقاط، فالنقاط والقسيمة لا تُجمعان في طلب واحد.');
-                      } else setPerkNote(null);
+                      setPerkNote(null);
                     }}
                   />
                   <Link to={{ name: 'account', section: 'coupons' }} className="inline-flex min-h-11 items-center self-start text-sm font-bold underline underline-offset-4">
@@ -512,7 +600,7 @@ export function CheckoutPage() {
 
       <div className="grid gap-10 lg:grid-cols-[1fr_400px] lg:gap-14">
         <div className="flex flex-col gap-8">
-          {!pickup ? (
+          {home ? (
             <Section n={1} title="إلى أين نوصل المراتب؟">
               {saved.length ? (
                 <div role="radiogroup" aria-label="العناوين المحفوظة" className="flex flex-col gap-2">
@@ -546,12 +634,16 @@ export function CheckoutPage() {
             </Section>
           ) : null}
 
-          <Section n={pickup ? 1 : 2} title="كيف تصلك المراتب؟">
-            <div role="radiogroup" aria-label="طريقة الاستلام" className="grid gap-3 sm:grid-cols-2">
-              <Option selected={!pickup} onSelect={() => shop.setMethod('home')} icon={<Truck />} title="توصيل إلى المنزل" sub={`${usingSaved ? chosenSaved!.city : city}${!usingSaved && area ? ` · ${area}` : ''} · مجاني`} />
-              <Option selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="النوفليين · بدون رسوم" />
+          <Section n={home ? 2 : 1} title="كيف تصلك المراتب؟">
+            <div role="radiogroup" aria-label="طريقة الاستلام" className="grid gap-3 sm:grid-cols-3">
+              <Option selected={home} onSelect={() => shop.setMethod('home')} icon={<Truck />} title="توصيل إلى المنزل" sub="داخل طرابلس · مجاني · خلال 48 ساعة" />
+              <Option selected={pickup} onSelect={() => shop.setMethod('pickup')} icon={<Store />} title="استلام من الصالة" sub="النوفليين · مجاني" />
+              <Option selected={viaDistributor} onSelect={() => shop.setMethod('distributor')} icon={<MapPin />} title="استلام من موزّع معتمد" sub="خارج طرابلس · مجاني" />
             </div>
-            {pickup ? (
+            {viaDistributor ? (
+              <DistributorPicker city={city} onCity={setCity} error={errors.city} chosenId={distributorId} onChoose={setDistributorId} onList={setDistributorList} />
+            ) : null}
+            {!home ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field id="co-phone" label="رقم الهاتف" value={phone} onChange={(v) => setPhone(toLatinDigits(v).replace(/\D/g, '').slice(0, 10))} error={errors.phone} placeholder="09X XXX XXXX" ltr autoComplete="tel" />
               </div>
@@ -577,12 +669,12 @@ export function CheckoutPage() {
                     <Option key={s} selected={slot === s} onSelect={() => setSlot(s)} title={SLOT_LABEL[s]} />
                   ))}
                 </div>
-                <span className="text-[13px] text-muted-foreground">الأيام المعروضة حسب جدول التوصيل لمنطقتك. يتصل بك السائق قبل الوصول.</span>
+                <span className="text-[13px] text-muted-foreground">يصلك الطلب داخل طرابلس خلال 48 ساعة من تأكيده، فتبدأ الأيام من أول موعد متاح. يتصل بك السائق قبل الوصول.</span>
               </>
             )}
           </Section>
 
-          <Section n={pickup ? 2 : 3} title="طريقة الدفع">
+          <Section n={home ? 3 : 2} title="طريقة الدفع">
             <span className="-mt-2 text-sm text-muted-foreground">الدفع عند الاستلام</span>
             <div role="radiogroup" aria-label="طريقة الدفع" className="grid gap-3 sm:grid-cols-3">
               {PAYMENTS.map(({ value, label, icon: Icon }) => (

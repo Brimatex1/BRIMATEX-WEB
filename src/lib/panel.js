@@ -96,7 +96,8 @@ function periodStart(period, now = new Date()) {
 /** The app's checkout choices, read back from the note the server wrote (src/lib/delivery.js). */
 function deliveryFromNote(note) {
   const text = String(note || '');
-  if (/الاستلام: استلام من الصالة/.test(text)) return 'استلام من الصالة';
+  if (/الاستلام: استلام من (الصالة|الفرع)/.test(text)) return 'استلام من الصالة';
+  if (/الاستلام: استلام من موزّع معتمد/.test(text)) return 'استلام من موزّع معتمد';
   return text.match(/موعد التوصيل: (.+)/)?.[1]?.trim() || null;
 }
 
@@ -325,7 +326,7 @@ function orderDetail(order, { index, lookup, odooUrl } = {}) {
     invoiceName: order.invoiceName || null,
     timeline: timelineOf(order),
     items,
-    pickup: /الاستلام: استلام من الصالة/.test(text),
+    pickup: /الاستلام: استلام من (الصالة|الفرع)/.test(text),
     notes: noteLines(text),
     address: String(order.customer?.address || '').trim(),
     customerKey: customerKeyOf(order),

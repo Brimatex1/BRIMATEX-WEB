@@ -1,6 +1,6 @@
 import type {
+  Distributor,
   PreorderSettings,
-  DeliveryTimes,
   Address,
   AdminReview,
   AppConfig,
@@ -142,11 +142,11 @@ export const api = {
     voucherCode?: string | null,
     /** Same on every retry of one checkout, so a retry cannot order twice. */
     requestId?: string,
-    /** The checkout's choices: home delivery on a day and slot, or the showroom; how it is paid on delivery. */
+    /** The checkout's choices: home delivery in Tripoli on a day and slot, the showroom, or a distributor; how it is paid on delivery. */
     checkout?: {
-      delivery: { method: 'home' | 'pickup'; date?: string; slot?: 'morning' | 'evening' };
+      delivery: { method: 'home' | 'pickup' | 'distributor'; date?: string; slot?: 'morning' | 'evening'; distributorId?: number };
       paymentMethod: 'cash' | 'card' | 'transfer';
-      /** The customer's points or one coupon; the server applies it in Odoo and returns the discounted total. */
+      /** The customer's points, one coupon, or both; the server applies them in Odoo and returns the discounted total. */
       loyalty?: LoyaltyChoice;
     }
   ) =>
@@ -197,6 +197,10 @@ export const api = {
   /** Signs the user in: the server drops old sessions and returns a new one. */
   resetPassword: (resetToken: string, password: string) =>
     request<{ token: string; user: User }>('/api/auth/password', jsonBody({ resetToken, password })),
+
+  /** Authorized distributors in a city - pickup outside Tripoli. Empty until the owner tags them in Odoo. */
+  distributors: (city: string) =>
+    request<{ distributors: Distributor[] }>(`/api/distributors?city=${encodeURIComponent(city)}`),
 
   login: (phone: string, password: string) =>
     request<{ token: string; user: User }>('/api/auth/login', jsonBody({ phone, password })),
@@ -427,11 +431,6 @@ export const api = {
       '/api/admin/settings/facebook-pixel/test',
       jsonBody({ testEventCode }, token)
     ),
-
-  adminDeliveryTimes: (token: string) => request<{ deliveryTimes: DeliveryTimes }>('/api/admin/settings/delivery-times', authHeaders(token)),
-
-  adminSaveDeliveryTimes: (token: string, times: DeliveryTimes) =>
-    request<{ deliveryTimes: DeliveryTimes }>('/api/admin/settings/delivery-times', { ...jsonBody(times, token), method: 'PUT' }),
 
   adminPreorderSettings: (token: string) =>
     request<{ preorder: PreorderSettings }>('/api/admin/settings/preorder', authHeaders(token)),

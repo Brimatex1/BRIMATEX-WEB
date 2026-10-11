@@ -89,7 +89,7 @@ const dataUrl = (buf) => `data:image/png;base64,${buf.toString('base64')}`;
   const { server } = await startTestServer({ port: PORT, env: { ADMIN_PHONES: ADMIN_PHONE } });
   try {
     const register = async (phone) =>
-      (await req('POST', '/api/auth/register', { name: 'تجربة', phone, password: 'secret1' })).json.token;
+      (await req('POST', '/api/auth/register', { name: 'تجربة', phone, password: 'secret12' })).json.token;
     const admin = await register(ADMIN_PHONE);
     const customer = await register(uniq());
 

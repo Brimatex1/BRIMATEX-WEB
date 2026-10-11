@@ -151,20 +151,12 @@ async function run() {
     // with its delivery days (src/lib/availability.js).
     const pub = (await req('GET', '/api/products')).json.products;
     ok('كل المراتب «متوفرة» بلا طلب مسبق ولا كميات', pub.length > 0 && pub.every((p) => p.inStock === true && p.preorder === false && p.leadDays === null && p.stock === null), JSON.stringify(pub[0]).slice(0, 200));
-    ok('ولكل مقاس مدة توصيله ونصّها', pub.every((p) => (p.variants ?? [p]).every((v) => Array.isArray(v.deliveryDays) && /^التوصيل خلال /.test(v.deliveryText))));
+    ok('ولكل مقاس توصيل طرابلس خلال 48 ساعة', pub.every((p) => (p.variants ?? [p]).every((v) => JSON.stringify(v.deliveryDays) === '[2,2]' && v.deliveryText === 'توصيل مجاني داخل طرابلس · خلال 48 ساعة')));
     const preOff = await req('PUT', '/api/admin/settings/preorder', { enabled: false, days: '' }, bearer(tok));
     ok('إيقافه', preOff.status === 200 && preOff.json.preorder.enabled === false && preOff.json.preorder.days === null);
     ok('بعد الإيقاف: لا علامات', (await req('GET', '/api/products')).json.products.every((p) => p.preorder === false && p.leadDays === null));
 
-    // «مدة التوصيل» (src/lib/availability.js)
-    ok('مدة التوصيل: الافتراضي 1–3 و3–5', JSON.stringify((await req('GET', '/api/admin/settings/delivery-times', null, bearer(tok))).json?.deliveryTimes) === '{"stock":[1,3],"made":[3,5]}');
-    ok('مدة التوصيل: للمدير فقط (401)', (await req('PUT', '/api/admin/settings/delivery-times', { stock: [1, 2], made: [3, 4] })).status === 401);
-    ok('«من» أكبر من «إلى» تُرفض (400)', (await req('PUT', '/api/admin/settings/delivery-times', { stock: [3, 1], made: [3, 5] }, bearer(tok))).status === 400);
-    const times = await req('PUT', '/api/admin/settings/delivery-times', { stock: [1, 2], made: [4, 6] }, bearer(tok));
-    ok('حفظ 1–2 و4–6', times.status === 200 && JSON.stringify(times.json.deliveryTimes) === '{"stock":[1,2],"made":[4,6]}', JSON.stringify(times.json));
-    const after = (await req('GET', '/api/products')).json.products.flatMap((p) => p.variants ?? [p]);
-    ok('المقاسات تحمل المدة الجديدة', after.every((v) => ['[1,2]', '[4,6]'].includes(JSON.stringify(v.deliveryDays))), JSON.stringify(after[0]));
-    await req('PUT', '/api/admin/settings/delivery-times', { stock: [1, 3], made: [3, 5] }, bearer(tok));
+    ok('إعداد «مدة التوصيل» القديم أُزيل (404)', (await req('GET', '/api/admin/settings/delivery-times', null, bearer(tok))).status === 404);
 
     const waPut = await req('PUT', '/api/admin/settings/whatsapp-support', { phone: '0911234567' }, bearer(tok));
     ok('حفظ رقم دعم واتساب', waPut.status === 200, 'status ' + waPut.status);

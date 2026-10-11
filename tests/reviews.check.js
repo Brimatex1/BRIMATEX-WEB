@@ -70,7 +70,7 @@ function req(method, p, body, token) {
   const { server } = await startTestServer({ port: PORT, env: { ADMIN_PHONES: ADMIN_PHONE } });
   try {
     const register = async (phone, name) =>
-      (await req('POST', '/api/auth/register', { name, phone, password: 'secret1' })).json.token;
+      (await req('POST', '/api/auth/register', { name, phone, password: 'secret12' })).json.token;
     const admin = await register(ADMIN_PHONE, 'المدير');
     const buyer = await register(uniq(), 'سالم بن علي');
     const products = (await req('GET', '/api/products')).json.products;

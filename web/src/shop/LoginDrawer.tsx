@@ -12,7 +12,7 @@ import { Link } from './router';
 import { useShop } from './state';
 
 const CODE_LENGTH = 6;
-const MIN_PASSWORD = 6;
+const MIN_PASSWORD = 8;
 /** The server's per-number wait between two codes (src/lib/otp.js). */
 const RESEND_SECONDS = 60;
 

@@ -50,7 +50,13 @@ async function jsonBody(req, res) {
 /** What the checkout wrote on an order's note (src/lib/delivery.js), read back for the app. */
 function checkoutFromNote(note) {
   const text = String(note || '');
-  const method = /الاستلام: استلام من الصالة/.test(text) ? 'pickup' : /الاستلام: توصيل إلى المنزل/.test(text) ? 'home' : null;
+  const method = /الاستلام: استلام من (الصالة|الفرع)/.test(text)
+    ? 'pickup'
+    : /الاستلام: استلام من موزّع معتمد/.test(text)
+      ? 'distributor'
+      : /الاستلام: توصيل إلى المنزل/.test(text)
+        ? 'home'
+        : null;
   return {
     method,
     deliveryText: text.match(/موعد التوصيل: (.+)/)?.[1]?.trim() || null,

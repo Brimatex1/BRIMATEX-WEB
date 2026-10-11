@@ -227,7 +227,7 @@ async function main() {
   });
 
   try {
-    const reg = await req('POST', '/api/auth/register', { name: 'Admin', phone: ADMIN_PHONE, password: 'secret1' });
+    const reg = await req('POST', '/api/auth/register', { name: 'Admin', phone: ADMIN_PHONE, password: 'secret12' });
     const auth = { Authorization: 'Bearer ' + reg.json.token };
     await req('PUT', '/api/admin/settings/facebook-pixel', { pixelId: PIXEL, lydPerUsd: '8' }, auth);
     const products = (await req('GET', '/api/products')).json.products;

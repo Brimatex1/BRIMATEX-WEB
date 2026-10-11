@@ -22,6 +22,7 @@ const banners = require('./lib/banners');
 const instagram = require('./lib/instagram');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
+const distributorsLib = require('./lib/distributors');
 const reviewAccount = require('./lib/reviewAccount');
 const { visitorCookie, metaCookies } = require('./lib/visitor');
 const metaFeed = require('./lib/metaFeed');
@@ -249,7 +250,7 @@ async function handleApi(req, res, url) {
     const result = await getProducts();
     // Every size orderable, with its delivery days; the stock itself stays here (src/lib/availability.js);
     // each carries its rating when it has reviews (src/lib/perks.js).
-    const products = withAvailability(visibleOnly(result.products), settings.readDeliveryTimes());
+    const products = withAvailability(visibleOnly(result.products));
     return sendJson(res, 200, { ...result, products: await perksLib.withRatings(products) });
   }
 
@@ -293,6 +294,13 @@ async function handleApi(req, res, url) {
       quiz: quizRules.publicRules(quizValue),
     };
     return sendJson(res, 200, config, { 'Cache-Control': 'public, max-age=300' });
+  }
+
+  // Authorized distributors for pickup outside Tripoli (src/lib/distributors.js):
+  // ?city=مصراتة for one city's, none for all. Empty until the owner tags them in Odoo.
+  if (req.method === 'GET' && url.pathname === '/api/distributors') {
+    const city = String(url.searchParams.get('city') || '').trim().slice(0, 60);
+    return sendJson(res, 200, { distributors: await distributorsLib.forCity(city) });
   }
 
   // The home page's sliding banners - set from the dashboard (src/lib/banners.js).
@@ -541,7 +549,7 @@ function originOf(req) {
 async function publicProducts() {
   try {
     // Every size orderable, with its delivery days; the stock itself stays here (src/lib/availability.js).
-    return withAvailability(visibleOnly((await getProducts()).products), settings.readDeliveryTimes());
+    return withAvailability(visibleOnly((await getProducts()).products));
   } catch {
     return [];
   }

@@ -118,8 +118,8 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
 
   async function savePassword(e: FormEvent) {
     e.preventDefault();
-    if (password.length < 6) {
-      setError('كلمة المرور 6 أحرف على الأقل.');
+    if (password.length < 8) {
+      setError('كلمة المرور 8 أحرف على الأقل.');
       return;
     }
     setBusy(true);
@@ -238,7 +238,7 @@ export function PanelLogin({ onSignedIn }: { onSignedIn: (token: string, user: U
       ) : (
         <form onSubmit={savePassword} className="flex flex-col gap-4">
           {passwordInput('كلمة المرور الجديدة', 'new-password')}
-          <span className="-mt-2 text-[12.5px] text-[#5F6373]">6 أحرف أو أرقام على الأقل.</span>
+          <span className="-mt-2 text-[12.5px] text-[#5F6373]">8 أحرف أو أرقام على الأقل.</span>
           {error ? <p className="text-sm text-[#A12020]">{error}</p> : null}
           <Button type="submit" disabled={busy}>
             {busy ? 'جارٍ الحفظ…' : 'حفظ والدخول'}

@@ -139,7 +139,8 @@ const USER = { id: 'u1', phone: '0913334444', odooPartnerId: 55 };
   ok('رمز ترويجي فوق الحد: 10٪', (await loyalty.checkCoupon(USER, 'BIG10', 2515)).coupon?.discount === 251.5);
   ok('رمز غير موجود', (await loyalty.checkCoupon(USER, 'NOPE', 2000)).error === 'الرمز غير صحيح أو منتهي');
 
-  ok('نقاط وقسيمة معاً: مرفوض', Boolean(loyalty.readRequest({ usePoints: true, coupon: 'ELITE-50' }).error));
+  const both = loyalty.readRequest({ usePoints: true, coupon: 'ELITE-50' });
+  ok('نقاط وقسيمة معاً: مقبولان', !both.error && both.request?.usePoints === true && both.request?.coupon === 'ELITE-50', JSON.stringify(both));
   ok('النقاط وحدها', loyalty.readRequest({ usePoints: true }).request?.usePoints === true);
   ok('قسيمة وحدها', loyalty.readRequest({ coupon: ' ELITE-50 ' }).request?.coupon === 'ELITE-50');
   ok('بلا شيء', loyalty.readRequest(undefined).request === null);

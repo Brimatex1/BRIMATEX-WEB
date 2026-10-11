@@ -575,6 +575,7 @@ async function createSaleOrder(customer, items, note, discount = null, options =
       order_line: orderLines,
       note: note ? String(note) : false,
       ...(options.commitmentDate ? { commitment_date: options.commitmentDate } : {}),
+      ...(options.shippingPartnerId ? { partner_shipping_id: options.shippingPartnerId } : {}),
     },
   ]);
 

@@ -81,12 +81,6 @@ async function register(name, phone) {
   return { token: r.json?.token, id: r.json?.user?.id, status: r.status };
 }
 
-/** A delivery day the server accepts: after today, not a Friday. */
-function deliveryDay() {
-  const d = new Date(Date.now() + 3 * 86_400_000);
-  if (d.getUTCDay() === 5) d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
 
 function unit() {
   console.log('\n\x1b[1m0. القواعد (src/lib/panel.js)\x1b[0m');
@@ -214,7 +208,8 @@ async function run() {
       ...base('زبون التطبيق'),
       channel: 'app',
       requestId: 'req_panel_' + Date.now().toString(36),
-      delivery: { method: 'home', date: deliveryDay(), slot: 'evening' },
+      // A random city is outside Tripoli: a distributor pickup (home delivery is Tripoli only).
+      delivery: { method: 'distributor' },
       paymentMethod: 'cash',
     });
     const android = await req('POST', '/api/orders', { ...base('زبون أندرويد'), channel: 'app', requestId: 'req_panel_a_' + Date.now().toString(36) });
@@ -228,7 +223,7 @@ async function run() {
     ok('كلها جديدة', all.json?.counts.new === 3);
     ok('المدينة ضمن الخيارات', all.json?.cities.includes(CITY));
     const appRow = all.json?.orders.find((o) => o.orderName === app.json?.orderName);
-    ok('صف الطلب: القناة والمنتجات والموعد والدفع', appRow?.channel === 'app' && appRow.products && appRow.delivery?.includes('مساءً') && appRow.payment === 'نقداً', JSON.stringify(appRow));
+    ok('صف الطلب: القناة والمنتجات والموعد والدفع', appRow?.channel === 'app' && appRow.products && appRow.delivery === 'استلام من موزّع معتمد' && appRow.payment === 'نقداً', JSON.stringify(appRow));
     ok('لا رابط أودو بلا أودو', appRow?.odooLink === null);
     ok('أندرويد', (await list('channel=android')).json?.orders.map((o) => o.orderName).join() === android.json?.orderName);
     ok('الموقع', (await list('channel=web')).json?.orders.map((o) => o.orderName).join() === web.json?.orderName);
@@ -266,7 +261,7 @@ async function run() {
     ok('صفحة الطلب ← 200 بالمنتجات والعنوان', op.status === 200 && od?.items?.length === 1 && od.items[0].quantity === 1 && od.address === 'شارع الاختبار' && od.city === CITY, JSON.stringify(od)?.slice(0, 300));
     ok('المراحل: استلمنا الطلب مُنجز، والتأكيد هو الحالي', od?.timeline?.[0]?.key === 'new' && od.timeline[0].state === 'done' && od.timeline[0].at && od.timeline.find((x) => x.key === 'confirmed')?.state === 'current', JSON.stringify(od?.timeline));
     ok('ثم خرج للتوصيل وتم التسليم لم يأتيا بعد', ['out', 'delivered'].every((k) => od?.timeline?.find((x) => x.key === k)?.state === 'todo'));
-    ok('الموعد والدفع خارج الملاحظات', od?.delivery?.includes('مساءً') && !od.notes.some((l) => /موعد التوصيل|الدفع عند الاستلام/.test(l)));
+    ok('الموعد والدفع خارج الملاحظات', od?.delivery === 'استلام من موزّع معتمد' && !od.notes.some((l) => /موعد التوصيل|الدفع عند الاستلام/.test(l)));
     ok('رابط العميل بالهاتف (طلب بلا حساب)', od?.customerKey === 'p:' + PHONE, od?.customerKey);
     const cancelledPage = (await orderPage(web.json?.orderName)).json?.order;
     ok('طلب ملغى: استلمنا ثم ملغى', cancelledPage?.timeline?.map((x) => x.key).join() === 'new,cancelled' && cancelledPage.timeline[1].state === 'current');

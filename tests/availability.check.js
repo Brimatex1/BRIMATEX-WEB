@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Availability and delivery times - src/lib/availability.js, in place of pre-orders:
 //  - the public catalogue shows every size as available, with no stock count
-//    and no pre-order mark, and with its delivery days and text: in stock
-//    1-3 working days, not in stock 3-5 days (the panel's «مدة التوصيل»)
+//    and no pre-order mark, and with the same delivery for every size: free
+//    inside Tripoli within 48 hours (the owner's rule, Oct 2026)
 //  - the Odoo order's note names, for the warehouse, what is not in stock
 //  - the panel reads that note: «قيد التجهيز (غير متوفر في المخزن)»
 //
@@ -28,7 +28,7 @@ const { withAvailability, stockNote, notInStockFromNote, rangeText } = require('
 const panel = require('../src/lib/panel');
 const metaFeed = require('../src/lib/metaFeed');
 
-const times = { stock: [1, 3], made: [3, 5] };
+const H48 = 'توصيل مجاني داخل طرابلس · خلال 48 ساعة';
 const raw = [
   {
     id: 1,
@@ -45,21 +45,20 @@ const raw = [
   { id: 9, name: 'وسادة', image: '/x.webp', price: 80, inStock: false, stock: 0 },
 ];
 
-console.log('\nالكتالوج العام: كل شيء متوفر، ومدة التوصيل حسب المخزن');
-const pub = withAvailability(raw, times);
+console.log('\nالكتالوج العام: كل شيء متوفر، والتوصيل خلال 48 ساعة لكل المقاسات');
+const pub = withAvailability(raw);
 const [inStock, notInStock] = pub[0].variants;
-ok('المقاس المتوفر: متوفر، 1–3 أيام عمل', inStock.inStock === true && JSON.stringify(inStock.deliveryDays) === '[1,3]' && inStock.deliveryText === 'التوصيل خلال 1–3 أيام عمل', JSON.stringify(inStock));
-ok('غير المتوفر: يظهر متوفراً، 3–5 أيام', notInStock.inStock === true && JSON.stringify(notInStock.deliveryDays) === '[3,5]' && notInStock.deliveryText === 'التوصيل خلال 3–5 أيام', JSON.stringify(notInStock));
+ok('المقاس المتوفر: متوفر، خلال 48 ساعة', inStock.inStock === true && JSON.stringify(inStock.deliveryDays) === '[2,2]' && inStock.deliveryText === H48, JSON.stringify(inStock));
+ok('غير المتوفر: يظهر متوفراً، خلال 48 ساعة أيضاً', notInStock.inStock === true && JSON.stringify(notInStock.deliveryDays) === '[2,2]' && notInStock.deliveryText === H48, JSON.stringify(notInStock));
 ok('لا كميات ولا طلب مسبق في الكتالوج العام', pub.every((p) => p.stock === null && p.preorder === false && p.leadDays === null && (p.variants ?? []).every((v) => v.stock === null && v.preorder === false)));
-ok('منتج بمقاس واحد غير متوفر: 3–5 أيام', pub[1].inStock === true && JSON.stringify(pub[1].deliveryDays) === '[3,5]');
-ok('المرتبة بمقاس متوفر: مدتها الأقصر', JSON.stringify(pub[0].deliveryDays) === '[1,3]');
+ok('منتج بمقاس واحد غير متوفر: خلال 48 ساعة', pub[1].inStock === true && JSON.stringify(pub[1].deliveryDays) === '[2,2]' && pub[1].deliveryText === H48);
 ok('الكتالوج الأصلي لم يتغيّر (المخزن الحقيقي باقٍ على الخادم)', raw[0].variants[1].inStock === false && raw[0].variants[1].stock === 0);
 ok('كتالوج ميتا: كل المقاسات «in stock»', metaFeed.rowsFor(pub[0], { origin: 'https://brimatex.ly' }).every((r) => r.availability === 'in stock'));
 
 console.log('\nملاحظة الطلب للمخزن');
-const note = stockNote([{ productId: 2, quantity: 1 }, { productId: 1, quantity: 1 }], raw, times);
-ok('تسمّي غير المتوفر فقط', note === 'غير متوفر في المخزن — يُجهَّز للتوصيل خلال 3–5 أيام: هوتيل (180*200)', note);
-ok('كل شيء متوفر: لا ملاحظة', stockNote([{ productId: 1, quantity: 2 }], raw, times) === null);
+const note = stockNote([{ productId: 2, quantity: 1 }, { productId: 1, quantity: 1 }], raw);
+ok('تسمّي غير المتوفر فقط', note === 'غير متوفر في المخزن — يُجهَّز للتوصيل خلال 48 ساعة: هوتيل (180*200)', note);
+ok('كل شيء متوفر: لا ملاحظة', stockNote([{ productId: 1, quantity: 2 }], raw) === null);
 ok('تُقرأ من الملاحظة (والطلب المسبق القديم أيضاً)', notInStockFromNote(`الدفع عند الاستلام: نقداً\n${note}`) && notInStockFromNote('طلب مسبق — يُصنع خلال يومين: x') && !notInStockFromNote('الاستلام: توصيل إلى المنزل'));
 
 console.log('\nلوحة التحكم');

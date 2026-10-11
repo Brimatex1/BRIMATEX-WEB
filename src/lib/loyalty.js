@@ -233,30 +233,45 @@ function readRequest(input) {
   if (!input || typeof input !== 'object') return { request: null };
   const usePoints = input.usePoints === true;
   const coupon = typeof input.coupon === 'string' && input.coupon.trim() ? input.coupon.trim().slice(0, 64) : null;
-  if (usePoints && coupon) return { error: 'استخدم نقاطك أو قسيمة واحدة في الطلب، لا الاثنين معاً' };
+  // The owner's rule (handoff, Oct 2026): points and one coupon may go on the
+  // same order.
   if (!usePoints && !coupon) return { request: null };
-  return { request: usePoints ? { usePoints: true } : { coupon } };
+  return { request: { ...(usePoints ? { usePoints: true } : {}), ...(coupon ? { coupon } : {}) } };
 }
 
 /**
  * Applies the request to the new Odoo order through sale_loyalty's own
  * wizards - the same buttons the team has on the order - so Odoo writes the
- * reward line and spends the points or the coupon. Returns the order's new
- * total, or `{ error }` when Odoo refused (the order stays, without it).
+ * reward lines and spends the coupon, then the points - either or both.
+ * Returns the order's new total and, when Odoo refused one of them,
+ * `{ error }` naming it (the order stays, with whatever was applied).
  */
 async function applyToOrder(orderId, request) {
   if (!request) return { applied: false };
+  const errors = [];
   if (request.coupon) {
-    const wizardId = await odoo.call('sale.loyalty.coupon.wizard', 'create', [{ order_id: orderId, coupon_code: request.coupon }]);
-    await odoo.call('sale.loyalty.coupon.wizard', 'action_apply', [[wizardId]]);
-  } else {
+    try {
+      const wizardId = await odoo.call('sale.loyalty.coupon.wizard', 'create', [{ order_id: orderId, coupon_code: request.coupon }]);
+      await odoo.call('sale.loyalty.coupon.wizard', 'action_apply', [[wizardId]]);
+    } catch (err) {
+      errors.push(`القسيمة: ${err.message}`);
+    }
+  }
+  if (request.usePoints) {
     const program = await pointsProgram();
-    if (!program?.reward) return { error: 'لا توجد مكافأة نقاط في برنامج الولاء' };
-    const wizardId = await odoo.call('sale.loyalty.reward.wizard', 'create', [{ order_id: orderId, selected_reward_id: program.reward.id }]);
-    await odoo.call('sale.loyalty.reward.wizard', 'action_apply', [[wizardId]]);
+    if (!program?.reward) {
+      errors.push('لا توجد مكافأة نقاط في برنامج الولاء');
+    } else {
+      try {
+        const wizardId = await odoo.call('sale.loyalty.reward.wizard', 'create', [{ order_id: orderId, selected_reward_id: program.reward.id }]);
+        await odoo.call('sale.loyalty.reward.wizard', 'action_apply', [[wizardId]]);
+      } catch (err) {
+        errors.push(`النقاط: ${err.message}`);
+      }
+    }
   }
   const [order] = await odoo.call('sale.order', 'read', [[orderId]], { fields: ['amount_total'] });
-  return { applied: true, total: order?.amount_total ?? null };
+  return { applied: true, total: order?.amount_total ?? null, ...(errors.length ? { error: errors.join(' · ') } : {}) };
 }
 
 module.exports = { summary, coupons, checkCoupon, readRequest, applyToOrder, modulesInstalled, _reset: () => (modelsCache = { at: 0, ok: false }) };

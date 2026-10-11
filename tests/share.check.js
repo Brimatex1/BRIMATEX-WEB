@@ -254,7 +254,7 @@ function unitPart() {
     ok('والرئيسية والمتجر، بلا اللوحة', map.text.includes(`<loc>http://127.0.0.1:${PORT}/</loc>`) && map.text.includes('/mattresses</loc>') && map.text.includes('/help</loc>') && !map.text.includes('/admin'));
 
     const register = async (phone) =>
-      (await req('POST', '/api/auth/register', { name: 'تجربة', phone, password: 'secret1' })).json.token;
+      (await req('POST', '/api/auth/register', { name: 'تجربة', phone, password: 'secret12' })).json.token;
     const admin = await register(ADMIN_PHONE);
     await req('PUT', '/api/admin/settings/facebook-pixel', { pixelId: '1234567890', lydPerUsd: '8' }, admin);
 

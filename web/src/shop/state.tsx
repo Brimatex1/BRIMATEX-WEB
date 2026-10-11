@@ -32,7 +32,7 @@ function readGuestFavorites(): number[] {
   }
 }
 
-export type DeliveryMethod = 'home' | 'pickup';
+export type DeliveryMethod = 'home' | 'pickup' | 'distributor';
 
 function readCity(): string | null {
   try {
@@ -116,7 +116,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [cityDialogOpen, setCityDialogOpen] = useState(false);
   const [method, setMethodState] = useState<DeliveryMethod>(() => {
     try {
-      return localStorage.getItem(METHOD_KEY) === 'pickup' ? 'pickup' : 'home';
+      const kept = localStorage.getItem(METHOD_KEY);
+      return kept === 'pickup' || kept === 'distributor' ? kept : 'home';
     } catch {
       return 'home';
     }

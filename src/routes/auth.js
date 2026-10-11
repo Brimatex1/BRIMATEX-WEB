@@ -41,6 +41,9 @@ const NOT_HANDLED = Symbol('auth-route-not-handled');
  */
 const ALLOW_UNVERIFIED = process.env.BRIMATEX_ALLOW_UNVERIFIED === '1';
 
+/** New and changed passwords (the handoff's rule); older, shorter ones still sign in. */
+const MIN_PASSWORD = 8;
+
 /**
  * Wrong passwords: five for one number within 15 minutes, then that number
  * waits (a guessed password is an account taken); twenty from one address.
@@ -105,8 +108,8 @@ function createAuthRoutes({ isValidPhone }) {
       if (!password?.trim() || !name?.trim()) {
         return sendJson(res, 400, { error: 'الاسم والكلمة المرورية مطلوبان' });
       }
-      if (password.length < 6) {
-        return sendJson(res, 400, { error: 'الكلمة المرورية يجب أن تكون 6 أحرف على الأقل' });
+      if (password.length < MIN_PASSWORD) {
+        return sendJson(res, 400, { error: 'كلمة المرور 8 أحرف على الأقل' });
       }
 
       /* Two shapes of body, on purpose:
@@ -415,8 +418,8 @@ function createAuthRoutes({ isValidPhone }) {
       if (!resetToken || !password) {
         return sendJson(res, 400, { error: 'الرمز والكلمة المرورية مطلوبان' });
       }
-      if (String(password).length < 6) {
-        return sendJson(res, 400, { error: 'الكلمة المرورية يجب أن تكون 6 أحرف على الأقل' });
+      if (String(password).length < MIN_PASSWORD) {
+        return sendJson(res, 400, { error: 'كلمة المرور 8 أحرف على الأقل' });
       }
 
       // Single-use: the token is burned here whether or not the rest succeeds.

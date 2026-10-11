@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
-import type { ConversionsApiStatus, DeliveryTimes, FacebookPixelSettings, IpHealth, OdooSettings, WhatsappSupportSettings, YourIp } from '@/types';
+import type { ConversionsApiStatus, FacebookPixelSettings, IpHealth, OdooSettings, WhatsappSupportSettings, YourIp } from '@/types';
 
 import type { PanelMe } from '../api';
 import { PageBody, PageHeader } from '../Shell';
@@ -35,7 +35,6 @@ export function IntegrationsPage({ me, token }: { me: PanelMe; token: string }) 
           </div>
           <div className="flex min-w-0 flex-col gap-4">
             <MetaCard token={token} />
-            <DeliveryTimesCard token={token} />
           </div>
         </div>
       </PageBody>
@@ -717,95 +716,3 @@ function MetaCard({ token }: { token: string }) {
 
 /* ---------------------------------------------------------------- مدة التوصيل */
 
-/** «1–3 أيام عمل» - the server's rangeText (src/lib/availability.js), word for word. */
-function rangeText([from, to]: [number, number], working = false): string {
-  const unit = (n: number) => (n === 1 ? 'يوم' : n === 2 ? 'يومين' : n <= 10 ? 'أيام' : 'يوماً');
-  const text = from === to ? (from <= 2 ? unit(from) : `${from} ${unit(from)}`) : `${from}–${to} ${unit(to)}`;
-  return working ? `${text} عمل` : text;
-}
-
-/**
- * Delivery times (src/lib/availability.js), in place of pre-orders: every
- * size can be ordered and shows «متوفر»; one in stock in Odoo arrives in the
- * first range, one that is not in the second - the customer sees only the
- * days, the warehouse the order's note.
- */
-function DeliveryTimesCard({ token }: { token: string }) {
-  const read = useCallback(() => api.adminDeliveryTimes(token), [token]);
-  const { data, error, reload } = useSettings(read);
-  const [times, setTimes] = useState<DeliveryTimes | null>(null);
-  const [fields, setFields] = useState({ stockFrom: '', stockTo: '', madeFrom: '', madeTo: '' });
-  const [saving, setSaving] = useState(false);
-
-  const apply = (t: DeliveryTimes) => {
-    setTimes(t);
-    setFields({ stockFrom: String(t.stock[0]), stockTo: String(t.stock[1]), madeFrom: String(t.made[0]), madeTo: String(t.made[1]) });
-  };
-  useEffect(() => {
-    if (data) apply(data.deliveryTimes);
-  }, [data]);
-
-  const range = (a: string, b: string): [number, number] | null => {
-    const x = Number(a);
-    const y = Number(b);
-    return Number.isInteger(x) && Number.isInteger(y) && x >= 1 && y <= 60 && x <= y ? [x, y] : null;
-  };
-  const stock = range(fields.stockFrom, fields.stockTo);
-  const made = range(fields.madeFrom, fields.madeTo);
-
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    if (!stock || !made) return;
-    setSaving(true);
-    try {
-      const { deliveryTimes } = await api.adminSaveDeliveryTimes(token, { stock, made });
-      apply(deliveryTimes);
-      toast.success('حُفظت مدة التوصيل — تظهر للعملاء خلال دقائق');
-    } catch (err) {
-      toast.error(message(err, 'تعذّر الحفظ'));
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (error && !times) return <LoadError icon="truck" title="مدة التوصيل" error={error} onRetry={reload} />;
-  if (!times) return <CardSkeleton icon="truck" title="مدة التوصيل" />;
-
-  const set = (k: keyof typeof fields) => (v: string) => setFields((f) => ({ ...f, [k]: v.replace(/\D/g, '').slice(0, 2) }));
-  const num = { ltr: true, inputMode: 'numeric' as const, autoComplete: 'off', className: 'w-[88px]' };
-
-  return (
-    <Card>
-      <IntegrationHead
-        icon="truck"
-        title="مدة التوصيل"
-        line="كل المراتب تظهر للعميل «متوفر» ويطلبها. المتوفرة في مخزن أودو تصل في المدة الأولى، وغير المتوفرة في الثانية — ويرى الفريق في ملاحظة الطلب ما ليس في المخزن."
-      />
-      <form onSubmit={save} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <b className="text-[14px]">متوفرة في المخزن (أيام عمل)</b>
-          <div className="flex items-end gap-2">
-            <Field label="من" value={fields.stockFrom} onChange={set('stockFrom')} {...num} />
-            <Field label="إلى" value={fields.stockTo} onChange={set('stockTo')} {...num} />
-          </div>
-          <span className="text-[12.5px] text-[#5F6373]">يرى العميل: «{stock ? `التوصيل خلال ${rangeText(stock, true)}` : '—'}»</span>
-        </div>
-        <div className="flex flex-col gap-2">
-          <b className="text-[14px]">غير متوفرة في المخزن (أيام)</b>
-          <div className="flex items-end gap-2">
-            <Field label="من" value={fields.madeFrom} onChange={set('madeFrom')} {...num} />
-            <Field label="إلى" value={fields.madeTo} onChange={set('madeTo')} {...num} />
-          </div>
-          <span className="text-[12.5px] text-[#5F6373]">يرى العميل: «{made ? `التوصيل خلال ${rangeText(made)}` : '—'}»، وأقرب يوم توصيل يختاره بعد {made ? made[0] : '—'} أيام عمل.</span>
-        </div>
-        {!stock || !made ? <span className="text-[12.5px] text-[#A12020]">كل مدة من 1 إلى 60 يوماً، و«من» لا تزيد عن «إلى».</span> : null}
-        <div>
-          <Button type="submit" disabled={saving || !stock || !made} aria-busy={saving}>
-            <Icon name="check" size={18} />
-            {saving ? 'جارٍ الحفظ…' : 'حفظ المدة'}
-          </Button>
-        </div>
-      </form>
-    </Card>
-  );
-}

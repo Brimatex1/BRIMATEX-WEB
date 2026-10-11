@@ -77,7 +77,7 @@ const dataUrl = (buf, type = 'png') => `data:image/${type};base64,${buf.toString
   const { server, out } = await startTestServer({ port: PORT });
   try {
     const phone = uniq();
-    const reg = await req('POST', '/api/auth/register', { name: 'صاحب صورة', phone, password: 'secret1' });
+    const reg = await req('POST', '/api/auth/register', { name: 'صاحب صورة', phone, password: 'secret12' });
     const token = reg.json.token;
 
     ok('ضيف: 401', (await req('POST', '/api/user/avatar', { imageDataUrl: dataUrl(PNG) })).status === 401);
