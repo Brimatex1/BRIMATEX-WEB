@@ -36,7 +36,8 @@
       "deep-sleep",
       "premium-quality",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "ناعم"
   },
   "4776": {
     "product": "Comfort Mattress",
@@ -69,7 +70,8 @@
       "ventilation",
       "premium-quality",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "متوسط"
   },
   "4779": {
     "product": "Daily Mattress",
@@ -100,7 +102,8 @@
       "summer-winter",
       "economy-price",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "متوسط"
   },
   "4782": {
     "product": "Classic Mattress",
@@ -129,7 +132,8 @@
       "summer-winter",
       "economy-price",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "صلب"
   },
   "4792": {
     "product": "Deluxe Mattress H30cm",
@@ -171,7 +175,8 @@
       "summer-winter",
       "premium-quality",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "ناعم"
   },
   "4973": {
     "product": "Sport Mattress H30cm",
@@ -214,7 +219,8 @@
       "summer-winter",
       "premium-quality",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "متوسط"
   },
   "5012": {
     "product": "Balance Mattress",
@@ -247,7 +253,8 @@
       "multi-layer-comfort",
       "edge-support",
       "made-in-libya"
-    ]
+    ],
+    "firmness": "متوسط مائل للنعومة"
   },
   "// ": "Odoo product (template) id -> the details from the printed catalogue (كتالوج للطباعة.pdf): description, spec icons (keys in web/src/lib/icons.ts), warranty years and the layers from the cutaway. Matched on the id, which survives renames. What the dashboard sets for a product wins (src/lib/productDetails.js). Taglines, warranties, compare specs and feature icons follow the 2026 web handoff (docs/PRODUCTS.md, from the catalogue): features are icon names in web/src/shop/assets/feature-icons."
 }

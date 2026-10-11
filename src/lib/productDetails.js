@@ -23,8 +23,12 @@ function clean(entry) {
     // comparison shows - its type, top layer, and frame or core density.
     features: Array.isArray(entry.features) ? entry.features.filter((k) => typeof k === 'string' && /^[a-z0-9-]+$/.test(k)) : [],
     compare: cleanCompare(entry.compare),
+    // «الصلابة» on the 5-step soft -> firm bar (PRODUCTS.md); anything else is dropped, never guessed.
+    firmness: FIRMNESS.includes(entry.firmness) ? entry.firmness : null,
   };
 }
+
+const FIRMNESS = ['ناعم', 'متوسط مائل للنعومة', 'متوسط', 'متوسط مائل للصلابة', 'صلب'];
 
 function cleanCompare(c) {
   if (!c || typeof c !== 'object') return null;
@@ -51,7 +55,7 @@ function load() {
 // Read once: the file only changes with a deploy, which restarts the server.
 const DETAILS = load();
 
-const NONE = Object.freeze({ description: null, tagline: null, iconKeys: [], warrantyYears: null, layers: [], features: [], compare: null });
+const NONE = Object.freeze({ description: null, tagline: null, iconKeys: [], warrantyYears: null, layers: [], features: [], compare: null, firmness: null });
 
 /** The catalogue's details for a product (by its Odoo template id) - empty fields when it has none. */
 function detailsFor(product) {
