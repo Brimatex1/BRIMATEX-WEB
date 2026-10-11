@@ -118,7 +118,7 @@ function Field({ id, label, value, onChange, error, placeholder, ltr, autoComple
 /** Whether a city is Tripoli, the only city with home delivery (the server's distributors.isTripoli). */
 function isTripoli(city: string) {
   const key = city
-    .replace(/[ً-ٟـ]/g, '')
+    .replace(/[\u064B-\u065F\u0640]/g, '')
     .replace(/[أإآ]/g, 'ا')
     .replace(/ة/g, 'ه')
     .trim()

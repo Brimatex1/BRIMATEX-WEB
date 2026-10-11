@@ -21,7 +21,7 @@ let cache = { at: 0, list: [] };
 /** «طرابلس» and «طرابلس » and «Tripoli» compare alike enough: trimmed, without diacritics or tatweel. */
 function cityKey(city) {
   return String(city || '')
-    .replace(/[ً-ٟـ]/g, '')
+    .replace(/[\u064B-\u065F\u0640]/g, '')
     .replace(/[أإآ]/g, 'ا')
     .replace(/ة/g, 'ه')
     .trim()
