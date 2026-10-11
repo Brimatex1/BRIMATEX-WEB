@@ -61,6 +61,8 @@ function checkoutFromNote(note) {
     method,
     deliveryText: text.match(/موعد التوصيل: (.+)/)?.[1]?.trim() || null,
     paymentText: text.match(/الدفع عند الاستلام: (.+)/)?.[1]?.trim() || null,
+    // «الموزّع: [name] — [city، address]», written by src/routes/orders.js.
+    distributorName: method === 'distributor' ? text.match(/الموزّع: (.+?)(?: — |$)/m)?.[1]?.trim() || null : null,
   };
 }
 
