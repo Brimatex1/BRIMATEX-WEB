@@ -133,7 +133,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
       if (typeof order?.customer?.phone === 'string') order.customer.phone = toLatinDigits(order.customer.phone);
       const result = await getProducts();
       const validationError = validateOrder(order, result.products);
-      if (validationError) return sendJson(res, 400, { error: validationError });
+      if (validationError) return sendJson(res, 400, typeof validationError === 'string' ? { error: validationError } : validationError);
       // The checkout: home delivery in Tripoli on a day and a slot, the branch, or an
       // authorized distributor outside Tripoli; and how it is paid.
       const delivery = readDelivery(order);

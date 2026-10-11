@@ -204,12 +204,15 @@ function validateOrder(order, allProducts) {
   const productById = productLookup(allProducts);
   for (const item of items) {
     const product = Number.isInteger(item.productId) ? productById.get(item.productId) : null;
-    if (!product || product.enabled === false) return 'منتج غير موجود';
+    // An item that can no longer be ordered names itself (code + productId), so
+    // the apps can show «نفد الآن» on that line and offer another size.
+    const unavailable = (error) => ({ error, code: 'unavailable', productId: item.productId });
+    if (!product || product.enabled === false) return unavailable('منتج غير موجود');
     // Without this line an unpriced product stays orderable even after it has
     // left the public list: its id is cached in the app, and one request is
     // enough to buy it for a dinar.
-    if (!isOfferable(product)) return 'هذا المنتج غير متاح للطلب';
-    if (COMING_SOON_CATEGORIES.has(product.category)) return 'هذا المنتج غير متاح للطلب بعد';
+    if (!isOfferable(product)) return unavailable('هذا المنتج غير متاح للطلب');
+    if (COMING_SOON_CATEGORIES.has(product.category)) return unavailable('هذا المنتج غير متاح للطلب بعد');
     if (!Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 999) {
       return 'كمية غير صالحة';
     }

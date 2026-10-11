@@ -212,6 +212,9 @@ async function testOrders() {
     const r = await request('POST', '/api/orders', payload);
     check(`يُرفض: ${label} (400)`, r.status === 400, `status ${r.status}`);
   }
+  // The apps show «نفد الآن» on the line that can no longer be ordered.
+  const gone = await request('POST', '/api/orders', { ...valid, items: [{ productId: 999999, quantity: 1 }] });
+  check('غير المتاح يُسمّى: code + productId', gone.json?.code === 'unavailable' && gone.json?.productId === 999999 && typeof gone.json?.error === 'string', JSON.stringify(gone.json));
 
   // Rate limiting: the test server runs with RATE_LIMIT_ORDERS_PER_MIN=50.
   // Burn through the remaining quota, then confirm the next order is throttled.
