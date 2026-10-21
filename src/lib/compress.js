@@ -143,10 +143,20 @@ function warm(publicDir) {
 /**
  * Sends a file from public/: compressed from the cache when it is text worth
  * compressing, streamed as it is otherwise. `headers` carries its type and
- * caching; the length and encoding are added here.
+ * caching; the length, encoding and Last-Modified are added here, and a
+ * conditional request for an unchanged file gets an empty 304.
  */
 async function sendFile(req, res, filePath, headers) {
   const stat = await fs.promises.stat(filePath);
+  // Last-Modified lets a cache ask "changed since?" and get a 304 back instead
+  // of the file again. HTTP dates carry whole seconds.
+  const modified = Math.floor(stat.mtimeMs / 1000) * 1000;
+  headers = { ...headers, 'Last-Modified': new Date(modified).toUTCString() };
+  const since = Date.parse(req?.headers?.['if-modified-since'] ?? '');
+  if (!Number.isNaN(since) && since >= modified) {
+    res.writeHead(304, headers);
+    return res.end();
+  }
   const text = isText(headers['Content-Type']);
   const encoding = text && stat.size >= MIN_BYTES ? encodingFor(req) : null;
   if (encoding) {

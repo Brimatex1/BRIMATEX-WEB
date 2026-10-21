@@ -30,10 +30,10 @@ function ok(name, cond, detail = '') {
   }
 }
 
-function get(p, acceptEncoding, method = 'GET') {
+function get(p, acceptEncoding, method = 'GET', extra = {}) {
   return new Promise((resolve, reject) => {
     const req = http.request(
-      { hostname: '127.0.0.1', port: PORT, path: p, method, headers: acceptEncoding ? { 'Accept-Encoding': acceptEncoding } : {} },
+      { hostname: '127.0.0.1', port: PORT, path: p, method, headers: { ...(acceptEncoding ? { 'Accept-Encoding': acceptEncoding } : {}), ...extra } },
       (res) => {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
@@ -113,6 +113,16 @@ function decoded(res) {
     ok('خط woff2 كما هو', woff2.status === 200 && !woff2.headers['content-encoding']);
     const tiny = await get('/api/pixel-config', 'br');
     ok('ردّ صغير بلا ضغط', !tiny.headers['content-encoding'] && JSON.parse(tiny.body.toString()) !== null);
+
+    console.log('\n\x1b[1m5. الصور تُحفظ في الجهاز\x1b[0m');
+    // The app downloaded every photo again at each launch: no caching headers.
+    ok('صورة المرتبة تُحفظ يوماً', /max-age=86400/.test(img.headers['cache-control'] || ''), img.headers['cache-control']);
+    ok('ومعها تاريخ آخر تعديل', Boolean(img.headers['last-modified']));
+    const same = await get(`/images/products/${image}`, null, 'GET', { 'If-Modified-Since': img.headers['last-modified'] });
+    ok('لم تتغيّر: 304 بلا جسم', same.status === 304 && same.body.length === 0, String(same.status));
+    const older = await get(`/images/products/${image}`, null, 'GET', { 'If-Modified-Since': new Date(0).toUTCString() });
+    ok('تغيّرت بعد النسخة المحفوظة: الصورة كاملة', older.status === 200 && older.body.length > 0);
+    ok('الصفحة نفسها لا تُحفظ', /no-cache/.test(page.headers['cache-control'] || ''));
   } finally {
     server.kill();
   }

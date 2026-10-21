@@ -531,6 +531,14 @@ async function serveStatic(req, res, urlPath) {
     // Not fingerprinted, but a font file is replaced only under a new name -
     // a month spares a returning visitor 140 kB on every page.
     headers['Cache-Control'] = 'public, max-age=2592000';
+  } else if (/^(images|uploads\/(products|banners|home))\//.test(path.relative(PUBLIC_DIR, filePath).replace(/\\/g, '/'))) {
+    // Photos (the mattresses, banners, the home's pictures): kept a day, then
+    // shown from the cache while a revalidation runs (a 304 when unchanged).
+    // Without this the app downloaded every photo again at each launch -
+    // about 200 kB and a second apiece. Not fingerprinted, so not forever: a
+    // replaced photo shows within a day. Profile pictures (uploads/avatars)
+    // are replaced under the same name and stay uncached.
+    headers['Cache-Control'] = 'public, max-age=86400, stale-while-revalidate=604800';
   }
   // Text is sent compressed, from a per-deploy cache (src/lib/compress.js).
   await sendFile(req, res, filePath, headers);
