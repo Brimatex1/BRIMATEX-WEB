@@ -849,12 +849,13 @@ async function createHelpdeskTicket({ name, phone, email, subject, message, orde
 /* ---------------------------------------------------------------- customer actions */
 
 /**
- * Cancels a shop order at the customer's request, while it has not left: a
- * delivery slip already validated (the mattress is on its way) refuses with
- * code 'shipped'. Odoo's own cancellation, without its warning wizard, then a
- * note on the order with the reason, for the team.
+ * Cancels a shop order while it has not left: a delivery slip already
+ * validated (the mattress is on its way) refuses with code 'shipped'. Odoo's
+ * own cancellation, without its warning wizard, then a note on the order for
+ * the team - the customer's reason, or `by`, the staff member who cancelled
+ * it from the dashboard.
  */
-async function cancelSaleOrder(orderId, reason) {
+async function cancelSaleOrder(orderId, reason, { by } = {}) {
   const [order] = await call('sale.order', 'read', [[orderId]], { fields: ['state', 'picking_ids'] });
   if (!order) throw Object.assign(new Error('الطلب غير موجود في أودو'), { code: 'missing' });
   if (order.state === 'cancel') return { alreadyCancelled: true };
@@ -866,7 +867,7 @@ async function cancelSaleOrder(orderId, reason) {
   }
   await call('sale.order', 'action_cancel', [[orderId]], { context: { disable_cancel_warning: true } });
   await call('sale.order', 'message_post', [[orderId]], {
-    body: `ألغى الزبون الطلب من التطبيق. السبب: ${escapeHtml(reason)}`,
+    body: by ? `ألغى ${escapeHtml(by)} الطلب من لوحة إدارة الموقع.` : `ألغى الزبون الطلب من التطبيق. السبب: ${escapeHtml(reason)}`,
     message_type: 'comment',
     subtype_xmlid: 'mail.mt_note',
   }).catch((err) => console.error('[Odoo] cancel reason not noted:', err.message));

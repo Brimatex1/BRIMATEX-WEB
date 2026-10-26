@@ -129,7 +129,8 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
     }
 
     if (req.method === 'PATCH' && url.pathname.startsWith('/api/admin/orders/')) {
-      if (!(await requireAdmin(req, res))) return;
+      const actor = await requireAdmin(req, res);
+      if (!actor) return;
 
       const orderName = decodeURIComponent(url.pathname.split('/').pop());
       const body = await readBody(req);
@@ -157,6 +158,29 @@ function createAdminRoutes({ requireAdmin, deleteUploadedFile }) {
       if (payload.invoiceStatus) updates.invoiceStatus = payload.invoiceStatus;
 
       const before = await orders.getOrderByName(orderName);
+      if (!before) return sendJson(res, 404, { error: 'الطلب غير موجود' });
+
+      // An order that lives in Odoo is confirmed or cancelled there first -
+      // Odoo's own confirmation (its delivery slip) and cancellation - so the
+      // team and the warehouse see what the dashboard says. This used to change
+      // the dashboard's copy only. Odoo refusing leaves the order as it was.
+      const inOdoo = ['confirmed', 'cancelled'].includes(payload.invoiceStatus) && before.odooOrderId;
+      if (inOdoo) {
+        if (!odoo.isConfigured()) {
+          return sendJson(res, 503, { error: 'أودو غير متصل الآن، فلا يمكن تغيير حالة الطلب' });
+        }
+        try {
+          if (payload.invoiceStatus === 'confirmed') await odoo.confirmSaleOrder(Number(before.odooOrderId));
+          else await odoo.cancelSaleOrder(Number(before.odooOrderId), null, { by: actor.name || 'المدير' });
+        } catch (err) {
+          if (err.code === 'shipped' || err.code === 'cancelled') return sendJson(res, 409, { error: err.message });
+          if (err.code === 'missing') return sendJson(res, 404, { error: err.message });
+          console.error('[admin] order status in Odoo', orderName, err.message);
+          return sendJson(res, 502, { error: `تعذّر تغيير الحالة في أودو: ${err.message}` });
+        }
+        console.log(`[admin] ${orderName} ${payload.invoiceStatus} in Odoo by ${actor.id}`);
+      }
+
       const updated = await orders.updateOrder(orderName, updates);
       if (!updated) return sendJson(res, 404, { error: 'الطلب غير موجود' });
 
