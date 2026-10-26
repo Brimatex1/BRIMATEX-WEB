@@ -1,3 +1,4 @@
+import type { AdOrigin } from './pixel';
 import type {
   Distributor,
   PreorderSettings,
@@ -137,7 +138,7 @@ export const api = {
     note: string,
     token?: string | null,
     /** Website only - lets the server report the purchase to Meta (lib/pixel.ts). */
-    tracking?: { eventSourceUrl: string; fbp?: string; fbc?: string },
+    tracking?: { eventSourceUrl: string; fbp?: string; fbc?: string; ad?: AdOrigin },
     /** One of the signed-in customer's vouchers; the server checks and applies it. */
     voucherCode?: string | null,
     /** Same on every retry of one checkout, so a retry cannot order twice. */

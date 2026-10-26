@@ -30,6 +30,7 @@ const { readDelivery } = require('../lib/delivery');
 const distributors = require('../lib/distributors');
 const appSettings = require('../lib/appSettings');
 const reviewAccount = require('../lib/reviewAccount');
+const { adOrigin } = require('../lib/adOrigin');
 
 /**
  * Arabic-Indic (٠١٢…) and Persian (۰۱۲…) digits as 0-9 - what a phone set to
@@ -267,6 +268,7 @@ function createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin }) {
             commitmentDate: delivery.commitmentDate,
             // Collected from the distributor: the order ships to them (ODOO.md).
             shippingPartnerId: distributor?.id || null,
+            ad: adOrigin(order.tracking),
           });
         } catch (err) {
           await releaseVoucher();

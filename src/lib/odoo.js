@@ -485,6 +485,48 @@ async function shopMarks() {
   }
 }
 
+/**
+ * The ad that brought the customer, in Odoo's own UTM fields: the campaign
+ * (utm_campaign) and the medium (utm_medium, else utm_source, else
+ * «Facebook» for an ad click with no tags). The source stays E-COMMERCE -
+ * the team's filters and the ECOM journal rule read it. Each is found by
+ * name or created once; left out when Odoo refuses - an order is never lost
+ * to a campaign name.
+ */
+const utmIds = { 'utm.campaign': new Map(), 'utm.medium': new Map() };
+
+async function utmRecord(model, name) {
+  const cache = utmIds[model];
+  if (cache.has(name)) return cache.get(name);
+  const [found] = await call(model, 'search', [[['name', '=ilike', name]]], { limit: 1 });
+  let id = found;
+  if (!id && model === 'utm.campaign') {
+    // Odoo 16+ keeps a campaign's label in `title` and derives `name` from it.
+    id = await call(model, 'create', [{ title: name }]).catch(() => call(model, 'create', [{ name }]));
+  } else if (!id) {
+    id = await call(model, 'create', [{ name }]);
+  }
+  if (cache.size < 200) cache.set(name, id);
+  return id;
+}
+
+async function adMarks(ad) {
+  const marks = {};
+  if (!ad) return marks;
+  const medium = ad.medium || ad.source || (ad.fromAd ? 'Facebook' : null);
+  try {
+    if (ad.campaign) marks.campaign_id = await utmRecord('utm.campaign', ad.campaign);
+  } catch (err) {
+    console.error('[Odoo] UTM campaign unavailable:', err.message);
+  }
+  try {
+    if (medium) marks.medium_id = await utmRecord('utm.medium', medium);
+  } catch (err) {
+    console.error('[Odoo] UTM medium unavailable:', err.message);
+  }
+  return marks;
+}
+
 /** default_code of the service product every voucher discount line uses. */
 const DISCOUNT_CODE = 'BRX-DISCOUNT';
 let discountProductId = null;
@@ -558,6 +600,7 @@ async function createSaleOrder(customer, items, note, discount = null, options =
   // customer's own default list - so Odoo's total is the one they saw.
   const pricelistId = await retailPricelistId().catch(() => null);
   const marks = await shopMarks();
+  const fromAd = await adMarks(options.ad);
   if (marks) {
     // [4, id] adds the tag and keeps the customer's others.
     await call('res.partner', 'write', [[partnerId], { category_id: [[4, marks.customerTag]] }]).catch((err) =>
@@ -572,6 +615,7 @@ async function createSaleOrder(customer, items, note, discount = null, options =
       user_id: false,
       ...(pricelistId ? { pricelist_id: pricelistId } : {}),
       ...(marks ? { tag_ids: [[4, marks.orderTag]], source_id: marks.source } : {}),
+      ...fromAd,
       order_line: orderLines,
       note: note ? String(note) : false,
       ...(options.commitmentDate ? { commitment_date: options.commitmentDate } : {}),

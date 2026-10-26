@@ -563,13 +563,41 @@ function readCookie(name: string): string | undefined {
  */
 export function captureClickId() {
   try {
-    const fbclid = new URLSearchParams(window.location.search).get('fbclid');
+    const params = new URLSearchParams(window.location.search);
+    const fbclid = params.get('fbclid');
     if (fbclid) {
       // Meta's documented _fbc format: fb.<subdomain index>.<ms>.<fbclid>
       localStorage.setItem(CLICK_KEY, JSON.stringify({ fbc: `fb.1.${Date.now()}.${fbclid}`, at: Date.now() }));
     }
+    // The ad behind this visit, for the order's campaign and medium in Odoo:
+    // the link's utm_* tags, or just «an ad» when Meta added only fbclid.
+    // The latest ad wins.
+    const utm = (key: string) => params.get(`utm_${key}`)?.trim().slice(0, 100) || undefined;
+    const ad: AdOrigin = { source: utm('source'), medium: utm('medium'), campaign: utm('campaign'), fromAd: Boolean(fbclid) };
+    if (ad.source || ad.medium || ad.campaign || ad.fromAd) localStorage.setItem(AD_KEY, JSON.stringify({ ...ad, at: Date.now() }));
   } catch {
     /* storage blocked - the _fbc cookie still covers most visitors */
+  }
+}
+
+const AD_KEY = 'brx_ad';
+
+/** Where the visitor came from: an ad's utm_* tags, or fromAd for a bare ad click. */
+export interface AdOrigin {
+  source?: string;
+  medium?: string;
+  campaign?: string;
+  fromAd: boolean;
+}
+
+/** The ad saved at landing, within the same 7 days as the click ID. */
+function savedAd(): AdOrigin | undefined {
+  try {
+    const saved = JSON.parse(localStorage.getItem(AD_KEY) || 'null');
+    if (!saved || !(Date.now() - saved.at < CLICK_TTL_MS)) return undefined;
+    return { source: saved.source, medium: saved.medium, campaign: saved.campaign, fromAd: saved.fromAd === true };
+  } catch {
+    return undefined;
   }
 }
 
@@ -589,5 +617,7 @@ export function trackingContext() {
     referrerUrl: document.referrer || undefined,
     fbp: readCookie('_fbp'),
     fbc: readCookie('_fbc') || storedFbc,
+    // Not for Meta: the server puts it on the Odoo order (campaign, medium).
+    ad: savedAd(),
   };
 }
