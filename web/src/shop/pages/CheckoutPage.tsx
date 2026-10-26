@@ -266,7 +266,8 @@ export function CheckoutPage() {
 
   // InitiateCheckout once per checkout (lib/pixel.ts trackCheckoutOnce), signed in and with
   // the customer's hashed phone, name and city in place first, so both the Pixel and the
-  // server's copy carry them.
+  // server's copy carry them. A guest was already counted at «إتمام الطلب» (state.tsx
+  // requireLogin); the same cart sends nothing more here after they sign in.
   const started = useRef(false);
   useEffect(() => {
     if (started.current || !shop.cart.lines.length || !user) return;

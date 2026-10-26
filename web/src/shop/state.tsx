@@ -12,7 +12,7 @@ import { useCart } from '@/hooks/useCart';
 import { useProducts } from '@/hooks/useProducts';
 import { useWishlist } from '@/hooks/useWishlist';
 import { api as http } from '@/lib/api';
-import { trackAddToCart, trackAddToWishlist } from '@/lib/pixel';
+import { trackAddToCart, trackAddToWishlist, trackCheckoutOnce } from '@/lib/pixel';
 import type { AppConfig, Product, ProductVariant } from '@/types';
 
 import { shopProducts, variantsOf } from './catalog';
@@ -167,11 +167,16 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         then?.();
         return;
       }
+      // A guest on the way to checkout is counted here, at «إتمام الطلب»: most
+      // stop at the sign-in that follows, and the checkout page (which counts
+      // signed-in customers, with their details) would never see them. One
+      // per cart - the page sends nothing more once they are in.
+      if (reason === 'checkout' && cart.lines.length) trackCheckoutOnce(cart.lines, cart.total);
       afterLogin.current = then ?? null;
       setCartDrawer((d) => ({ ...d, open: false }));
       setLoginDrawer({ open: true, reason });
     },
-    [auth.user]
+    [auth.user, cart.lines, cart.total]
   );
 
   const addLine = useCallback(
