@@ -141,9 +141,24 @@ async function run() {
     );
 
     console.log('\n\x1b[1m5. طلب التطبيق: الإلغاء والبلاغ والفاتورة\x1b[0m');
-    // A day that is never a Friday nor today: the coming Saturday at least two days away.
-    const day = new Date(Date.now() + 2 * 86400000);
+    // Days counted from Libya's today (UTC+2, as src/lib/delivery.js does): from
+    // 22:00 UTC Libya is already on the next day, and a day two days ahead in
+    // UTC is only one day ahead there - the order was refused every night.
+    const libyaToday = () => {
+      const now = new Date(Date.now() + 2 * 3600000);
+      return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    };
+    const daysAhead = (n) => {
+      const d = libyaToday();
+      d.setUTCDate(d.getUTCDate() + n);
+      return d;
+    };
+    // Two days ahead (the first day offered), moved off Friday.
+    const day = daysAhead(2);
     while (day.getUTCDay() === 5) day.setUTCDate(day.getUTCDate() + 1);
+    // A Friday far enough ahead that only its being Friday can refuse it.
+    const friday = daysAhead(3);
+    while (friday.getUTCDay() !== 5) friday.setUTCDate(friday.getUTCDate() + 1);
     const placed = await req(
       'POST',
       '/api/orders',
@@ -160,7 +175,8 @@ async function run() {
     const name = placed.json?.orderName;
     const listed = (await req('GET', '/api/user/orders', null, bearer(tok))).json?.orders?.find((o) => o.orderName === name);
     ok('القائمة تقرأ الموعد والدفع وتسمح بالإلغاء', listed?.method === 'home' && /مساءً/.test(listed?.deliveryText || '') && listed?.paymentText === 'حوالة مصرفية' && listed?.cancellable === true, JSON.stringify(listed));
-    ok('طلب بيوم الجمعة يُرفض', (await req('POST', '/api/orders', { customer: { name: 'عميل', phone: USER_PHONE, city: 'طرابلس', address: 'ش' }, items: [{ productId: pid, quantity: 1 }], delivery: { method: 'home', date: '2026-10-09', slot: 'morning' } }, bearer(tok))).status === 400);
+    const onFriday = await req('POST', '/api/orders', { customer: { name: 'عميل', phone: USER_PHONE, city: 'طرابلس', address: 'ش' }, items: [{ productId: pid, quantity: 1 }], delivery: { method: 'home', date: friday.toISOString().slice(0, 10), slot: 'morning' } }, bearer(tok));
+    ok('طلب بيوم الجمعة يُرفض لأنه جمعة', onFriday.status === 400 && onFriday.json?.error === 'لا يوجد توصيل يوم الجمعة', JSON.stringify(onFriday.json));
 
     const other = await req('POST', '/api/auth/register', { name: 'غريب', phone: '0919' + String(Date.now()).slice(-6), password: 'secret123' });
     const otherTok = other.json?.token;
