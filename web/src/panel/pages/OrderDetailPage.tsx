@@ -68,8 +68,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 /**
  * One order (/admin/orders/:name): where it has reached, what is in it, where
- * it goes and who ordered it - with «تأكيد» while it is new, Odoo one click
- * away, and the customer's own page.
+ * it goes and who ordered it - with «تأكيد» while it is new, «إلغاء» until it
+ * leaves (both in Odoo), Odoo one click away, and the customer's own page.
  */
 export function OrderDetailPage({ me, token, name, onBadgeChange }: { me: PanelMe; token: string; name: string; onBadgeChange: (delta: number) => void }) {
   const [order, setOrder] = useState<PanelOrderDetail | null>(null);
@@ -106,6 +106,25 @@ export function OrderDetailPage({ me, token, name, onBadgeChange }: { me: PanelM
     }
   }
 
+  async function cancel() {
+    if (!order || !window.confirm(`إلغاء الطلب ${name}؟ يُلغى في أودو أيضاً، ولا يمكن التراجع.`)) return;
+    const wasNew = order.status === 'new';
+    setBusy(true);
+    try {
+      await panelApi.cancel(token, name);
+      if (wasNew) onBadgeChange(-1);
+      toast.success(`تم إلغاء الطلب ${name}`);
+      load();
+    } catch (err) {
+      toast.error(err instanceof PanelError ? err.message : 'تعذّر الإلغاء');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Not once it has left: on its way or delivered (Odoo refuses those too).
+  const cancellable = order ? ['new', 'confirmed', 'preparing'].includes(order.status) : false;
+
   const wa = order ? whatsappHref(order.customer.phone) : null;
   const subtotal = order ? order.items.reduce((s, i) => s + (i.lineTotal ?? 0), 0) : 0;
 
@@ -127,6 +146,11 @@ export function OrderDetailPage({ me, token, name, onBadgeChange }: { me: PanelM
               <a href={order.odooLink} target="_blank" rel="noreferrer" className={buttonClass('outline')}>
                 <Icon name="external" size={18} /> فتح في أودو
               </a>
+            ) : null}
+            {canConfirm && me.canConfirm && cancellable ? (
+              <Button variant="outline" className="text-[#A12020]" onClick={() => void cancel()} disabled={busy}>
+                <Icon name="close" size={18} /> إلغاء الطلب
+              </Button>
             ) : null}
             {canConfirm && me.canConfirm && order.status === 'new' ? (
               <Button onClick={() => void confirm()} disabled={busy} aria-busy={busy}>

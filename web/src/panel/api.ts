@@ -407,6 +407,8 @@ export const panelApi = {
   customer: (token: string, key: string) => call<{ customer: PanelCustomer }>(token, `/api/panel/customers/${encodeURIComponent(key)}`),
   confirm: (token: string, orderName: string) =>
     call<{ order: PanelOrder }>(token, `/api/panel/orders/${encodeURIComponent(orderName)}/confirm`, { method: 'POST' }),
+  cancel: (token: string, orderName: string) =>
+    call<{ order: PanelOrder }>(token, `/api/panel/orders/${encodeURIComponent(orderName)}/cancel`, { method: 'POST' }),
   settings: (token: string) => call<SettingsPayload>(token, '/api/panel/settings'),
   saveSettings: (token: string, settings: AppSettings) =>
     call<SettingsPayload>(token, '/api/panel/settings', { method: 'PUT', body: JSON.stringify({ settings }) }),

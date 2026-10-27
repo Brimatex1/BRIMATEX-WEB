@@ -283,6 +283,27 @@ async function run() {
     ok('حساب بلا طلبات: صفحته بالحساب', own.status === 200 && own.json?.customer?.account?.id === customer.id && own.json.customer.orders.length === 0, 'status ' + own.status);
     ok('حساب غير موجود ← 404', (await customerPage('u:00000000-0000-0000-0000-000000000000')).status === 404);
 
+    console.log('\n\x1b[1m4ج. الإلغاء\x1b[0m');
+    // Its own customer, so the pages above keep their three orders.
+    const toCancel = await req('POST', '/api/orders', {
+      customer: { name: 'زبون يلغي', phone: uniq(), city: CITY, address: 'شارع الاختبار' },
+      items: [{ productId: product.id, quantity: 1 }],
+      channel: 'web',
+    });
+    const cancelUrl = (name) => `/api/panel/orders/${encodeURIComponent(name)}/cancel`;
+    const toCancelName = toCancel.json?.orderName;
+    ok('بلا رمز ← 401', (await req('POST', cancelUrl(toCancelName))).status === 401);
+    ok('العميل ← 403', (await req('POST', cancelUrl(toCancelName), null, bearer(customer.token))).status === 403);
+    ok('التسويق ← 403', (await req('POST', cancelUrl(toCancelName), null, bearer(marketing.token))).status === 403);
+    ok('طلب غير موجود ← 404', (await req('POST', cancelUrl('NOPE-1'), null, bearer(support.token))).status === 404);
+    const cancelledNow = await req('POST', cancelUrl(toCancelName), null, bearer(support.token));
+    ok('خدمة العملاء تلغي ← 200 ملغى', cancelledNow.status === 200 && cancelledNow.json?.order?.status === 'cancelled', 'status ' + cancelledNow.status);
+    ok('مرة ثانية ← 409', (await req('POST', cancelUrl(toCancelName), null, bearer(admin.token))).status === 409);
+    ok('ولا يُؤكَّد بعدها ← 409', (await req('POST', `/api/panel/orders/${encodeURIComponent(toCancelName)}/confirm`, null, bearer(admin.token))).status === 409);
+    // The confirmed one (section 4) can still be cancelled until it leaves.
+    const confirmedThenCancelled = await req('POST', cancelUrl(app.json?.orderName), null, bearer(admin.token));
+    ok('المؤكد يُلغى قبل خروجه ← 200', confirmedThenCancelled.status === 200 && confirmedThenCancelled.json?.order?.status === 'cancelled', 'status ' + confirmedThenCancelled.status);
+
     console.log('\n\x1b[1m5. نظرة عامة\x1b[0m');
     const ov = await req('GET', '/api/panel/overview', null, bearer(admin.token));
     ok('200', ov.status === 200, 'status ' + ov.status);

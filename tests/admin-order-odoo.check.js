@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// The classic dashboard's order status (PATCH /api/admin/orders/:name,
-// src/routes/admin.js) reaches Odoo.
+// Order status from the dashboards reaches Odoo: the classic one (PATCH
+// /api/admin/orders/:name, src/routes/admin.js) and the new panel's «إلغاء
+// الطلب» (POST /api/panel/orders/:name/cancel, src/routes/panel.js).
 //
 // What it guards: «مؤكد» and «ملغى» on an order that lives in Odoo run Odoo's
-// own confirmation and cancellation first - they used to change the
-// dashboard's copy only, so Odoo never knew. Odoo refusing (on its way,
+// own confirmation and cancellation first - the classic ones used to change
+// the dashboard's copy only, so Odoo never knew. Odoo refusing (on its way,
 // already cancelled, offline) leaves the order as it was and says why. An
 // order with no Odoo record, «تم التسليم» and the payment status stay local.
 //
@@ -65,18 +66,42 @@ const fake = (rel, exports) => {
 };
 fake('odoo.js', fakeOdoo);
 fake('orders.js', fakeOrders);
-fake('push.js', { notifyOrderStage: async () => {} });
+// The new panel's own guards: one signed-in staff member, and no device registry or catalogue.
+let staffRole = 'support';
+fake('auth.js', {
+  verifySession: async (token) => (token === 'staff-token' ? { userId: 'u-staff' } : null),
+  getUser: async () => ({ id: 'u-staff', name: 'سارة', role: staffRole }),
+  isStaff: () => true,
+  canAccess: () => true,
+  roleOf: (u) => u.role,
+});
+fake('devices.js', { listPlatforms: async () => [] });
+fake('catalogue.js', { getProducts: async () => ({ products: [] }), visibleOnly: (p) => p, productLookup: () => new Map() });
+// The real push (lib/panel reads its stageOf), sending nothing.
+require('../src/lib/push').notifyOrderStage = async () => {};
 
 const { createAdminRoutes } = require('../src/routes/admin');
+const { createPanelRoutes } = require('../src/routes/panel');
 const admin = { id: 'u-admin', name: 'محمد', role: 'admin' };
 const handle = createAdminRoutes({ requireAdmin: async () => admin, deleteUploadedFile: () => {} });
+const handlePanel = createPanelRoutes();
 
 /** One PATCH through the route, as the dashboard sends it. */
 function patch(name, body) {
+  return send(handle, 'PATCH', `/api/admin/orders/${encodeURIComponent(name)}`, body);
+}
+
+/** «إلغاء الطلب» in the new panel (/admin). */
+function panelCancel(name) {
+  return send(handlePanel, 'POST', `/api/panel/orders/${encodeURIComponent(name)}/cancel`, {}, { authorization: 'Bearer staff-token' });
+}
+
+function send(handler, method, urlPath, body, headers = {}) {
   const req = Readable.from([Buffer.from(JSON.stringify(body))]);
-  req.method = 'PATCH';
-  req.url = `/api/admin/orders/${encodeURIComponent(name)}`;
-  req.headers = { 'content-type': 'application/json' };
+  req.method = method;
+  req.url = urlPath;
+  req.headers = { 'content-type': 'application/json', ...headers };
+  const handle = handler;
   return new Promise((resolve) => {
     const res = {
       req,
@@ -160,6 +185,29 @@ const seed = () => {
   seed();
   r = await patch('S09999', { invoiceStatus: 'confirmed' });
   ok('طلب غير موجود ← 404، بلا أودو', r.status === 404 && calls.length === 0);
+
+  console.log('\n\x1b[1m5. «إلغاء الطلب» في اللوحة الجديدة يمرّ بأودو\x1b[0m');
+  seed();
+  r = await panelCancel('S00102');
+  ok('200 ملغى', r.status === 200 && r.json?.order?.status === 'cancelled', JSON.stringify(r.json));
+  ok('أودو ألغى الطلب 102 باسم الموظفة', calls.length === 1 && calls[0].fn === 'cancel' && calls[0].id === 102 && calls[0].by === 'سارة');
+  seed();
+  odooRefuses = { code: 'shipped', message: 'خرج الطلب للتوصيل، ولا يمكن إلغاؤه' };
+  r = await panelCancel('S00101');
+  ok('أودو يرفض ← 409 بالسبب، والطلب كما كان', r.status === 409 && store.get('S00101').invoiceStatus === 'draft');
+  seed();
+  odooOnline = false;
+  r = await panelCancel('S00101');
+  ok('أودو غير متصل ← 503، بلا تغيير', r.status === 503 && calls.length === 0 && store.get('S00101').invoiceStatus === 'draft');
+  seed();
+  store.set('S00103', { orderName: 'S00103', odooOrderId: 103, invoiceStatus: 'delivered', paymentStatus: 'paid' });
+  r = await panelCancel('S00103');
+  ok('تم التسليم ← 409، بلا أودو', r.status === 409 && calls.length === 0);
+  seed();
+  staffRole = 'marketing';
+  r = await panelCancel('S00101');
+  ok('التسويق ← 403، بلا أودو', r.status === 403 && calls.length === 0);
+  staffRole = 'support';
 
   console.log('\n' + '─'.repeat(52));
   console.log(`\x1b[1mالنتيجة:\x1b[0m \x1b[32m${pass} ناجح\x1b[0m / ${pass + fail}` + (fail ? ` — \x1b[31m${fail} فاشل\x1b[0m` : ''));

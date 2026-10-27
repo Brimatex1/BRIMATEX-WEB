@@ -289,6 +289,46 @@ function createPanelRoutes() {
       });
     }
 
+    // «إلغاء الطلب»: Odoo's own cancellation first, with a note naming who
+    // cancelled - the same people as «تأكيد». An order on its way or delivered
+    // is not cancelled here; Odoo refusing leaves the order as it was.
+    const cancelMatch = url.pathname.match(/^\/api\/panel\/orders\/([^/]+)\/cancel$/);
+    if (req.method === 'POST' && cancelMatch) {
+      const user = await staffFor(req, res, 'orders');
+      if (!user) return;
+      if (!CONFIRMERS.includes(auth.roleOf(user))) {
+        return sendJson(res, 403, { error: 'الإلغاء للمدير وخدمة العملاء فقط', code: 'section' });
+      }
+      const name = decodeURIComponent(cancelMatch[1]);
+      const before = await orders.getOrderByName(name);
+      if (!before) return sendJson(res, 404, { error: 'الطلب غير موجود' });
+      const status = panel.statusOf(panel.normalize(before));
+      if (status === 'cancelled') return sendJson(res, 409, { error: 'الطلب ملغى بالفعل' });
+      if (status === 'out' || status === 'delivered') return sendJson(res, 409, { error: 'خرج الطلب للتوصيل، ولا يمكن إلغاؤه' });
+
+      if (before.odooOrderId) {
+        if (!odoo.isConfigured()) {
+          return sendJson(res, 503, { error: 'أودو غير متصل الآن، فلا يمكن إلغاء الطلب' });
+        }
+        try {
+          await odoo.cancelSaleOrder(Number(before.odooOrderId), null, { by: user.name || 'فريق بريماتكس' });
+        } catch (err) {
+          if (err.code === 'shipped') return sendJson(res, 409, { error: err.message });
+          if (err.code === 'missing') return sendJson(res, 404, { error: 'الطلب غير موجود في أودو' });
+          return sendJson(res, 502, { error: `تعذّر الإلغاء في أودو: ${err.message}` });
+        }
+      }
+      // A demo order (no Odoo) is cancelled in the local record only.
+      const updated = await orders.updateOrder(name, { invoiceStatus: 'cancelled' });
+      console.log(`[panel] ${name} cancelled by ${user.id} (${auth.roleOf(user)})`);
+      void push.notifyOrderStage(before, updated);
+
+      const [index, products] = await Promise.all([platforms(), catalogue()]);
+      return sendJson(res, 200, {
+        order: panel.toRow(panel.normalize(updated), { index, lookup: productLookup(products), odooUrl: odoo.webUrl() }),
+      });
+    }
+
     // ---- الإعدادات: the apps' and the website's settings (admin only) ----
 
     if ((req.method === 'GET' || req.method === 'PUT') && url.pathname === '/api/panel/settings') {
