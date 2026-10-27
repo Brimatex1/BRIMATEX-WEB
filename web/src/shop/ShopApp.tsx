@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 import { Toaster } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
-import { googleAdsPageView, initGoogleAds } from '@/lib/googleAds';
+import { googleAdsPageView, initGoogleAds, setGoogleAdsRate } from '@/lib/googleAds';
 import { captureClickId, disablePixel, forgetPixelPerson, initPixel, setPixelCity, setPixelPerson, trackPageView } from '@/lib/pixel';
 
 import { CityDialog } from './CityDialog';
@@ -206,7 +206,10 @@ function Tracking() {
     initGoogleAds();
     api
       .getPixelConfig()
-      .then(({ pixelId, lydPerUsd }) => (pixelId ? initPixel(pixelId, lydPerUsd) : disablePixel()))
+      .then(({ pixelId, lydPerUsd }) => {
+        setGoogleAdsRate(lydPerUsd);
+        return pixelId ? initPixel(pixelId, lydPerUsd) : disablePixel();
+      })
       .catch(() => disablePixel());
   }, []);
 

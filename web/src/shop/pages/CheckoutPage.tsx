@@ -3,6 +3,7 @@ import { AlertTriangle, Banknote, Building2, Check, ChevronDown, ChevronLeft, Cr
 
 import { Button } from '@/components/ui/button';
 import { api, ApiError } from '@/lib/api';
+import { googleAdsPurchase } from '@/lib/googleAds';
 import { forgetCheckout, setPixelPerson, trackAddPaymentInfo, trackCheckoutOnce, trackPurchase, trackingContext } from '@/lib/pixel';
 import { cn, formatPrice, toLatinDigits } from '@/lib/utils';
 import type { Distributor, LoyaltyChoice } from '@/types';
@@ -380,6 +381,7 @@ export function CheckoutPage() {
       await setPixelPerson({ id: user.id, name: user.name, phone, city: orderCity });
       // The amount the customer pays - the server's total (points or coupon included), else this page's.
       trackPurchase({ ...result, total: result.total || payable }, shop.cart.lines);
+      googleAdsPurchase(result.orderName, result.total || payable);
       forgetCheckout();
       const placed: PlacedOrder = {
         orderName: result.orderName,
