@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { Toaster } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
+import { googleAdsPageView, initGoogleAds } from '@/lib/googleAds';
 import { captureClickId, disablePixel, forgetPixelPerson, initPixel, setPixelCity, setPixelPerson, trackPageView } from '@/lib/pixel';
 
 import { CityDialog } from './CityDialog';
@@ -196,12 +197,13 @@ function Pages() {
   return <NotFoundPage />;
 }
 
-/** Meta Pixel and Advanced Matching, as the old storefront did (lib/pixel.ts). */
+/** Meta Pixel and Advanced Matching, as the old storefront did (lib/pixel.ts), and the Google Ads tag. */
 function Tracking() {
   const shop = useShop();
   useEffect(() => {
     captureClickId();
     trackPageView();
+    initGoogleAds();
     api
       .getPixelConfig()
       .then(({ pixelId, lydPerUsd }) => (pixelId ? initPixel(pixelId, lydPerUsd) : disablePixel()))
@@ -258,7 +260,12 @@ function Layout() {
 export function ShopApp() {
   return (
     // Every move inside the shop is a virtual page load, so it gets its own PageView.
-    <RouterProvider onNavigate={() => trackPageView()}>
+    <RouterProvider
+      onNavigate={() => {
+        trackPageView();
+        googleAdsPageView();
+      }}
+    >
       <ShopProvider>
         <Layout />
       </ShopProvider>

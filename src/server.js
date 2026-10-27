@@ -489,9 +489,15 @@ const META_OPENBRIDGE = [
   'https://bded8a3c6ae-1-1053047382554.us-central1.run.app',
 ];
 
+// The Google Ads tag (web/src/lib/googleAds.ts): gtag.js from Tag Manager, then
+// the conversion and audience requests Google's CSP guide lists for Google Ads
+// (google.com.ly - the visitor's own Google domain in Libya).
+const GOOGLE_ADS_SCRIPTS = ['https://www.googletagmanager.com', 'https://www.googleadservices.com', 'https://googleads.g.doubleclick.net', 'https://www.google.com'];
+const GOOGLE_ADS_REQUESTS = [...GOOGLE_ADS_SCRIPTS, 'https://www.google.com.ly', 'https://td.doubleclick.net'];
+
 const SHELL_CSP =
-  "default-src 'self'; script-src 'self' https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com; " +
-  `connect-src 'self' https://www.facebook.com https://api64.ipify.org ${META_OPENBRIDGE.join(' ')}; frame-src https://www.facebook.com`;
+  `default-src 'self'; script-src 'self' https://connect.facebook.net ${GOOGLE_ADS_SCRIPTS.join(' ')}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data: https://www.facebook.com ${GOOGLE_ADS_REQUESTS.join(' ')}; ` +
+  `connect-src 'self' https://www.facebook.com https://api64.ipify.org ${META_OPENBRIDGE.join(' ')} ${GOOGLE_ADS_REQUESTS.join(' ')}; frame-src https://www.facebook.com https://td.doubleclick.net https://www.googletagmanager.com`;
 
 async function serveStatic(req, res, urlPath) {
   const safePath = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
