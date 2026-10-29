@@ -76,7 +76,7 @@ const APP_PATTERNS = [
   /^\/p\/[a-z0-9-]{1,40}$/,
   /^\/account\/orders\/[^/]+(\/issue)?$/,
   // The admin panel's sections (web/src/panel/router.tsx) and the classic dashboard.
-  /^\/admin\/(orders|home|push|quiz|products|reviews|integrations|settings|classic)$/,
+  /^\/admin\/(orders|users|home|push|quiz|products|reviews|integrations|settings|classic)$/,
   // An order's page and a customer's in the panel.
   /^\/admin\/(orders|customers)\/[^/]{1,80}$/,
 ];

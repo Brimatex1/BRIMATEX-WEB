@@ -155,10 +155,10 @@ export function PageHeader({
   me: PanelMe;
   action?: ReactNode;
   /** The orders page keeps the search in its own query; elsewhere it opens الطلبات. */
-  search?: { value: string; onSubmit: (q: string) => void };
+  search?: { value: string; onSubmit: (q: string) => void; placeholder?: string };
 }) {
   const meta = SECTION_META[section];
-  const canSearch = me.sections.includes('orders');
+  const canSearch = Boolean(search) || me.sections.includes('orders');
   const [text, setText] = useState(search?.value ?? '');
   useEffect(() => setText(search?.value ?? ''), [search?.value]);
 
@@ -182,7 +182,7 @@ export function PageHeader({
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="ابحث برقم طلب أو عميل أو مرتبة"
+              placeholder={search?.placeholder ?? 'ابحث برقم طلب أو عميل أو مرتبة'}
               aria-label="بحث"
               className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#16161F] outline-none placeholder:text-[#5F6373]"
             />

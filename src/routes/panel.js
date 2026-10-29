@@ -6,7 +6,8 @@
  *
  *   admin      مدير            every section (التقييمات and الربط والتكاملات are
  *                              admin only; their reads and writes are the classic
- *                              dashboard's admin-only routes, src/routes/admin.js)
+ *                              dashboard's admin-only routes, src/routes/admin.js;
+ *                              المستخدمون is admin only too)
  *   marketing  تسويق           الواجهة، الإشعارات، ساعدني أختار، المراتب
  *   support    خدمة العملاء     نظرة عامة، الطلبات
  *
@@ -39,6 +40,7 @@ const quizRules = require('../lib/quizRules');
 const pushCampaigns = require('../lib/pushCampaigns');
 const panelProducts = require('../lib/panelProducts');
 const loyalty = require('../lib/loyalty');
+const { eraseAccount } = require('../lib/accounts');
 const { DAYS_TEXT } = require('../lib/delivery');
 const { getProducts, visibleOnly, productLookup } = require('../lib/catalogue');
 const { sendJson, readBody } = require('../lib/respond');
@@ -116,7 +118,59 @@ async function catalogue() {
   }
 }
 
-function createPanelRoutes() {
+/** المستخدمون: one page of the accounts list. */
+const ACCOUNTS_PAGE = 50;
+
+/**
+ * Which apps an account uses: the platform its app last reported (every launch
+ * and sign-in), the devices registered for its notifications, and 'web' when
+ * it ordered from the website.
+ */
+function accountPlatforms(user, index, webBuyers) {
+  const set = new Set();
+  if (user.appPlatform === 'ios' || user.appPlatform === 'android') set.add(user.appPlatform);
+  const seen = index.byUser.get(user.id);
+  if (seen === 'mixed') {
+    set.add('ios');
+    set.add('android');
+  } else if (seen) set.add(seen);
+  if (webBuyers.has(user.id)) set.add('web');
+  return ['ios', 'android', 'web'].filter((p) => set.has(p));
+}
+
+/** The admin managing accounts, or null after answering. */
+async function accountsAdmin(req, res) {
+  const user = await staffFor(req, res, 'users');
+  if (!user) return null;
+  if (!auth.isAdmin(user)) {
+    sendJson(res, 403, { error: 'للمدير فقط', code: 'section' });
+    return null;
+  }
+  return user;
+}
+
+/**
+ * The account an admin acts on, or null after answering: never their own, nor
+ * one granted admin by the server's ADMIN_PHONES (the change would not stick).
+ */
+async function accountTarget(res, actor, id) {
+  const target = await auth.getUser(id).catch(() => null);
+  if (!target) {
+    sendJson(res, 404, { error: 'الحساب غير موجود' });
+    return null;
+  }
+  if (target.id === actor.id) {
+    sendJson(res, 409, { error: 'لا يمكنك تعديل حسابك من هنا' });
+    return null;
+  }
+  if (auth.isBootstrapAdmin(target.phone)) {
+    sendJson(res, 409, { error: 'هذا الحساب مدير عبر إعدادات الخادم، ويُعدَّل من ADMIN_PHONES' });
+    return null;
+  }
+  return target;
+}
+
+function createPanelRoutes({ isValidPhone = () => true } = {}) {
   return async function handlePanelRoutes(req, res, url) {
     if (!url.pathname.startsWith('/api/panel/')) return NOT_HANDLED;
 
@@ -638,6 +692,141 @@ function createPanelRoutes() {
       }
       await auth.updateUser(userId, { role: body.role });
       return sendJson(res, 200, { id: userId, role: body.role });
+    }
+
+    // ---- المستخدمون: every account - who they are, which app, stop or erase (admin only) ----
+
+    if (req.method === 'GET' && url.pathname === '/api/panel/accounts') {
+      const user = await accountsAdmin(req, res);
+      if (!user) return;
+      const q = String(url.searchParams.get('q') || '').trim().toLowerCase().slice(0, 60);
+      const digits = q.replace(/\D/g, '');
+      const platform = String(url.searchParams.get('platform') || '');
+      const status = String(url.searchParams.get('status') || '');
+      const page = Math.max(1, Math.min(1000, Number(url.searchParams.get('page')) || 1));
+
+      const [users, list, index] = await Promise.all([auth.listUsers(), allOrders(), platforms()]);
+      const ordersBy = new Map();
+      const webBuyers = new Set();
+      for (const o of list) {
+        if (!o.userId) continue;
+        const seen = ordersBy.get(o.userId) || { count: 0, lastAt: null };
+        seen.count += 1;
+        if (!seen.lastAt || String(o.placedAt) > seen.lastAt) seen.lastAt = String(o.placedAt);
+        ordersBy.set(o.userId, seen);
+        if (o.channel !== 'app') webBuyers.add(o.userId);
+      }
+
+      const rows = users
+        .map((u) => ({
+          id: u.id,
+          name: u.name || '',
+          phone: u.phone || '',
+          role: u.role,
+          locked: Boolean(u.locked),
+          createdAt: u.createdAt ? new Date(u.createdAt).toISOString() : null,
+          suspendedAt: u.suspendedAt ? new Date(u.suspendedAt).toISOString() : null,
+          appSeenAt: u.appSeenAt ? new Date(u.appSeenAt).toISOString() : null,
+          platforms: accountPlatforms(u, index, webBuyers),
+          orders: ordersBy.get(u.id)?.count || 0,
+          lastOrderAt: ordersBy.get(u.id)?.lastAt || null,
+        }))
+        // Newest first.
+        .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
+
+      const counts = {
+        all: rows.length,
+        ios: rows.filter((r) => r.platforms.includes('ios')).length,
+        android: rows.filter((r) => r.platforms.includes('android')).length,
+        web: rows.filter((r) => r.platforms.includes('web')).length,
+        unknown: rows.filter((r) => !r.platforms.length).length,
+        suspended: rows.filter((r) => r.suspendedAt).length,
+      };
+      const matching = rows.filter((r) => {
+        if (q && !(r.name.toLowerCase().includes(q) || (digits && r.phone.replace(/\D/g, '').includes(digits)))) return false;
+        if (platform === 'unknown' ? r.platforms.length : platform && !r.platforms.includes(platform)) return false;
+        if (status === 'suspended' && !r.suspendedAt) return false;
+        if (status === 'active' && r.suspendedAt) return false;
+        return true;
+      });
+      return sendJson(res, 200, {
+        accounts: matching.slice((page - 1) * ACCOUNTS_PAGE, page * ACCOUNTS_PAGE),
+        total: matching.length,
+        page,
+        pageSize: ACCOUNTS_PAGE,
+        counts,
+      });
+    }
+
+    const accountMatch = url.pathname.match(/^\/api\/panel\/accounts\/([^/]+)$/);
+    const suspendMatch = url.pathname.match(/^\/api\/panel\/accounts\/([^/]+)\/suspend$/);
+
+    // The name and the phone number an account signs in with.
+    if (req.method === 'PATCH' && accountMatch) {
+      const actor = await accountsAdmin(req, res);
+      if (!actor) return;
+      const target = await accountTarget(res, actor, decodeURIComponent(accountMatch[1]));
+      if (!target) return;
+      const body = await jsonBody(req, res);
+      if (!body) return;
+      const updates = {};
+      if (body.name !== undefined) {
+        const name = String(body.name || '').trim();
+        if (name.length < 2 || name.length > 60) return sendJson(res, 400, { error: 'الاسم بين حرفين و60 حرفاً' });
+        updates.name = name;
+      }
+      if (body.phone !== undefined) {
+        const phone = String(body.phone || '').trim();
+        if (!isValidPhone(phone)) return sendJson(res, 400, { error: 'رقم الهاتف غير صالح' });
+        if (phone !== target.phone) {
+          const taken = await auth.findByPhone(phone);
+          if (taken && taken.id !== target.id) return sendJson(res, 409, { error: 'هذا الرقم مسجل لحساب آخر' });
+          updates.phone = phone;
+        }
+      }
+      if (!Object.keys(updates).length) return sendJson(res, 400, { error: 'لا تغيير' });
+      let updated;
+      try {
+        updated = await auth.updateUser(target.id, updates);
+      } catch (err) {
+        // Two edits racing to the same number: the unique index says no.
+        if (err.code === '23505') return sendJson(res, 409, { error: 'هذا الرقم مسجل لحساب آخر' });
+        throw err;
+      }
+      console.log(`[panel] account ${target.id} edited by ${actor.id}: ${Object.keys(updates).join(', ')}`);
+      return sendJson(res, 200, { account: { id: updated.id, name: updated.name || '', phone: updated.phone || '' } });
+    }
+
+    // «إيقاف الحساب»: signed out everywhere at once, and no way back in until «إعادة التفعيل».
+    if (req.method === 'POST' && suspendMatch) {
+      const actor = await accountsAdmin(req, res);
+      if (!actor) return;
+      const target = await accountTarget(res, actor, decodeURIComponent(suspendMatch[1]));
+      if (!target) return;
+      const body = await jsonBody(req, res);
+      if (!body) return;
+      const suspended = body.suspended !== false;
+      const suspendedAt = suspended ? target.suspendedAt || new Date().toISOString() : null;
+      await auth.updateUser(target.id, { suspendedAt });
+      if (suspended) await auth.deleteSessionsForUser(target.id);
+      console.log(`[panel] account ${target.id} ${suspended ? 'suspended' : 'reopened'} by ${actor.id}`);
+      return sendJson(res, 200, { id: target.id, suspendedAt: suspendedAt ? new Date(suspendedAt).toISOString() : null });
+    }
+
+    // «حذف الحساب»: the same erasing as the customer's own (src/lib/accounts.js).
+    // A team member loses their role first, in الإعدادات.
+    if (req.method === 'DELETE' && accountMatch) {
+      const actor = await accountsAdmin(req, res);
+      if (!actor) return;
+      const target = await accountTarget(res, actor, decodeURIComponent(accountMatch[1]));
+      if (!target) return;
+      if (auth.roleOf(target) !== 'customer') {
+        return sendJson(res, 409, { error: 'هذا الحساب من فريق العمل: أزل صلاحيته من الإعدادات أولاً' });
+      }
+      const deleted = await eraseAccount(target);
+      if (!deleted) return sendJson(res, 404, { error: 'الحساب غير موجود' });
+      console.log(`[panel] account ${target.id} deleted by ${actor.id}`);
+      return sendJson(res, 200, { deleted: true });
     }
 
     return NOT_HANDLED;

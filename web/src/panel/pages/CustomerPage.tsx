@@ -1,10 +1,127 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
 
-import { panelApi, type PanelCustomer } from '../api';
+import { panelApi, PanelError, type PanelCustomer, type PanelMe } from '../api';
 import { PageBody } from '../Shell';
-import { Link, orderHref, sectionHref } from '../router';
-import { buttonClass, Card, CardHead, CHANNEL_META, ErrorCard, formatPhone, Icon, money, ordersCount, Pill, Skeleton, STATUS_META } from '../ui';
+import { Link, navigate, orderHref, sectionHref } from '../router';
+import { Button, buttonClass, Card, CardHead, CHANNEL_META, ErrorCard, Field, formatPhone, Icon, money, ordersCount, Pill, Skeleton, STATUS_META, since } from '../ui';
 import { libyaMoment, whatsappHref } from './OrderDetailPage';
+import { PLATFORM_LABEL } from './UsersPage';
+
+type Account = NonNullable<PanelCustomer['account']>;
+
+/**
+ * «إدارة الحساب» (admin only): the name and the number the account signs in
+ * with, «إيقاف الحساب» (signed out at once, no way in until reopened), and
+ * «حذف الحساب» - for good, its orders kept without the name, as when the
+ * customer deletes it themselves.
+ */
+function AccountCard({ token, me, account, onChanged }: { token: string; me: PanelMe; account: Account; onChanged: (changes: Partial<Account>) => void }) {
+  const [name, setName] = useState(account.name);
+  const [phone, setPhone] = useState(account.phone);
+  const [error, setError] = useState<{ field: 'name' | 'phone' | null; message: string } | null>(null);
+  const [busy, setBusy] = useState<'save' | 'suspend' | 'delete' | null>(null);
+  useEffect(() => {
+    setName(account.name);
+    setPhone(account.phone);
+  }, [account.name, account.phone]);
+
+  if (account.id === me.user.id) {
+    return (
+      <Card>
+        <CardHead title="إدارة الحساب" />
+        <p className="m-0 text-sm text-[#5F6373]">هذا حسابك أنت، ولا يُعدَّل من هنا.</p>
+      </Card>
+    );
+  }
+
+  const changed = name.trim() !== account.name || phone.trim() !== account.phone;
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!changed) return;
+    const changes: { name?: string; phone?: string } = {};
+    if (name.trim() !== account.name) changes.name = name.trim();
+    if (phone.trim() !== account.phone) changes.phone = phone.trim();
+    setBusy('save');
+    setError(null);
+    try {
+      const { account: saved } = await panelApi.editAccount(token, account.id, changes);
+      onChanged({ name: saved.name, phone: saved.phone });
+      toast.success('حُفظت البيانات');
+    } catch (err) {
+      const message = err instanceof PanelError ? err.message : 'تعذّر الحفظ';
+      setError({ field: /رقم|الهاتف/.test(message) ? 'phone' : /الاسم/.test(message) ? 'name' : null, message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function suspend(next: boolean) {
+    const ask = next
+      ? `إيقاف حساب «${account.name || formatPhone(account.phone)}»؟ يخرج من التطبيق والموقع فوراً، ولا يدخل حتى تعيد تفعيله.`
+      : `إعادة تفعيل حساب «${account.name || formatPhone(account.phone)}»؟`;
+    if (!window.confirm(ask)) return;
+    setBusy('suspend');
+    try {
+      const { suspendedAt } = await panelApi.suspendAccount(token, account.id, next);
+      onChanged({ suspendedAt });
+      toast.success(next ? 'أُوقف الحساب' : 'أُعيد تفعيل الحساب');
+    } catch (err) {
+      toast.error(err instanceof PanelError ? err.message : 'تعذّر التنفيذ');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function remove() {
+    if (!window.confirm(`حذف حساب «${account.name || formatPhone(account.phone)}» نهائياً؟ تُحذف بياناته وعناوينه ومفضلته، وتبقى طلباته بلا اسمه. لا يمكن التراجع.`)) return;
+    setBusy('delete');
+    try {
+      await panelApi.deleteAccount(token, account.id);
+      toast.success('حُذف الحساب');
+      navigate(sectionHref('users'), { replace: true });
+    } catch (err) {
+      toast.error(err instanceof PanelError ? err.message : 'تعذّر الحذف');
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHead title="إدارة الحساب" aside={account.suspendedAt ? <Pill tone="red">موقوف</Pill> : <Pill tone="green">مفعّل</Pill>} />
+      <form onSubmit={(e) => void save(e)} className="flex flex-col gap-3">
+        <Field label="الاسم" value={name} onChange={setName} maxLength={60} error={error?.field === 'name' ? error.message : undefined} />
+        <Field
+          label="رقم الهاتف"
+          value={phone}
+          onChange={setPhone}
+          ltr
+          inputMode="tel"
+          maxLength={20}
+          error={error?.field === 'phone' ? error.message : undefined}
+          hint="الرقم الذي يدخل به العميل إلى حسابه."
+        />
+        {error && !error.field ? <p className="m-0 text-[12.5px] text-[#A12020]">{error.message}</p> : null}
+        <Button type="submit" size="sm" disabled={!changed || busy !== null} aria-busy={busy === 'save'}>
+          <Icon name="check" size={17} /> حفظ التعديل
+        </Button>
+      </form>
+      <div className="mt-4 flex flex-col gap-2 border-t border-[#E4E6EE] pt-4">
+        {account.suspendedAt ? (
+          <p className="m-0 text-[13px] text-[#A12020]">موقوف منذ {libyaMoment(account.suspendedAt, true)}</p>
+        ) : null}
+        <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => void suspend(!account.suspendedAt)}>
+          <Icon name={account.suspendedAt ? 'check' : 'lock'} size={17} />
+          {account.suspendedAt ? 'إعادة تفعيل الحساب' : 'إيقاف الحساب'}
+        </Button>
+        <Button variant="outline" size="sm" className="text-[#A12020]" disabled={busy !== null} onClick={() => void remove()}>
+          <Icon name="trash" size={17} /> حذف الحساب نهائياً
+        </Button>
+      </div>
+    </Card>
+  );
+}
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -21,8 +138,10 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
  * order they placed - signed in, or as a guest with the same phone - with what
  * they spent, the addresses they gave, their points and their reviews.
  */
-export function CustomerPage({ token, customerKey }: { token: string; customerKey: string }) {
+export function CustomerPage({ me, token, customerKey, search }: { me: PanelMe; token: string; customerKey: string; search: string }) {
   const [c, setC] = useState<PanelCustomer | null>(null);
+  // Opened from المستخدمون: the way back goes there.
+  const fromUsers = new URLSearchParams(search).get('from') === 'users' && me.sections.includes('users');
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -38,18 +157,22 @@ export function CustomerPage({ token, customerKey }: { token: string; customerKe
   }, [c]);
 
   const wa = c ? whatsappHref(c.phone) : null;
-  const devices = c ? [c.devices.ios ? `iOS${c.devices.ios > 1 ? ` (${c.devices.ios})` : ''}` : null, c.devices.android ? `أندرويد${c.devices.android > 1 ? ` (${c.devices.android})` : ''}` : null].filter(Boolean) : [];
+  // The devices registered for notifications, and the app the account last opened.
+  const ios = c ? Math.max(c.devices.ios, c.account?.appPlatform === 'ios' ? 1 : 0) : 0;
+  const android = c ? Math.max(c.devices.android, c.account?.appPlatform === 'android' ? 1 : 0) : 0;
+  const devices = [ios ? `iOS${ios > 1 ? ` (${ios})` : ''}` : null, android ? `أندرويد${android > 1 ? ` (${android})` : ''}` : null].filter(Boolean);
 
   return (
     <>
       <header className="flex flex-col gap-3 border-b border-[#E4E6EE] bg-white px-4 py-4 sm:px-8 lg:h-[76px] lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:py-0">
         <div className="flex flex-col gap-0.5">
-          <Link href={sectionHref('orders')} className="text-[13px] font-semibold text-[#5F6373] no-underline hover:text-dark-ocean">
-            → الطلبات
+          <Link href={sectionHref(fromUsers ? 'users' : 'orders')} className="text-[13px] font-semibold text-[#5F6373] no-underline hover:text-dark-ocean">
+            → {fromUsers ? 'المستخدمون' : 'الطلبات'}
           </Link>
           <h1 className="m-0 flex flex-wrap items-center gap-2.5 font-display text-[22px] font-bold">
             {c ? c.name || 'عميل بدون اسم' : 'العميل'}
             {c ? <Pill tone={c.account ? 'ocean' : 'grey'}>{c.account ? 'له حساب' : 'بدون حساب'}</Pill> : null}
+            {c?.account?.suspendedAt ? <Pill tone="red">موقوف</Pill> : null}
           </h1>
         </div>
         {c ? (
@@ -134,8 +257,32 @@ export function CustomerPage({ token, customerKey }: { token: string; customerKe
                       <dt className="text-[12.5px] text-[#5F6373]">التطبيق</dt>
                       <dd className="m-0">{devices.length ? `مثبّت على ${devices.join(' و')}` : 'لم يطلب من التطبيق'}</dd>
                     </div>
+                    {c.account?.appPlatform ? (
+                      <div className="flex flex-col">
+                        <dt className="text-[12.5px] text-[#5F6373]">آخر فتح للتطبيق</dt>
+                        <dd className="m-0">
+                          {PLATFORM_LABEL[c.account.appPlatform]}
+                          {c.account.appSeenAt ? ` · قبل ${since(c.account.appSeenAt)}` : ''}
+                        </dd>
+                      </div>
+                    ) : null}
                   </dl>
                 </Card>
+
+                {c.account && me.sections.includes('users') ? (
+                  <AccountCard
+                    token={token}
+                    me={me}
+                    account={c.account}
+                    onChanged={(changes) =>
+                      setC((prev) =>
+                        prev?.account
+                          ? { ...prev, name: changes.name || prev.name, phone: changes.phone || prev.phone, account: { ...prev.account, ...changes } }
+                          : prev
+                      )
+                    }
+                  />
+                ) : null}
 
                 <Card>
                   <CardHead title="العناوين" />

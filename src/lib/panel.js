@@ -370,7 +370,17 @@ function customerProfile({ key, user, orders: all, addresses = [], platforms = [
 
   return {
     key,
-    account: user ? { id: user.id, name: user.name || '', phone: user.phone || '', createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null } : null,
+    account: user
+      ? {
+          id: user.id,
+          name: user.name || '',
+          phone: user.phone || '',
+          createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+          suspendedAt: user.suspendedAt ? new Date(user.suspendedAt).toISOString() : null,
+          appPlatform: user.appPlatform === 'ios' || user.appPlatform === 'android' ? user.appPlatform : null,
+          appSeenAt: user.appSeenAt ? new Date(user.appSeenAt).toISOString() : null,
+        }
+      : null,
     name: names[0] || '',
     otherNames: names.slice(1),
     phone,

@@ -19,6 +19,9 @@ function toUser(row) {
     avatarUrl: row.avatar_url || null,
     trackingStatus: row.tracking_status || null,
     trackingAt: row.tracking_at || null,
+    suspendedAt: row.suspended_at || null,
+    appPlatform: row.app_platform || null,
+    appSeenAt: row.app_seen_at || null,
     createdAt: row.created_at,
   };
 }
@@ -73,12 +76,16 @@ async function findByPhone(phone) {
 
 const UPDATABLE_COLUMNS = {
   name: 'name',
+  phone: 'phone',
   role: 'role',
   passwordHash: 'password_hash',
   odooPartnerId: 'odoo_partner_id',
   avatarUrl: 'avatar_url',
   trackingStatus: 'tracking_status',
   trackingAt: 'tracking_at',
+  suspendedAt: 'suspended_at',
+  appPlatform: 'app_platform',
+  appSeenAt: 'app_seen_at',
 };
 
 async function updateUser(userId, updates) {
@@ -114,6 +121,9 @@ async function listUsers() {
     email: row.email,
     role: row.role,
     createdAt: row.created_at,
+    suspendedAt: row.suspended_at || null,
+    appPlatform: row.app_platform || null,
+    appSeenAt: row.app_seen_at || null,
     addressCount: Number(row.address_count),
     wishlistCount: Number(row.wishlist_count),
   }));
@@ -193,10 +203,13 @@ async function createSession(userId) {
   return token;
 }
 
+/** A suspended account's sessions are refused, whatever their expiry. */
 async function verifySession(token) {
   if (!token) return null;
   const { rows } = await db.query(
-    'select token, user_id as "userId", expires_at as "expiresAt" from sessions where token = $1',
+    `select s.token, s.user_id as "userId", s.expires_at as "expiresAt"
+     from sessions s join users u on u.id = s.user_id
+     where s.token = $1 and u.suspended_at is null`,
     [token]
   );
   const session = rows[0];

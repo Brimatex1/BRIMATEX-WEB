@@ -16,12 +16,14 @@ import { PushPage } from './pages/PushPage';
 import { QuizRulesPage } from './pages/QuizRulesPage';
 import { ReviewsPage } from './pages/ReviewsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { UsersPage } from './pages/UsersPage';
 import { navigate, parseDetail, parseSection, sectionHref, useLocation } from './router';
 import { Shell } from './Shell';
 
 const TITLE: Record<Section, string> = {
   overview: 'نظرة عامة',
   orders: 'الطلبات',
+  users: 'المستخدمون',
   home: 'الواجهة والبانرات',
   push: 'الإشعارات',
   quiz: 'ساعدني أختار',
@@ -108,8 +110,9 @@ export default function PanelApp() {
       <Shell me={me} current={allowed} onSignOut={auth.signOut}>
         {allowed === 'overview' ? <OverviewPage me={me} token={token} /> : null}
         {allowed === 'orders' && detail?.kind === 'order' ? <OrderDetailPage key={detail.name} me={me} token={token} name={detail.name} onBadgeChange={adjustOrders} /> : null}
-        {allowed === 'orders' && detail?.kind === 'customer' ? <CustomerPage key={detail.key} token={token} customerKey={detail.key} /> : null}
+        {allowed === 'orders' && detail?.kind === 'customer' ? <CustomerPage key={detail.key} me={me} token={token} customerKey={detail.key} search={search} /> : null}
         {allowed === 'orders' && !detail ? <OrdersPage me={me} token={token} search={search} onBadgeChange={adjustOrders} /> : null}
+        {allowed === 'users' ? <UsersPage me={me} token={token} search={search} /> : null}
         {allowed === 'reviews' ? <ReviewsPage me={me} token={token} search={search} onBadgeChange={adjustReviews} /> : null}
         {allowed === 'integrations' ? <IntegrationsPage me={me} token={token} /> : null}
         {allowed === 'settings' ? <SettingsPage me={me} token={token} /> : null}

@@ -16,11 +16,7 @@ const crypto = require('crypto');
 
 const auth = require('../lib/auth');
 const otp = require('../lib/otp');
-const orders = require('../lib/orders');
-const avatar = require('../lib/avatar');
-const perks = require('../lib/perks');
-const devices = require('../lib/devices');
-const reviewAccount = require('../lib/reviewAccount');
+const { eraseAccount } = require('../lib/accounts');
 const { sendJson, readBody } = require('../lib/respond');
 
 /**
@@ -53,6 +49,9 @@ const LOGIN_WINDOW_MS = 15 * 60_000;
 const LOGIN_FAILS_PER_PHONE = 5;
 const LOGIN_FAILS_PER_ADDRESS = 20;
 const loginFails = new Map();
+
+/** The answer to a sign-in by an account the panel stopped (المستخدمون). */
+const SUSPENDED = { error: 'هذا الحساب موقوف. تواصل مع بريماتكس.', code: 'suspended' };
 
 function failsOf(key, now) {
   const list = (loginFails.get(key) || []).filter((t) => now - t < LOGIN_WINDOW_MS);
@@ -179,6 +178,7 @@ function createAuthRoutes({ isValidPhone }) {
         return sendJson(res, 401, { error: 'رقم الهاتف أو كلمة المرور غير صحيحة. أول مرة بكلمة مرور؟ اختر «نسيت كلمة المرور» لتعيينها.' });
       }
       loginFails.delete(`p:${phone}`);
+      if (user.suspendedAt) return sendJson(res, 403, SUSPENDED);
       const token = await auth.createSession(user.id);
       return sendJson(res, 200, {
         message: 'تم الدخول بنجاح',
@@ -238,6 +238,7 @@ function createAuthRoutes({ isValidPhone }) {
       }
       const user = await auth.findByPhone(phone);
       if (!user) return sendJson(res, 200, { needsName: true, signupToken: result.resetToken });
+      if (user.suspendedAt) return sendJson(res, 403, SUSPENDED);
       // The proof is spent: the token is burned, the account signed in.
       await otp.consumeResetToken(result.resetToken);
       const token = await auth.createSession(user.id);
@@ -432,6 +433,7 @@ function createAuthRoutes({ isValidPhone }) {
       if (!user) {
         return sendJson(res, 404, { error: 'المستخدم غير موجود' });
       }
+      if (user.suspendedAt) return sendJson(res, 403, SUSPENDED);
 
       // Drops the old sessions too — see auth.setPassword.
       await auth.setPassword(user.id, String(password));
@@ -544,19 +546,9 @@ function createAuthRoutes({ isValidPhone }) {
         return sendJson(res, 400, { error: 'أكّد الحذف بكلمة المرور أو برمز واتساب المرسل إلى رقمك', code: 'verify_required' });
       }
 
-      // The orders stay, without who placed them (the owner's call): the record
-      // with the customer's details stays in Odoo, never touched from here.
-      await orders.forgetCustomer(session.userId, leaving.phone);
-      // The file store has no cascade: its reviews, points records and devices
-      // go explicitly (Postgres drops them with the user row).
-      await perks.forgetUser(session.userId);
-      await devices.forgetUser(session.userId);
-      const deleted = await auth.deleteUser(session.userId);
-      // Their photo goes with the account.
-      if (deleted && leaving?.avatarUrl) avatar.remove(leaving.avatarUrl);
+      // Orders kept without the customer, photo and devices gone (src/lib/accounts.js).
+      const deleted = await eraseAccount(leaving);
       if (!deleted) return sendJson(res, 404, { error: 'المستخدم غير موجود' });
-      // Apple's reviewer tests deletion: their account comes straight back, empty.
-      await reviewAccount.ensure();
 
       return sendJson(res, 200, { message: 'تم حذف الحساب نهائياً' });
     }

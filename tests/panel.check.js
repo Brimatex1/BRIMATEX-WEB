@@ -143,8 +143,8 @@ async function run() {
     console.log('\n\x1b[1m2. الأدوار\x1b[0m');
     const me = await req('GET', '/api/panel/me', null, bearer(admin.token));
     ok(
-      'المدير: كل الأقسام التسعة بترتيب الشريط',
-      me.status === 200 && me.json?.role === 'admin' && me.json?.sections?.join() === 'overview,orders,home,push,quiz,products,reviews,integrations,settings',
+      'المدير: كل الأقسام العشرة بترتيب الشريط',
+      me.status === 200 && me.json?.role === 'admin' && me.json?.sections?.join() === 'overview,orders,users,home,push,quiz,products,reviews,integrations,settings',
       JSON.stringify(me.json?.sections)
     );
     ok('المدير يؤكد', me.json?.canConfirm === true);
@@ -314,7 +314,7 @@ async function run() {
     ok('لخدمة العملاء: بلا تقييمات ولا صور', ovSupport.json?.reviewsPending === null && ovSupport.json?.productsWithoutPhoto === null);
 
     console.log('\n\x1b[1m6. العناوين\x1b[0m');
-    for (const path of ['/admin', '/admin/orders', '/admin/reviews', '/admin/integrations', '/admin/settings', '/admin/classic']) {
+    for (const path of ['/admin', '/admin/orders', '/admin/users', '/admin/reviews', '/admin/integrations', '/admin/settings', '/admin/classic']) {
       const r = await req('GET', path);
       ok(`${path} ← 200 الواجهة`, r.status === 200 && r.text.includes('<div id="root">'), 'status ' + r.status);
     }

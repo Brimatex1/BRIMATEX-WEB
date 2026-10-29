@@ -318,7 +318,14 @@ async function handleUserRoutes(req, res, url) {
     if (!body) return;
     const status = TRACKING_STATUSES.has(body.status) ? body.status : null;
     if (!status) return sendJson(res, 400, { error: 'حالة غير معروفة' });
-    await auth.updateUser(userId, { trackingStatus: status, trackingAt: new Date().toISOString() });
+    const now = new Date().toISOString();
+    // The app sends its platform too: the panel's المستخدمون shows iPhone or Android.
+    const platform = body.platform === 'ios' || body.platform === 'android' ? body.platform : undefined;
+    await auth.updateUser(userId, {
+      trackingStatus: status,
+      trackingAt: now,
+      ...(platform ? { appPlatform: platform, appSeenAt: now } : {}),
+    });
     return sendJson(res, 200, { ok: true, status });
   }
 

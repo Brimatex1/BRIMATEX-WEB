@@ -127,6 +127,9 @@ async function listUsers() {
     email: u.email,
     role: u.role,
     createdAt: u.createdAt,
+    suspendedAt: u.suspendedAt || null,
+    appPlatform: u.appPlatform || null,
+    appSeenAt: u.appSeenAt || null,
     addressCount: (u.addresses || []).length,
     wishlistCount: (u.wishlist || []).length,
   }));
@@ -223,11 +226,14 @@ async function createSession(userId) {
   return token;
 }
 
+/** A suspended account's sessions are refused, whatever their expiry. */
 async function verifySession(token) {
   if (!token) return null;
   const session = readSessions().find((s) => s.token === token);
   if (!session) return null;
   if (new Date(session.expiresAt) < new Date()) return null;
+  const user = readUsers().find((u) => u.id === session.userId);
+  if (!user || user.suspendedAt) return null;
   return session;
 }
 

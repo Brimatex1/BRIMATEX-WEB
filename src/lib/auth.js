@@ -43,7 +43,8 @@ function isBootstrapAdmin(phone) {
 /**
  * Staff roles for the admin panel (/admin). Everyone else is a customer.
  *   admin      مدير            every section, and the classic dashboard
- *                              (التقييمات and الربط والتكاملات are admin only)
+ *                              (المستخدمون، التقييمات and الربط والتكاملات are
+ *                              admin only)
  *   marketing  تسويق           the storefront, notifications, the quiz, mattresses
  *   support    خدمة العملاء     the overview and the orders
  */
@@ -51,7 +52,7 @@ const STAFF_ROLES = ['admin', 'marketing', 'support'];
 const ROLES = [...STAFF_ROLES, 'customer'];
 
 /** The panel's sections, in sidebar order. */
-const PANEL_SECTIONS = ['overview', 'orders', 'home', 'push', 'quiz', 'products', 'reviews', 'integrations', 'settings'];
+const PANEL_SECTIONS = ['overview', 'orders', 'users', 'home', 'push', 'quiz', 'products', 'reviews', 'integrations', 'settings'];
 
 const SECTIONS_BY_ROLE = {
   admin: PANEL_SECTIONS,
@@ -112,6 +113,7 @@ module.exports = {
   createSession: backend.createSession,
   verifySession: backend.verifySession,
   deleteSession: backend.deleteSession,
+  deleteSessionsForUser: backend.deleteSessionsForUser,
   deleteUser: backend.deleteUser,
   roleOf,
   isAdmin,

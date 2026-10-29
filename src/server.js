@@ -246,7 +246,7 @@ async function requireAdmin(req, res) {
 const handleAuthRoutes = createAuthRoutes({ isValidPhone });
 const handleOrderRoutes = createOrderRoutes({ validateOrder, checkRateLimit, requireAdmin });
 const handleAdminRoutes = createAdminRoutes({ requireAdmin, deleteUploadedFile });
-const handlePanelRoutes = createPanelRoutes();
+const handlePanelRoutes = createPanelRoutes({ isValidPhone });
 
 async function handleApi(req, res, url) {
   if (req.method === 'GET' && url.pathname === '/api/products') {

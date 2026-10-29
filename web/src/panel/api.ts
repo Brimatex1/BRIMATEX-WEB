@@ -9,7 +9,7 @@ import type { QuizRules } from '@/shop/quiz';
 export type { QuizRules };
 
 export type StaffRole = 'admin' | 'marketing' | 'support';
-export type Section = 'overview' | 'orders' | 'home' | 'push' | 'quiz' | 'products' | 'reviews' | 'integrations' | 'settings';
+export type Section = 'overview' | 'orders' | 'users' | 'home' | 'push' | 'quiz' | 'products' | 'reviews' | 'integrations' | 'settings';
 export type OrderStatus = 'new' | 'confirmed' | 'preparing' | 'out' | 'delivered' | 'cancelled';
 export type Channel = 'ios' | 'android' | 'app' | 'web';
 export type Period = 'today' | '7d' | '30d' | 'all';
@@ -87,7 +87,17 @@ export interface PanelOrderDetail extends PanelOrder {
 /** GET /api/panel/customers/:key - one customer. */
 export interface PanelCustomer {
   key: string;
-  account: { id: string; name: string; phone: string; createdAt: string | null } | null;
+  account: {
+    id: string;
+    name: string;
+    phone: string;
+    createdAt: string | null;
+    /** Stopped from the panel's المستخدمون: no sign-in until reopened. */
+    suspendedAt: string | null;
+    /** The app it last opened, and when. */
+    appPlatform: 'ios' | 'android' | null;
+    appSeenAt: string | null;
+  } | null;
   name: string;
   otherNames: string[];
   phone: string;
@@ -98,6 +108,40 @@ export interface PanelCustomer {
   orders: PanelOrder[];
   /** Odoo loyalty points, when the add-on is on. */
   loyalty: { points: number; value: number | null } | null;
+}
+
+/** Where an account was seen: the iPhone app, the Android app, the website. */
+export type AccountPlatform = 'ios' | 'android' | 'web';
+
+/** GET /api/panel/accounts - one row of المستخدمون. */
+export interface PanelAccount {
+  id: string;
+  name: string;
+  phone: string;
+  role: StaffRole | 'customer';
+  /** Admin by the server's ADMIN_PHONES: not changed from the panel. */
+  locked: boolean;
+  createdAt: string | null;
+  suspendedAt: string | null;
+  appSeenAt: string | null;
+  platforms: AccountPlatform[];
+  orders: number;
+  lastOrderAt: string | null;
+}
+
+export interface AccountsQuery {
+  q: string;
+  platform: AccountPlatform | 'unknown' | '';
+  status: 'active' | 'suspended' | '';
+  page: number;
+}
+
+export interface AccountsPage {
+  accounts: PanelAccount[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: { all: number; ios: number; android: number; web: number; unknown: number; suspended: number };
 }
 
 export interface OrdersQuery {
@@ -440,6 +484,24 @@ export const panelApi = {
     call<PushPayload & { campaign: PushCampaign }>(token, '/api/panel/push/test', { method: 'POST', body: JSON.stringify(draft) }),
   setPushLimit: (token: string, perWeek: number) => call<PushPayload>(token, '/api/panel/push/limit', { method: 'PUT', body: JSON.stringify({ perWeek }) }),
   cancelPush: (token: string, id: string) => call<PushPayload & { campaign: PushCampaign }>(token, `/api/panel/push/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  accounts: (token: string, q: Partial<AccountsQuery>) => {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(q)) if (v && !(k === 'page' && v === 1)) params.set(k, String(v));
+    const qs = params.toString();
+    return call<AccountsPage>(token, `/api/panel/accounts${qs ? `?${qs}` : ''}`);
+  },
+  editAccount: (token: string, id: string, changes: { name?: string; phone?: string }) =>
+    call<{ account: { id: string; name: string; phone: string } }>(token, `/api/panel/accounts/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    }),
+  suspendAccount: (token: string, id: string, suspended: boolean) =>
+    call<{ id: string; suspendedAt: string | null }>(token, `/api/panel/accounts/${encodeURIComponent(id)}/suspend`, {
+      method: 'POST',
+      body: JSON.stringify({ suspended }),
+    }),
+  deleteAccount: (token: string, id: string) =>
+    call<{ deleted: true }>(token, `/api/panel/accounts/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   team: (token: string, q = '') => call<{ users: TeamMember[] }>(token, `/api/panel/users${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   setRole: (token: string, userId: string, role: TeamMember['role']) =>
     call<{ id: string; role: TeamMember['role'] }>(token, `/api/panel/users/${encodeURIComponent(userId)}/role`, {

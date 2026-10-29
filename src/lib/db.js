@@ -342,6 +342,27 @@ do $$ begin
     alter table users add column tracking_at timestamptz;
   end if;
 end $$;
+-- An account the panel stopped (المستخدمون): its sessions are refused and it
+-- cannot sign in until an admin reopens it.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'users' and column_name = 'suspended_at'
+  ) then
+    alter table users add column suspended_at timestamptz;
+  end if;
+end $$;
+-- The app the account last opened: 'ios' or 'android', reported at every
+-- launch and sign-in with the tracking answer.
+do $$ begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'users' and column_name = 'app_platform'
+  ) then
+    alter table users add column app_platform text;
+    alter table users add column app_seen_at timestamptz;
+  end if;
+end $$;
 `;
 
 let migrated = false;

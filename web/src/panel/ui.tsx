@@ -143,6 +143,7 @@ export function Icon({ name, size = 20, className, ...rest }: { name: IconName; 
 export const SECTION_META: Record<Section, { label: string; icon: IconName; subtitle: string }> = {
   overview: { label: 'نظرة عامة', icon: 'home', subtitle: 'كل الأرقام من أودو مباشرة' },
   orders: { label: 'الطلبات', icon: 'box', subtitle: 'طلبات التطبيقين والموقع، من أودو مباشرة' },
+  users: { label: 'المستخدمون', icon: 'users', subtitle: 'كل الحسابات: بياناتها وجهازها، تعديلها وإيقافها' },
   home: { label: 'الواجهة والبانرات', icon: 'image', subtitle: 'ما يظهر في الرئيسية في التطبيقين والموقع' },
   push: { label: 'الإشعارات', icon: 'bell', subtitle: 'إشعارات العروض للتطبيقين عبر خدمة Expo' },
   quiz: { label: 'ساعدني أختار', icon: 'help', subtitle: 'قواعد الاقتراح في التطبيقين والموقع' },

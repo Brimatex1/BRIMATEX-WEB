@@ -8,6 +8,7 @@ import type { Section } from './api';
  *
  *   /admin            نظرة عامة
  *   /admin/orders     الطلبات (filters in the query)
+ *   /admin/users      المستخدمون (filters in the query)
  *   /admin/home  /admin/push  /admin/quiz  /admin/products
  *   /admin/reviews (the filter in the query)  /admin/integrations  /admin/settings
  *
@@ -16,6 +17,7 @@ import type { Section } from './api';
 const PATHS: Record<Section, string> = {
   overview: '/admin',
   orders: '/admin/orders',
+  users: '/admin/users',
   home: '/admin/home',
   push: '/admin/push',
   quiz: '/admin/quiz',
