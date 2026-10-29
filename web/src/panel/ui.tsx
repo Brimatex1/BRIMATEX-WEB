@@ -236,8 +236,8 @@ export const STATUS_META: Record<OrderStatus, { label: string; tone: Tone }> = {
 };
 
 export const CHANNEL_META: Record<Channel, { pill: string; row: string; icon: IconName }> = {
-  ios: { pill: 'iOS', row: 'تطبيق iOS', icon: 'phone' },
-  android: { pill: 'أندرويد', row: 'تطبيق أندرويد', icon: 'phone' },
+  ios: { pill: 'iPhone', row: 'تطبيق iPhone', icon: 'phone' },
+  android: { pill: 'Android', row: 'تطبيق Android', icon: 'phone' },
   app: { pill: 'التطبيق', row: 'التطبيق', icon: 'phone' },
   web: { pill: 'الموقع', row: 'الموقع', icon: 'monitor' },
 };

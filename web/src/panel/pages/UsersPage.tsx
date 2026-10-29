@@ -12,14 +12,14 @@ type Filter = 'all' | AccountPlatform | 'unknown' | 'suspended';
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'الكل' },
-  { key: 'ios', label: 'آيفون' },
-  { key: 'android', label: 'أندرويد' },
+  { key: 'ios', label: 'iPhone' },
+  { key: 'android', label: 'Android' },
   { key: 'web', label: 'الموقع' },
   { key: 'unknown', label: 'غير معروف' },
   { key: 'suspended', label: 'موقوف' },
 ];
 
-export const PLATFORM_LABEL: Record<AccountPlatform, string> = { ios: 'آيفون', android: 'أندرويد', web: 'الموقع' };
+export const PLATFORM_LABEL: Record<AccountPlatform, string> = { ios: 'iPhone', android: 'Android', web: 'الموقع' };
 
 function readQuery(search: string): AccountsQuery & { filter: Filter } {
   const p = new URLSearchParams(search);

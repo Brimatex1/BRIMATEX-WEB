@@ -13,8 +13,8 @@ import { Button, CHANNEL_META, ErrorCard, Icon, Pill, Skeleton, STATUS_META, for
 const STATUS_CHIPS: (OrderStatus | 'all')[] = ['all', 'new', 'confirmed', 'preparing', 'out', 'delivered', 'cancelled'];
 const CHANNEL_OPTIONS: { value: Channel | 'all'; label: string }[] = [
   { value: 'all', label: 'الكل' },
-  { value: 'ios', label: 'iOS' },
-  { value: 'android', label: 'أندرويد' },
+  { value: 'ios', label: 'iPhone' },
+  { value: 'android', label: 'Android' },
   { value: 'app', label: 'التطبيق (كل المنصات)' },
   { value: 'web', label: 'الموقع' },
 ];

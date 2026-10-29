@@ -34,7 +34,7 @@ const SECTION_WHERE: Partial<Record<HomeSectionKey, string>> = {
   instagram: 'الموقع فقط',
 };
 
-const PLATFORM_LABEL: Record<BannerPlatform, string> = { ios: 'iOS', android: 'أندرويد', web: 'الموقع' };
+const PLATFORM_LABEL: Record<BannerPlatform, string> = { ios: 'iPhone', android: 'Android', web: 'الموقع' };
 const PLATFORMS: BannerPlatform[] = ['ios', 'android', 'web'];
 
 /** The brand's colours for the text panel (Dark Ocean, Porcelain, Nebula, Sun Glare, white). */
@@ -733,7 +733,7 @@ export function HomeBannersPage({ me, token }: { me: PanelMe; token: string }) {
                       url={form.appImage}
                       token={token}
                       error={errors.appImage}
-                      note={form.appImages ? 'ومعها نسختا iOS وأندرويد بمقاس كل تطبيق' : undefined}
+                      note={form.appImages ? 'ومعها نسختا iPhone وAndroid بمقاس كل تطبيق' : undefined}
                       onUploaded={(url) => setForm((f) => (f ? { ...f, appImage: url, appImages: undefined } : f))}
                     />
                   </div>

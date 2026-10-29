@@ -163,8 +163,8 @@ export function SettingsPage({ me, token }: { me: PanelMe; token: string }) {
               <Card>
                 <CardHead title="التطبيقان" />
                 <div className="grid gap-3.5 sm:grid-cols-2">
-                  <Field label="أقل إصدار مسموح · iOS" value={form.ios} onChange={(v) => set('ios', v)} placeholder="1.0.0" ltr error={err('ios')} inputMode="decimal" />
-                  <Field label="أقل إصدار مسموح · أندرويد" value={form.android} onChange={(v) => set('android', v)} placeholder="1.0.0" ltr error={err('android')} inputMode="decimal" />
+                  <Field label="أقل إصدار مسموح · iPhone" value={form.ios} onChange={(v) => set('ios', v)} placeholder="1.0.0" ltr error={err('ios')} inputMode="decimal" />
+                  <Field label="أقل إصدار مسموح · Android" value={form.android} onChange={(v) => set('android', v)} placeholder="1.0.0" ltr error={err('android')} inputMode="decimal" />
                 </div>
                 <div className="mt-2 flex flex-col">
                   <SwitchRow title="إجبار التحديث" line="من يستخدم إصداراً أقدم يرى شاشة «حدّث التطبيق»" checked={form.forceUpdate} onChange={(v) => set('forceUpdate', v)} />

@@ -283,7 +283,7 @@ export function PushPage({ me, token }: { me: PanelMe; token: string }) {
                   placeholder="خصم [النسبة]٪ حتى [تاريخ النهاية]. اطلب والدفع عند الاستلام."
                   multiline
                   error={errors.body || undefined}
-                  hint={`${form.body.length}/${bodyMax} حرفاً. يظهر كاملاً في iOS وأندرويد حتى ${bodyMax} حرفاً`}
+                  hint={`${form.body.length}/${bodyMax} حرفاً. يظهر كاملاً في iPhone وAndroid حتى ${bodyMax} حرفاً`}
                 />
                 <label className="flex min-w-0 flex-col gap-1.5">
                   <span className="text-[13px] font-semibold text-[#5F6373]">يفتح عند الضغط</span>
@@ -529,7 +529,7 @@ function Preview({ title, body }: { title: string; body: string }) {
   const empty = !title.trim() && !body.trim();
   return (
     <div className={cn('flex flex-col gap-3.5', empty && 'opacity-60')}>
-      <span className="text-[12.5px] font-semibold text-[#5F6373]">iOS</span>
+      <span className="text-[12.5px] font-semibold text-[#5F6373]">iPhone</span>
       <div className="flex gap-2.5 rounded-[18px] bg-[rgba(245,245,250,.95)] p-3 shadow-[0_2px_10px_rgba(0,0,0,.08)]">
         <img src="/apple-touch-icon.png" alt="" className="size-[34px] shrink-0 rounded-lg" />
         <span className="flex min-w-0 flex-1 flex-col gap-px">
@@ -540,7 +540,7 @@ function Preview({ title, body }: { title: string; body: string }) {
           <span className="break-words text-[12.5px] text-[#333]">{b}</span>
         </span>
       </div>
-      <span className="text-[12.5px] font-semibold text-[#5F6373]">أندرويد</span>
+      <span className="text-[12.5px] font-semibold text-[#5F6373]">Android</span>
       <div className="flex gap-2.5 rounded-[22px] bg-[#FCF8FF] px-3.5 py-3 shadow-[0_2px_10px_rgba(0,0,0,.08)]">
         <img src="/apple-touch-icon.png" alt="" className="size-6 shrink-0 rounded-full" />
         <span className="flex min-w-0 flex-1 flex-col gap-px">

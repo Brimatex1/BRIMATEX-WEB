@@ -160,7 +160,7 @@ export function CustomerPage({ me, token, customerKey, search }: { me: PanelMe; 
   // The devices registered for notifications, and the app the account last opened.
   const ios = c ? Math.max(c.devices.ios, c.account?.appPlatform === 'ios' ? 1 : 0) : 0;
   const android = c ? Math.max(c.devices.android, c.account?.appPlatform === 'android' ? 1 : 0) : 0;
-  const devices = [ios ? `iOS${ios > 1 ? ` (${ios})` : ''}` : null, android ? `أندرويد${android > 1 ? ` (${android})` : ''}` : null].filter(Boolean);
+  const devices = [ios ? `iPhone${ios > 1 ? ` (${ios})` : ''}` : null, android ? `Android${android > 1 ? ` (${android})` : ''}` : null].filter(Boolean);
 
   return (
     <>
