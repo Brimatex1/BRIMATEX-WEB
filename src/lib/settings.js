@@ -274,6 +274,21 @@ function writeInstagram(list) {
 }
 
 /**
+ * The account's connection (src/lib/instagramAuto.js): its token, which must
+ * never leave the server, and the posts last fetched. Null forgets it all.
+ */
+function readInstagramAuto() {
+  return readFile().instagramAuto || {};
+}
+
+function writeInstagramAuto(state) {
+  const data = readFile();
+  if (state) data.instagramAuto = state;
+  else delete data.instagramAuto;
+  writeFile(data);
+}
+
+/**
  * The apps' and the website's settings (src/lib/appSettings.js owns the
  * rules) when Odoo is not connected - a local or demo server. With Odoo they
  * live in its system parameter brimatex.app.settings instead. Null until saved.
@@ -314,6 +329,8 @@ module.exports = {
   writeBanners,
   readInstagram,
   writeInstagram,
+  readInstagramAuto,
+  writeInstagramAuto,
   getOdoo,
   readPublicOdoo,
   saveOdoo,

@@ -1,4 +1,4 @@
-// Minimal POST helper built on node:http/https.
+// Minimal POST and GET helpers built on node:http/https.
 //
 // Deliberately not `fetch`: Node's global fetch is undici, which compiles its
 // HTTP parser (llhttp) to WebAssembly and instantiates it on first use. On the
@@ -77,4 +77,41 @@ async function postJson(url, data, headers = {}) {
   }
 }
 
-module.exports = { postRaw, postJson };
+/**
+ * GETs `url` and resolves with { status, ok, buffer, url } - `url` being where
+ * it ended after redirects. Each hop must pass `allow`, and the answer may not
+ * pass `maxBytes`: both reject, as do transport failures.
+ */
+function getRaw(url, { timeout = DEFAULT_TIMEOUT_MS, maxBytes = 10_000_000, allow = () => true, redirects = 3 } = {}) {
+  const target = new URL(url);
+  if (!allow(target.href)) return Promise.reject(new Error('عنوان غير مسموح'));
+  const client = target.protocol === 'https:' ? https : http;
+
+  return new Promise((resolve, reject) => {
+    const req = client.request(target, { method: 'GET', timeout }, (res) => {
+      const status = res.statusCode || 0;
+      if (status >= 300 && status < 400 && res.headers.location) {
+        res.resume();
+        if (redirects <= 0) return reject(new Error('تحويلات كثيرة'));
+        const next = new URL(res.headers.location, target).href;
+        return resolve(getRaw(next, { timeout, maxBytes, allow, redirects: redirects - 1 }));
+      }
+      const chunks = [];
+      let size = 0;
+      res.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > maxBytes) return req.destroy(new Error('الرد أكبر من المسموح'));
+        chunks.push(chunk);
+      });
+      res.on('end', () => resolve({ status, ok: status >= 200 && status < 300, buffer: Buffer.concat(chunks), url: target.href }));
+    });
+
+    req.on('timeout', () => {
+      req.destroy(new Error(`انتهت مهلة الاتصال بـ ${target.host}`));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+module.exports = { postRaw, postJson, getRaw };

@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import type { ConversionsApiStatus, FacebookPixelSettings, IpHealth, OdooSettings, WhatsappSupportSettings, YourIp } from '@/types';
 
-import type { PanelMe } from '../api';
+import { panelApi, PanelError, type InstagramAccountStatus, type PanelMe } from '../api';
 import { PageBody, PageHeader } from '../Shell';
 import { Button, Card, Field, Icon, Pill, Skeleton, type IconName } from '../ui';
 
@@ -15,8 +15,8 @@ import { Button, Card, Field, Icon, Pill, Skeleton, type IconName } from '../ui'
  * PreorderSettingsPanel) in the panel's look: the same calls to the same
  * admin-only routes (src/routes/admin.js), the same checks, the same words.
  *
- * Secrets are write-only: Odoo's API key and Meta's Conversions API token are
- * sent once and never come back - the server says only whether one is stored
+ * Secrets are write-only: Odoo's API key, Meta's Conversions API token and the
+ * Instagram token are sent once and never come back - the server says only whether one is stored
  * (and the token's last four characters, to tell two tokens apart).
  */
 export function IntegrationsPage({ me, token }: { me: PanelMe; token: string }) {
@@ -35,6 +35,7 @@ export function IntegrationsPage({ me, token }: { me: PanelMe; token: string }) 
           </div>
           <div className="flex min-w-0 flex-col gap-4">
             <MetaCard token={token} />
+            <InstagramAccountCard token={token} />
           </div>
         </div>
       </PageBody>
@@ -80,6 +81,114 @@ function Note({ children, tone = 'grey' }: { children: ReactNode; tone?: 'grey' 
       {tone === 'red' ? <Icon name="warning" size={17} className="mt-0.5" /> : null}
       <span>{children}</span>
     </p>
+  );
+}
+
+/**
+ * The Instagram account behind the home's «من إنستغرام بريماتكس»
+ * (src/lib/instagramAuto.js). The token is write-only, like the other secrets
+ * here; the server keeps it fresh and refreshes the posts by itself.
+ */
+function InstagramAccountCard({ token }: { token: string }) {
+  const [status, setStatus] = useState<InstagramAccountStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    setError(null);
+    panelApi
+      .instagramAccount(token)
+      .then((d) => setStatus(d.status))
+      .catch((err: Error) => setError(err.message));
+  }, [token]);
+  useEffect(load, [load]);
+
+  async function run(action: () => Promise<{ status: InstagramAccountStatus }>, done: string) {
+    setBusy(true);
+    try {
+      setStatus((await action()).status);
+      setValue('');
+      toast.success(done);
+    } catch (err) {
+      toast.error(err instanceof PanelError ? err.message : 'تعذّر الحفظ');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function save(e: FormEvent) {
+    e.preventDefault();
+    if (value.trim()) void run(() => panelApi.connectInstagram(token, value.trim()), 'رُبط الحساب');
+  }
+
+  const title = 'إنستغرام';
+  if (error) return <LoadError icon="image" title={title} error={error} onRetry={load} />;
+  if (!status) return <CardSkeleton icon="image" title={title} />;
+
+  return (
+    <Card className="flex flex-col gap-3.5">
+      <div className="flex items-start justify-between gap-3">
+        <IntegrationHead icon="image" title={title} line="آخر المنشورات في الرئيسية، في التطبيقين والموقع، تتحدث تلقائياً." />
+        <Pill tone={status.connected ? (status.lastError ? 'amber' : 'green') : 'grey'}>
+          {status.connected ? (status.lastError ? 'يحتاج مراجعة' : 'مربوط') : 'غير مربوط'}
+        </Pill>
+      </div>
+
+      {status.connected ? (
+        <p className="text-[13px] leading-relaxed text-[#3B3E4C]">
+          {status.username ? <bdi dir="ltr">@{status.username}</bdi> : null}
+          {status.syncedAt ? ` · ${status.count} منشورات · آخر تحديث ${new Date(status.syncedAt).toLocaleString('ar-LY')}` : ' · لم تُجلب المنشورات بعد'}
+        </p>
+      ) : null}
+      {status.lastError ? (
+        <p className="text-[12.5px] leading-relaxed text-[#A12020]">
+          آخر محاولة ({new Date(status.lastError.at).toLocaleString('ar-LY')}): {status.lastError.message}. تبقى آخر المنشورات ظاهرة.
+        </p>
+      ) : null}
+
+      <form onSubmit={save} className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-end gap-2">
+          <Field
+            label="مفتاح إنستغرام"
+            aside={status.tokenLast4 ? '(محفوظ)' : undefined}
+            type="password"
+            value={value}
+            onChange={setValue}
+            placeholder={status.tokenLast4 ? `محفوظ — ينتهي بـ ${status.tokenLast4}` : 'IG…'}
+            ltr
+            autoComplete="off"
+            spellCheck={false}
+            className="min-w-[200px] flex-1"
+          />
+          <Button type="submit" disabled={busy || !value.trim()} aria-busy={busy}>
+            {status.connected ? 'استبدال' : 'ربط الحساب'}
+          </Button>
+        </div>
+        <span className="text-[12.5px] leading-relaxed text-[#5F6373]">
+          من تطبيق Meta ← Instagram ← API setup with Instagram login ← Generate token. يُحفظ على الخادم ولا يظهر مرة أخرى، ويجدّده الخادم بنفسه.
+        </span>
+      </form>
+
+      {status.connected ? (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void run(() => panelApi.syncInstagram(token), 'انتهى التحديث')}>
+            <Icon name="refresh" size={17} /> تحديث الآن
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={dangerClass}
+            disabled={busy}
+            onClick={() => {
+              if (window.confirm('إلغاء ربط الحساب؟ تُحذف صور المنشورات المنسوخة، وتظهر الصور اليدوية إن وُجدت.')) void run(() => panelApi.disconnectInstagram(token), 'أُلغي الربط');
+            }}
+          >
+            إلغاء الربط
+          </Button>
+        </div>
+      ) : null}
+    </Card>
   );
 }
 

@@ -967,6 +967,7 @@ function DateField({ label, value, onChange, error, placeholder }: { label: stri
 function InstagramCard({ token }: { token: string }) {
   const [posts, setPosts] = useState<InstagramPost[]>([]);
   const [max, setMax] = useState(5);
+  const [connected, setConnected] = useState(false);
   const [link, setLink] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -978,6 +979,7 @@ function InstagramCard({ token }: { token: string }) {
       .then((r) => {
         setPosts(r.posts);
         setMax(r.max);
+        setConnected(r.connected);
       })
       .catch((err: Error) => toast.error(err.message))
       .finally(() => setLoading(false));
@@ -1015,12 +1017,17 @@ function InstagramCard({ token }: { token: string }) {
 
   return (
     <Card>
-      <CardHead title="من إنستغرام بريماتكس" aside={<Pill tone="grey">الموقع</Pill>} />
+      <CardHead title="من إنستغرام بريماتكس" aside={<Pill tone="grey">التطبيقان والموقع</Pill>} />
+      {connected ? (
+        <p className="-mt-2 mb-3 rounded-lg bg-[#EEF0FA] px-3 py-2 text-[12.5px] leading-relaxed text-dark-ocean">
+          الحساب مربوط: يظهر آخر المنشورات من إنستغرام تلقائياً. الصور هنا تظهر فقط إن لم يتوفر منشور من الحساب.
+        </p>
+      ) : null}
       <p className="-mt-2 mb-3 text-[12.5px] leading-relaxed text-[#5F6373]">
         حتى {max} صور مربّعة، وكل صورة تفتح منشورها على إنستغرام. انسخ رابط المنشور (مشاركة ← نسخ الرابط) ثم اختر صورته.
       </p>
       {loading ? <Skeleton className="h-16" /> : null}
-      {!loading && posts.length === 0 ? <p className="py-2 text-sm text-[#5F6373]">لا صور بعد، فالقسم مخفي في الموقع.</p> : null}
+      {!loading && posts.length === 0 ? <p className="py-2 text-sm text-[#5F6373]">لا صور بعد.</p> : null}
       <ul className="flex flex-col gap-2">
         {posts.map((p, i) => (
           <li key={p.id} className="flex items-center gap-3 rounded-xl p-2 shadow-[inset_0_0_0_1px_#E4E6EE]">

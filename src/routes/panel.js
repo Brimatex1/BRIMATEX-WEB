@@ -34,6 +34,7 @@ const perks = require('../lib/perks');
 const devices = require('../lib/devices');
 const home = require('../lib/home');
 const instagram = require('../lib/instagram');
+const instagramAuto = require('../lib/instagramAuto');
 const panel = require('../lib/panel');
 const appSettings = require('../lib/appSettings');
 const quizRules = require('../lib/quizRules');
@@ -473,7 +474,7 @@ function createPanelRoutes({ isValidPhone = () => true } = {}) {
       const reply = (result) => (result.error ? sendJson(res, result.status, { error: result.error }) : sendJson(res, 200, result));
 
       if (req.method === 'GET' && url.pathname === '/api/panel/home/instagram') {
-        return sendJson(res, 200, { posts: instagram.list(), max: instagram.MAX_POSTS });
+        return sendJson(res, 200, { posts: instagram.list(), max: instagram.MAX_POSTS, connected: instagramAuto.status().connected });
       }
       if (req.method === 'POST' && url.pathname === '/api/panel/home/instagram') {
         const payload = await readJson(4_500_000);
@@ -652,6 +653,33 @@ function createPanelRoutes({ isValidPhone = () => true } = {}) {
       }
 
       return sendJson(res, 404, { error: 'غير موجود' });
+    }
+
+    // ---- الربط والتكاملات: the Instagram account behind the home's posts (admin only) ----
+
+    if (url.pathname === '/api/panel/instagram-account' || url.pathname === '/api/panel/instagram-account/sync') {
+      const user = await staffFor(req, res, 'integrations');
+      if (!user) return;
+      if (req.method === 'GET' && url.pathname === '/api/panel/instagram-account') {
+        return sendJson(res, 200, { status: instagramAuto.status() });
+      }
+      if (req.method === 'PUT' && url.pathname === '/api/panel/instagram-account') {
+        const body = await jsonBody(req, res);
+        if (!body) return;
+        const result = await instagramAuto.connect(body.token);
+        if (result.error) return sendJson(res, result.code, { error: result.error });
+        console.log(`[panel] Instagram connected by ${user.id}`);
+        return sendJson(res, 200, { status: result.status });
+      }
+      if (req.method === 'DELETE' && url.pathname === '/api/panel/instagram-account') {
+        console.log(`[panel] Instagram disconnected by ${user.id}`);
+        return sendJson(res, 200, { status: instagramAuto.disconnect() });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/panel/instagram-account/sync') {
+        await instagramAuto.sync();
+        return sendJson(res, 200, { status: instagramAuto.status() });
+      }
+      return sendJson(res, 405, { error: 'غير مسموح' });
     }
 
     // ---- The team: who may open the panel (admin only) ----

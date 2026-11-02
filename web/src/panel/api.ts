@@ -194,6 +194,16 @@ export interface SettingsPayload {
 }
 
 export type BannerPlatform = 'ios' | 'android' | 'web';
+/** الربط والتكاملات: the Instagram account behind the home's posts. The token never comes back. */
+export interface InstagramAccountStatus {
+  connected: boolean;
+  username: string | null;
+  tokenLast4: string | null;
+  syncedAt: string | null;
+  count: number;
+  lastError: { at: string; message: string } | null;
+}
+
 export type HomeSectionKey = 'hero' | 'offers' | 'categories' | 'recent' | 'bestsellers' | 'quiz' | 'instagram';
 
 /** A banner as stored (src/lib/home.js) - the website draws the text over `photo`; the apps show `appImage`. */
@@ -461,7 +471,12 @@ export const panelApi = {
   /** A banner picture as a data URL → its address on the server. */
   uploadHomeImage: (token: string, imageDataUrl: string, kind: 'photo' | 'app') =>
     call<{ url: string; width: number; height: number }>(token, '/api/panel/home/images', { method: 'POST', body: JSON.stringify({ imageDataUrl, kind }) }),
-  instagram: (token: string) => call<{ posts: InstagramPost[]; max: number }>(token, '/api/panel/home/instagram'),
+  instagram: (token: string) => call<{ posts: InstagramPost[]; max: number; connected: boolean }>(token, '/api/panel/home/instagram'),
+  instagramAccount: (token: string) => call<{ status: InstagramAccountStatus }>(token, '/api/panel/instagram-account'),
+  connectInstagram: (token: string, accountToken: string) =>
+    call<{ status: InstagramAccountStatus }>(token, '/api/panel/instagram-account', { method: 'PUT', body: JSON.stringify({ token: accountToken }) }),
+  disconnectInstagram: (token: string) => call<{ status: InstagramAccountStatus }>(token, '/api/panel/instagram-account', { method: 'DELETE' }),
+  syncInstagram: (token: string) => call<{ status: InstagramAccountStatus }>(token, '/api/panel/instagram-account/sync', { method: 'POST' }),
   addInstagram: (token: string, imageDataUrl: string, link: string) =>
     call<{ post: InstagramPost }>(token, '/api/panel/home/instagram', { method: 'POST', body: JSON.stringify({ imageDataUrl, link }) }),
   reorderInstagram: (token: string, ids: string[]) =>

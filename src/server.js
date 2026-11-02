@@ -20,6 +20,7 @@ const path = require('path');
 const odoo = require('./lib/odoo');
 const banners = require('./lib/banners');
 const instagram = require('./lib/instagram');
+const instagramAuto = require('./lib/instagramAuto');
 const share = require('./lib/share');
 const perksLib = require('./lib/perks');
 const distributorsLib = require('./lib/distributors');
@@ -311,9 +312,12 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { banners: banners.list() });
   }
 
-  // The home page's «من إنستغرام بريماتكس» - set from the dashboard (src/lib/instagram.js).
+  // The home page's «من إنستغرام بريماتكس»: the account's own posts when connected
+  // (src/lib/instagramAuto.js), else the ones set by hand (src/lib/instagram.js).
   if (req.method === 'GET' && url.pathname === '/api/instagram') {
-    return sendJson(res, 200, { posts: instagram.list() });
+    instagramAuto.refreshIfOld();
+    const fromAccount = instagramAuto.posts();
+    return sendJson(res, 200, { posts: fromAccount.length ? fromAccount : instagram.list() });
   }
 
   const imageMatch = url.pathname.match(/^\/api\/products\/(\d+)\/image$/);
